@@ -120,9 +120,14 @@ export function AppShell() {
             <div className="max-h-96 overflow-y-auto p-2">
               {!query && <div className="px-3 py-6 text-center text-sm text-muted-foreground">Search contacts, orders and CRM records.</div>}
               {query && results.length === 0 && <div className="px-3 py-6 text-center text-sm text-muted-foreground">No results found.</div>}
-              {results.map((r:any) => (
-                <button key={r.id} onClick={() => { if (r.type === "contact") navigate(`/contacts/${r.id}`); setCommandOpen(false); setQuery(""); }} className="flex w-full items-center justify-between rounded-lg px-3 py-3 text-left hover:bg-muted">
-                  <div><div className="font-medium">{r.title}</div><div className="text-xs text-muted-foreground">{r.subtitle}</div></div><span className="rounded-full bg-muted px-2 py-1 text-[10px] uppercase">{r.type}</span>
+              {results.map((r) => (
+                <button key={r.id} onClick={() => {
+                  const target = r.params?.contactId ? "/contacts/" + r.params.contactId : r.to;
+                  navigate(target);
+                  setCommandOpen(false);
+                  setQuery("");
+                }} className="flex w-full items-center justify-between rounded-lg px-3 py-3 text-left hover:bg-muted">
+                  <div><div className="font-medium">{r.label}</div><div className="text-xs text-muted-foreground">{r.sublabel}</div></div><span className="rounded-full bg-muted px-2 py-1 text-[10px] uppercase">{r.group}</span>
                 </button>
               ))}
             </div>
