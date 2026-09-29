@@ -1,6 +1,6 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import { createInitialDatabase, type Database } from "@/domain/database";
-import type { Campaign, Channel, Contact, DeliveryStatus, FulfilmentStatus, LeadStage, OrderStatus, OrderSummary, PaymentMethod, Task } from "@/domain/types";
+import type { AdCampaign, Channel, Contact, DeliveryStatus, FulfilmentStatus, LeadStage, OrderStatus, OrderSummary, PaymentMethod, Task } from "@/domain/types";
 
 type NewContact = Pick<Contact, "firstName" | "lastName" | "phone" | "city" | "countryCode"> & { email?: string };
 type NewTask = Pick<Task, "title" | "dueAt" | "priority" | "type"> & { contactId?: string; assigneeId?: string };
@@ -14,7 +14,7 @@ interface AppDataContextValue {
   updateOrderStatus: (orderId: string, status: OrderStatus) => void;
   updateFulfilmentStatus: (orderId: string, status: FulfilmentStatus) => void;
   updateDeliveryStatus: (deliveryId: string, status: DeliveryStatus) => void;
-  updateCampaignStatus: (campaignId: string, status: Campaign["status"]) => void;
+  updateCampaignStatus: (campaignId: string, status: AdCampaign["status"]) => void;
   updateProductStock: (productId: string, stock: number) => void;
   toggleTask: (taskId: string) => void;
   addTask: (input: NewTask) => Task;
@@ -100,7 +100,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       setDb(current => ({ ...current, deliveries: current.deliveries.map(d => d.id === deliveryId ? { ...d, status, deliveredAt: status === "delivered" ? new Date().toISOString() : d.deliveredAt } : d) }));
     },
     updateCampaignStatus(campaignId, status) {
-      setDb(current => ({ ...current, campaigns: current.campaigns.map(c => c.id === campaignId ? { ...c, status } : c) }));
+      setDb(current => ({ ...current, adCampaigns: current.adCampaigns.map(c => c.id === campaignId ? { ...c, status } : c) }));
     },
     updateProductStock(productId, stock) {
       setDb(current => ({ ...current, products: current.products.map(p => p.id === productId ? { ...p, stock: Math.max(0, Math.floor(stock)) } : p) }));
