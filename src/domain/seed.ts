@@ -9,7 +9,8 @@
 import type {
   Activity,
   AcquisitionAttribution,
-  Campaign,
+  AdCampaign,
+  MarketingCampaign,
   ChannelIdentity,
   Contact,
   Conversation,
@@ -560,12 +561,19 @@ export const segments: Segment[] = [
 
 /* ------------------------------------------------------------ campaigns */
 
-export const campaigns: Campaign[] = [
+export const adCampaigns: AdCampaign[] = [
   { id: "cp_1", name: "Q3 Bone Straight Retarget", platform: "meta", status: "active", spend: 1840000, revenue: 7420000, leads: 214, issue: undefined },
   { id: "cp_2", name: "Lagos Wig Launch", platform: "meta", status: "review_needed", spend: 960000, revenue: 1180000, leads: 88, issue: "ROAS below 1.5 for 5 days" },
   { id: "cp_3", name: "TikTok Curl Hook", platform: "tiktok", status: "active", spend: 1250000, revenue: 4980000, leads: 301, issue: undefined },
   { id: "cp_4", name: "Search — Human Hair Lagos", platform: "google", status: "paused", spend: 410000, revenue: 690000, leads: 41, issue: "Paused — budget exhausted" },
   { id: "cp_5", name: "Diaspora Bundle Push", platform: "meta", status: "review_needed", spend: 720000, revenue: 1010000, leads: 57, issue: "Frequency above 4.2" },
+];
+
+export const marketingCampaigns: MarketingCampaign[] = [
+  { id: "mc_1", name: "Dormant Customer Reactivation", channel: "whatsapp", status: "completed", segmentId: "sg_2", sent: 142, delivered: 136, responses: 31, orders: 9, scheduledAt: daysAgo(7) },
+  { id: "mc_2", name: "September Restock Alert", channel: "whatsapp", status: "running", segmentId: "sg_5", sent: 36, delivered: 34, responses: 11, orders: 5, scheduledAt: daysAgo(0, -2) },
+  { id: "mc_3", name: "Diaspora Weekend Offer", channel: "email", status: "scheduled", segmentId: "sg_4", sent: 0, delivered: 0, responses: 0, orders: 0, scheduledAt: daysAhead(2) },
+  { id: "mc_4", name: "COD Recovery Reminder", channel: "sms", status: "draft", segmentId: "sg_3", sent: 0, delivered: 0, responses: 0, orders: 0 },
 ];
 
 /* --------------------------------------------------------- notifications */
