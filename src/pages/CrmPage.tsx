@@ -32,7 +32,15 @@ export function CrmPage() {
       {active === "customers" && <Contacts customersOnly />}
       {active === "leads" && <Leads />}
       {active === "pipeline" && <Pipeline />}
-      {!["overview","contacts","customers","leads","pipeline"].includes(active) && <Reserved name={CRM_NAV.find(([id]) => id === active)?.[1] || active} />}
+      {active === "deals" && <Deals />}
+      {active === "activities" && <Activities />}
+      {active === "follow-ups" && <FollowUps />}
+      {active === "product-interests" && <ProductInterests />}
+      {active === "segments" && <Segments />}
+      {active === "smart-lists" && <SmartLists />}
+      {active === "duplicates" && <Duplicates />}
+      {active === "imports" && <Imports />}
+      {!["overview","contacts","customers","leads","pipeline","deals","activities","follow-ups","product-interests","segments","smart-lists","duplicates","imports"].includes(active) && <Reserved name={CRM_NAV.find(([id]) => id === active)?.[1] || active} />}
     </div>
   );
 }
@@ -162,6 +170,67 @@ function Pipeline() {
       <div className="space-y-2">{(groups[stage.id] || []).slice(0,12).map((l) => <div key={l.id} className="rounded-lg border bg-card p-3 shadow-sm"><Link to={"/contacts/" + l.contact.id} className="font-semibold hover:text-primary">{fullName(l.contact)}</Link><div className="mt-1 text-xs text-muted-foreground">{l.productInterest || SOURCE_LABELS[l.source]}</div><div className="mt-3 flex items-center justify-between"><span className="text-sm font-semibold">{formatCurrency(l.value,"NGN",{compact:true})}</span><select value={l.stage} onChange={(e) => updateLeadStage(l.id,e.target.value as LeadStage)} className="max-w-28 rounded border bg-background p-1 text-[11px]">{LEAD_STAGES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select></div></div>)}</div>
     </div>)}
   </div></div>;
+}
+
+
+function Deals() {
+  const { db } = useAppData();
+  return <div className="p-4 md:p-6"><SectionCard title="Deals" subtitle="Open and closed opportunities linked to one customer identity"><div className="space-y-2">{db.opportunities.map(o => <div key={o.id} className="grid gap-2 rounded-lg border p-3 md:grid-cols-[1.4fr_.8fr_.8fr_.7fr] md:items-center"><div><div className="font-semibold">{o.title}</div><Link to={"/contacts/"+o.contactId} className="text-xs text-primary">Open customer</Link></div><div><div className="text-xs text-muted-foreground">Value</div><div className="font-semibold">{formatCurrency(o.value,"NGN")}</div></div><div><div className="text-xs text-muted-foreground">Stage</div><div className="capitalize">{o.stage.replaceAll("_"," ")}</div></div><Pill tone={o.status==="won"?"success":o.status==="lost"?"danger":"brand"}>{o.status}</Pill></div>)}</div></SectionCard></div>;
+}
+
+function Activities() {
+  const { db } = useAppData();
+  const rows=[...db.activities].sort((a,b)=>+new Date(b.at)-+new Date(a.at));
+  return <div className="p-4 md:p-6"><SectionCard title="Activity stream" subtitle="Acquisition, sales, order, delivery, payment and marketing activity"><div className="space-y-2">{rows.slice(0,50).map(a => <div key={a.id} className="flex gap-3 rounded-lg border p-3"><div className="min-w-0 flex-1"><div className="font-medium">{a.title}</div><div className="text-xs text-muted-foreground">{a.description || a.kind}</div></div><div className="text-xs text-muted-foreground">{formatDateTime(a.at)}</div></div>)}</div></SectionCard></div>;
+}
+
+function FollowUps() {
+  const { db, toggleTask, addTask } = useAppData();
+  const [title,setTitle]=useState("");
+  const [due,setDue]=useState(() => new Date(Date.now()+86400000).toISOString().slice(0,16));
+  const submit=(e:React.FormEvent)=>{e.preventDefault();if(!title.trim())return;addTask({title:title.trim(),dueAt:new Date(due).toISOString(),priority:"normal",type:"follow_up"});setTitle("");};
+  return <div className="space-y-4 p-4 md:p-6"><form onSubmit={submit} className="flex flex-col gap-2 rounded-xl border bg-card p-4 sm:flex-row"><input value={title} onChange={e=>setTitle(e.target.value)} placeholder="New follow-up..." className="min-w-0 flex-1 rounded-lg border bg-background px-3 py-2 text-sm"/><input type="datetime-local" value={due} onChange={e=>setDue(e.target.value)} className="rounded-lg border bg-background px-3 py-2 text-sm"/><button className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">Add follow-up</button></form><SectionCard title="Follow-ups"><div className="space-y-2">{db.tasks.map(task => <button key={task.id} onClick={()=>toggleTask(task.id)} className="flex w-full items-center gap-3 rounded-lg border p-3 text-left hover:bg-muted"><span className={"h-4 w-4 rounded border "+(task.status==="done"?"bg-primary":"")}/><div className="min-w-0 flex-1"><div className={task.status==="done"?"line-through opacity-60":""}>{task.title}</div><div className="text-xs text-muted-foreground">{formatDateTime(task.dueAt)} · {task.priority}</div></div><Pill tone={task.status==="done"?"success":"neutral"}>{task.status}</Pill></button>)}</div></SectionCard></div>;
+}
+
+function ProductInterests() {
+  const { db } = useAppData();
+  return <div className="p-4 md:p-6"><SectionCard title="Product interests" subtitle="Separate intent signals from completed purchases"><div className="space-y-2">{db.productInterests.map(i => <div key={i.id} className="grid gap-2 rounded-lg border p-3 sm:grid-cols-[1fr_1fr_.8fr_.7fr] sm:items-center"><Link to={"/contacts/"+i.contactId} className="font-medium hover:text-primary">{db.contacts.find(c=>c.id===i.contactId) ? fullName(db.contacts.find(c=>c.id===i.contactId)!) : "Unknown contact"}</Link><div>{i.productName}</div><Pill tone="brand">{i.intent.replaceAll("_"," ")}</Pill><div className="text-xs text-muted-foreground">{formatDateTime(i.capturedAt)}</div></div>)}</div></SectionCard></div>;
+}
+
+function Segments() {
+  const { db }=useAppData();
+  return <div className="grid gap-3 p-4 md:grid-cols-2 md:p-6">{db.segments.map(s=><div key={s.id} className="rounded-xl border bg-card p-4"><div className="flex items-start justify-between gap-3"><div><div className="font-semibold">{s.name}</div><div className="mt-1 text-xs text-muted-foreground">{s.description}</div></div><Pill tone={s.type==="smart"?"brand":"neutral"}>{s.type}</Pill></div><div className="mt-4 text-2xl font-bold">{s.memberCount}</div><div className="text-xs text-muted-foreground">{s.rulesSummary}</div></div>)}</div>;
+}
+
+function SmartLists() {
+  const { db }=useAppData();
+  const smart=db.segments.filter(s=>s.type==="smart");
+  return <div className="grid gap-3 p-4 md:grid-cols-2 md:p-6">{smart.map(s=><div key={s.id} className="rounded-xl border bg-card p-4"><div className="font-semibold">{s.name}</div><div className="mt-1 text-sm text-muted-foreground">{s.rulesSummary}</div><div className="mt-4 text-xl font-bold">{s.memberCount} members</div></div>)}</div>;
+}
+
+function Duplicates() {
+  const { db }=useAppData();
+  const groups=useMemo(()=>{
+    const byKey=new Map<string,typeof db.contacts>();
+    db.contacts.forEach(c=>{[c.phone,c.email].filter(Boolean).forEach(v=>{const key=String(v).toLowerCase();const arr=byKey.get(key)??[];arr.push(c);byKey.set(key,arr);});});
+    return [...byKey.entries()].filter(([,rows])=>rows.length>1);
+  },[db]);
+  return <div className="p-4 md:p-6"><SectionCard title="Potential duplicates" subtitle="Matches are suggested; records are never merged by name alone"><div className="space-y-3">{groups.length?groups.map(([key,rows])=><div key={key} className="rounded-lg border p-3"><div className="text-xs font-semibold text-muted-foreground">{key}</div><div className="mt-2 flex flex-wrap gap-2">{rows.map(c=><Link key={c.id} to={"/contacts/"+c.id} className="rounded-lg bg-muted px-3 py-2 text-sm">{fullName(c)}</Link>)}</div></div>):<div className="py-8 text-center text-sm text-muted-foreground">No duplicate phone/email identities detected.</div>}</div></SectionCard></div>;
+}
+
+function Imports() {
+  const { addContact }=useAppData();
+  const [result,setResult]=useState("");
+  const onFile=async(e:React.ChangeEvent<HTMLInputElement>)=>{
+    const file=e.target.files?.[0]; if(!file)return;
+    const text=await file.text(); const lines=text.split(/\r?\n/).filter(Boolean); if(lines.length<2){setResult("No data rows found.");return;}
+    const headers=lines[0].split(",").map(h=>h.trim().toLowerCase());
+    let imported=0, failed=0;
+    for(const line of lines.slice(1)){const cells=line.split(",").map(x=>x.trim());const row=Object.fromEntries(headers.map((h,i)=>[h,cells[i]??""]));try{if(!row.firstname&&!row.first_name)throw new Error();addContact({firstName:row.firstname||row.first_name,lastName:row.lastname||row.last_name||"",phone:row.phone||"",email:row.email||undefined,city:row.city||"",countryCode:row.countrycode||row.country_code||"NG"});imported++;}catch{failed++;}}
+    setResult(`Imported ${imported} contacts${failed?`; ${failed} rows failed`:""}.`);
+    e.target.value="";
+  };
+  return <div className="p-4 md:p-6"><SectionCard title="Import contacts" subtitle="CSV columns: firstName, lastName, phone, email, city, countryCode"><div className="rounded-xl border border-dashed p-8 text-center"><input type="file" accept=".csv,text/csv" onChange={onFile} className="mx-auto block text-sm"/>{result&&<div className="mt-4 text-sm font-medium">{result}</div>}</div></SectionCard></div>;
 }
 
 function Reserved({ name }: { name: string }) {
