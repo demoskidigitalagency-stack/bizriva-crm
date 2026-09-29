@@ -12,10 +12,15 @@ export function KpiCard({ label, value, note, tone = "default" }: { label: strin
   return <div className="rounded-xl border bg-card p-4 shadow-sm"><div className="text-[11px] font-semibold uppercase tracking-[.12em] text-muted-foreground">{label}</div><div className={`mt-2 text-2xl font-bold num ${toneClass}`}>{value}</div>{note && <div className="mt-1 text-xs text-muted-foreground">{note}</div>}</div>;
 }
 
-export function Pill({ children, tone = "neutral" }: { children: ReactNode; tone?: "neutral"|"brand"|"success"|"warning"|"danger"|"info" }) {
+export function Pill({ children, tone = "neutral" }: { children: ReactNode; tone?: "neutral"|"brand"|"success"|"warning"|"danger"|"info"|"purple" }) {
   const cls = {
-    neutral:"bg-muted text-muted-foreground", brand:"bg-accent text-accent-foreground", success:"bg-success/15 text-success",
-    warning:"bg-warning/20 text-warning-foreground", danger:"bg-destructive/10 text-destructive", info:"bg-info/10 text-info"
+    neutral:"bg-muted text-muted-foreground",
+    brand:"bg-accent text-accent-foreground",
+    success:"bg-success/15 text-success",
+    warning:"bg-warning/20 text-warning-foreground",
+    danger:"bg-destructive/10 text-destructive",
+    info:"bg-info/10 text-info",
+    purple:"bg-violet-500/10 text-violet-700 dark:text-violet-300"
   }[tone];
   return <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${cls}`}>{children}</span>;
 }
