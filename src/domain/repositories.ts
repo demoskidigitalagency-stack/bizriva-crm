@@ -293,7 +293,7 @@ export function getDashboard(db: Database, filters: DashboardFilters) {
     (l) => scopedIds.has(l.contactId) && isWithinDays(l.createdAt, rangeDays),
   );
   const wonLeads = newLeads.filter((l) => l.stage === "won");
-  const adSpend = db.campaigns.reduce((s, c) => s + c.spend, 0) * (rangeDays / 30);
+  const adSpend = db.adCampaigns.reduce((s, c) => s + c.spend, 0) * (rangeDays / 30);
   const codOutstanding = db.payments
     .filter((p) => p.status === "cod_pending" && scopedIds.has(p.contactId))
     .reduce((s, p) => s + p.amount, 0);
@@ -351,7 +351,7 @@ export function getDashboard(db: Database, filters: DashboardFilters) {
         };
       })
       .sort((a, b) => b.revenue - a.revenue),
-    ads: db.campaigns.map((c) => ({ ...c, roas: c.spend ? c.revenue / c.spend : 0 })),
+    ads: db.adCampaigns.map((c) => ({ ...c, roas: c.spend ? c.revenue / c.spend : 0 })),
     fulfilment: {
       pendingConfirmation: db.orders.filter((o) => o.orderStatus === "needs_confirmation").length,
       awaitingDispatch: db.orders.filter((o) => o.fulfilmentStatus === "packed").length,
@@ -422,7 +422,7 @@ export function getTodayQueues(db: Database): Queue[] {
   const cod = db.payments.filter((p) => p.status === "cod_pending");
   const remit = db.payments.filter((p) => p.remittanceDueAt && !p.remitted);
   const lowStock = db.products.filter((p) => p.stock <= p.reorderLevel);
-  const badCampaigns = db.campaigns.filter((c) => c.status === "review_needed");
+  const badCampaigns = db.adCampaigns.filter((c) => c.status === "review_needed");
 
   return [
     {
