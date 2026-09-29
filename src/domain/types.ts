@@ -66,13 +66,25 @@ export type LeadOutcome =
 export type SlaStatus = "on_track" | "due_soon" | "breached" | "met";
 
 export type OrderStatus =
-  | "pending_confirmation"
+  | "draft"
+  | "needs_confirmation"
   | "confirmed"
-  | "awaiting_dispatch"
+  | "processing"
+  | "completed"
+  | "cancelled"
+  | "on_hold";
+
+export type FulfilmentStatus =
+  | "unfulfilled"
+  | "assigned"
+  | "packed"
+  | "dispatched"
   | "in_transit"
   | "delivered"
+  | "attempted"
+  | "failed"
   | "returned"
-  | "cancelled";
+  | "rescheduled";
 
 export type DeliveryStatus =
   | "not_scheduled"
@@ -81,9 +93,18 @@ export type DeliveryStatus =
   | "in_transit"
   | "delivered"
   | "failed"
-  | "returned";
+  | "returned"
+  | "rescheduled";
 
-export type PaymentStatus = "unpaid" | "part_paid" | "paid" | "refunded" | "cod_pending";
+export type PaymentStatus =
+  | "unpaid"
+  | "partially_paid"
+  | "paid"
+  | "cod_pending"
+  | "cod_collected"
+  | "cod_remitted"
+  | "partially_refunded"
+  | "refunded";
 
 export type PaymentMethod = "cash_on_delivery" | "bank_transfer" | "card" | "wallet" | "ussd";
 
@@ -259,7 +280,8 @@ export interface OrderSummary {
   reference: string;
   contactId: ID;
   placedAt: string;
-  status: OrderStatus;
+  orderStatus: OrderStatus;
+  fulfilmentStatus: FulfilmentStatus;
   itemsCount: number;
   total: number;
   cogs: number;
@@ -402,13 +424,26 @@ export const CHANNEL_LABELS: Record<Channel, string> = {
 };
 
 export const ORDER_STATUS_META: Record<OrderStatus, { label: string; tone: BadgeTone }> = {
-  pending_confirmation: { label: "Pending Confirmation", tone: "warning" },
+  draft: { label: "Draft", tone: "neutral" },
+  needs_confirmation: { label: "Needs Confirmation", tone: "warning" },
   confirmed: { label: "Confirmed", tone: "info" },
-  awaiting_dispatch: { label: "Awaiting Dispatch", tone: "brand" },
+  processing: { label: "Processing", tone: "brand" },
+  completed: { label: "Completed", tone: "success" },
+  cancelled: { label: "Cancelled", tone: "neutral" },
+  on_hold: { label: "On Hold", tone: "warning" },
+};
+
+export const FULFILMENT_STATUS_META: Record<FulfilmentStatus, { label: string; tone: BadgeTone }> = {
+  unfulfilled: { label: "Unfulfilled", tone: "neutral" },
+  assigned: { label: "Assigned", tone: "info" },
+  packed: { label: "Packed", tone: "brand" },
+  dispatched: { label: "Dispatched", tone: "brand" },
   in_transit: { label: "In Transit", tone: "info" },
   delivered: { label: "Delivered", tone: "success" },
+  attempted: { label: "Attempted", tone: "warning" },
+  failed: { label: "Failed", tone: "danger" },
   returned: { label: "Returned", tone: "danger" },
-  cancelled: { label: "Cancelled", tone: "neutral" },
+  rescheduled: { label: "Rescheduled", tone: "warning" },
 };
 
 export const DELIVERY_STATUS_META: Record<DeliveryStatus, { label: string; tone: BadgeTone }> = {
@@ -423,10 +458,13 @@ export const DELIVERY_STATUS_META: Record<DeliveryStatus, { label: string; tone:
 
 export const PAYMENT_STATUS_META: Record<PaymentStatus, { label: string; tone: BadgeTone }> = {
   unpaid: { label: "Unpaid", tone: "danger" },
-  part_paid: { label: "Part Paid", tone: "warning" },
+  partially_paid: { label: "Partially Paid", tone: "warning" },
   paid: { label: "Paid", tone: "success" },
-  refunded: { label: "Refunded", tone: "neutral" },
   cod_pending: { label: "COD Pending", tone: "warning" },
+  cod_collected: { label: "COD Collected", tone: "info" },
+  cod_remitted: { label: "COD Remitted", tone: "success" },
+  partially_refunded: { label: "Partially Refunded", tone: "warning" },
+  refunded: { label: "Refunded", tone: "neutral" },
 };
 
 export const SLA_META: Record<SlaStatus, { label: string; tone: BadgeTone }> = {
