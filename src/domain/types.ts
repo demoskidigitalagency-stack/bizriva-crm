@@ -137,7 +137,7 @@ export interface TeamMember {
   id: ID;
   name: string;
   email: string;
-  role: "owner" | "manager" | "sales_rep" | "support" | "fulfilment" | "finance";
+  role: "owner" | "admin" | "marketing_manager" | "marketer" | "sales_manager" | "sales_agent" | "logistics_manager" | "delivery_agent" | "inventory_manager" | "finance" | "support_agent" | "analyst";
   avatarColor: string;
   active: boolean;
 }
