@@ -97,14 +97,10 @@ create table if not exists public.messages (
   direction text not null check (direction in ('in','out')),
   body text not null default '',
   author_user_id uuid references auth.users(id),
-  sent_at timestamptz not null default now(),
-  unique(workspace_id, channel_placeholder(external_message_id))
+  sent_at timestamptz not null default now()
 );
 
--- helper wrapper used only to avoid duplicate nullable external ids; replace with provider-specific unique indexes when needed
-drop function if exists public.channel_placeholder(text);
-create function public.channel_placeholder(v text) returns text
-language sql immutable as $$ select coalesce(v, gen_random_uuid()::text) $$;
+create unique index if not exists messages_external_id_unique on public.messages(workspace_id, external_message_id) where external_message_id is not null;
 
 create table if not exists public.products (
   id uuid primary key default gen_random_uuid(),
