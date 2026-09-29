@@ -1,14 +1,16 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import { createInitialDatabase, type Database } from "@/domain/database";
-import type { Campaign, Contact, DeliveryStatus, FulfilmentStatus, LeadStage, OrderStatus, Task } from "@/domain/types";
+import type { Campaign, Channel, Contact, DeliveryStatus, FulfilmentStatus, LeadStage, OrderStatus, OrderSummary, PaymentMethod, Task } from "@/domain/types";
 
 type NewContact = Pick<Contact, "firstName" | "lastName" | "phone" | "city" | "countryCode"> & { email?: string };
 type NewTask = Pick<Task, "title" | "dueAt" | "priority" | "type"> & { contactId?: string; assigneeId?: string };
+type NewOrder = { contactId: string; productId: string; quantity: number; channel: Channel; paymentMethod: PaymentMethod };
 
 interface AppDataContextValue {
   db: Database;
   addContact: (input: NewContact) => Contact;
   updateLeadStage: (leadId: string, stage: LeadStage) => void;
+  addOrder: (input: NewOrder) => OrderSummary;
   updateOrderStatus: (orderId: string, status: OrderStatus) => void;
   updateFulfilmentStatus: (orderId: string, status: FulfilmentStatus) => void;
   updateDeliveryStatus: (deliveryId: string, status: DeliveryStatus) => void;
@@ -54,6 +56,36 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       };
       setDb(current => ({ ...current, contacts: [contact, ...current.contacts] }));
       return contact;
+    },
+    addOrder(input) {
+      const product = db.products.find(p => p.id === input.productId);
+      if (!product) throw new Error("Product not found.");
+      const quantity = Math.max(1, Math.floor(input.quantity));
+      const total = product.price * quantity;
+      const now = new Date().toISOString();
+      const order: OrderSummary = {
+        id: `ord_local_${Date.now()}`,
+        reference: `BZ-${String(Date.now()).slice(-7)}`,
+        contactId: input.contactId,
+        placedAt: now,
+        orderStatus: "needs_confirmation",
+        fulfilmentStatus: "unfulfilled",
+        itemsCount: quantity,
+        total,
+        cogs: product.cost * quantity,
+        shippingFee: 0,
+        paymentStatus: input.paymentMethod === "cash_on_delivery" ? "cod_pending" : "unpaid",
+        paymentMethod: input.paymentMethod,
+        channel: input.channel,
+        productNames: [product.name],
+      };
+      setDb(current => ({
+        ...current,
+        orders: [order, ...current.orders],
+        contacts: current.contacts.map(c => c.id === input.contactId ? { ...c, totalOrders: c.totalOrders + 1, lastActivityAt: now } : c),
+        activities: [{ id: `activity_order_${Date.now()}`, contactId: input.contactId, kind: "order", title: `Order ${order.reference} created`, description: `${product.name} × ${quantity}`, at: now, amount: total, refId: order.id }, ...current.activities],
+      }));
+      return order;
     },
     updateLeadStage(leadId, stage) {
       setDb(current => ({ ...current, leads: current.leads.map(l => l.id === leadId ? { ...l, stage, updatedAt: new Date().toISOString() } : l) }));
