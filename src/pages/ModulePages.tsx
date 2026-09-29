@@ -8,8 +8,8 @@ import {
 import { useAppData } from "@/state/AppData";
 import { fullName } from "@/domain/repositories";
 import {
-  CHANNEL_LABELS, DELIVERY_STATUS_META, ORDER_STATUS_META, PAYMENT_STATUS_META,
-  type DeliveryStatus, type OrderStatus
+  CHANNEL_LABELS, DELIVERY_STATUS_META, FULFILMENT_STATUS_META, ORDER_STATUS_META, PAYMENT_STATUS_META,
+  type DeliveryStatus, type FulfilmentStatus, type OrderStatus
 } from "@/domain/types";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { KpiCard, PageHeader, Pill, SectionCard } from "@/components/Common";
@@ -64,15 +64,15 @@ export function InboxPage() {
 }
 
 export function OrdersPage() {
-  const { db, updateOrderStatus } = useAppData();
+  const { db, updateOrderStatus, updateFulfilmentStatus } = useAppData();
   const [search,setSearch]=useState("");
   const rows=useMemo(()=>db.orders.filter(o=>!search||(`${o.reference} ${contactName(db,o.contactId)} ${o.productNames.join(" ")}`).toLowerCase().includes(search.toLowerCase())).sort((a,b)=>+new Date(b.placedAt)-+new Date(a.placedAt)),[db,search]);
-  const revenue=rows.filter(o=>o.status!=="cancelled").reduce((s,o)=>s+o.total,0);
+  const revenue=rows.filter(o=>o.orderStatus!=="cancelled").reduce((s,o)=>s+o.total,0);
   return <div><PageHeader eyebrow="Sales" title="Orders" description="Manage confirmation, payment visibility and fulfilment handoff."/>
     <div className="space-y-4 p-4 md:p-6">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><KpiCard label="Orders" value={String(rows.length)}/><KpiCard label="Order value" value={formatCurrency(revenue,"NGN",{compact:true})}/><KpiCard label="Delivered" value={String(rows.filter(o=>o.status==="delivered").length)} tone="success"/><KpiCard label="Need confirmation" value={String(rows.filter(o=>o.status==="pending_confirmation").length)} tone="warning"/></div>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><KpiCard label="Orders" value={String(rows.length)}/><KpiCard label="Order value" value={formatCurrency(revenue,"NGN",{compact:true})}/><KpiCard label="Delivered" value={String(rows.filter(o=>o.fulfilmentStatus==="delivered").length)} tone="success"/><KpiCard label="Need confirmation" value={String(rows.filter(o=>o.orderStatus==="needs_confirmation").length)} tone="warning"/></div>
       <div className="relative max-w-md"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground"/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search orders..." className="w-full rounded-lg border bg-card py-2 pl-9 pr-3 text-sm"/></div>
-      <div className="overflow-x-auto rounded-xl border bg-card"><table className="w-full min-w-[980px] text-sm"><thead className="bg-muted/60 text-left text-xs text-muted-foreground"><tr><th className="px-4 py-3">Order</th><th>Customer</th><th>Products</th><th>Amount</th><th>Payment</th><th>Status</th><th>Date</th></tr></thead><tbody>{rows.map(o=><tr key={o.id} className="border-t"><td className="px-4 py-3 font-semibold">{o.reference}</td><td><Link to={"/contacts/"+o.contactId} className="hover:text-primary">{contactName(db,o.contactId)}</Link></td><td>{o.productNames.join(", ")}</td><td className="font-semibold">{formatCurrency(o.total,"NGN")}</td><td><Pill tone={PAYMENT_STATUS_META[o.paymentStatus].tone}>{PAYMENT_STATUS_META[o.paymentStatus].label}</Pill></td><td><select value={o.status} onChange={e=>updateOrderStatus(o.id,e.target.value as OrderStatus)} className="rounded-md border bg-background px-2 py-1.5 text-xs">{Object.entries(ORDER_STATUS_META).map(([id,m])=><option key={id} value={id}>{m.label}</option>)}</select></td><td className="text-muted-foreground">{formatDateTime(o.placedAt)}</td></tr>)}</tbody></table></div>
+      <div className="overflow-x-auto rounded-xl border bg-card"><table className="w-full min-w-[980px] text-sm"><thead className="bg-muted/60 text-left text-xs text-muted-foreground"><tr><th className="px-4 py-3">Order</th><th>Customer</th><th>Products</th><th>Amount</th><th>Payment</th><th>Order status</th><th>Fulfilment</th><th>Date</th></tr></thead><tbody>{rows.map(o=><tr key={o.id} className="border-t"><td className="px-4 py-3 font-semibold">{o.reference}</td><td><Link to={"/contacts/"+o.contactId} className="hover:text-primary">{contactName(db,o.contactId)}</Link></td><td>{o.productNames.join(", ")}</td><td className="font-semibold">{formatCurrency(o.total,"NGN")}</td><td><Pill tone={PAYMENT_STATUS_META[o.paymentStatus].tone}>{PAYMENT_STATUS_META[o.paymentStatus].label}</Pill></td><td><select value={o.orderStatus} onChange={e=>updateOrderStatus(o.id,e.target.value as OrderStatus)} className="rounded-md border bg-background px-2 py-1.5 text-xs">{Object.entries(ORDER_STATUS_META).map(([id,m])=><option key={id} value={id}>{m.label}</option>)}</select></td><td><select value={o.fulfilmentStatus} onChange={e=>updateFulfilmentStatus(o.id,e.target.value as FulfilmentStatus)} className="rounded-md border bg-background px-2 py-1.5 text-xs">{Object.entries(FULFILMENT_STATUS_META).map(([id,m])=><option key={id} value={id}>{m.label}</option>)}</select></td><td className="text-muted-foreground">{formatDateTime(o.placedAt)}</td></tr>)}</tbody></table></div>
     </div>
   </div>;
 }
