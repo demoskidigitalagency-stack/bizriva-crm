@@ -363,7 +363,7 @@ contacts.forEach((c, ci) => {
       id: `pay_${orderSeq}`,
       orderId: order.id,
       contactId: c.id,
-      amount: paymentStatus === "part_paid" ? Math.round(total * 0.4) : total,
+      amount: paymentStatus === "partially_paid" ? Math.round(total * 0.4) : total,
       method,
       status: paymentStatus,
       at: daysAgo(placedDays - 1),
