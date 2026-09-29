@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, CheckSquare, MessageCircle, Phone, ShoppingBag, StickyNote } from "lucide-react";
 import { useAppData } from "@/state/AppData";
 import { fullName, getCustomer360, type Customer360 } from "@/domain/repositories";
-import { CHANNEL_LABELS, LIFECYCLE_META, ORDER_STATUS_META } from "@/domain/types";
+import { CHANNEL_LABELS, FULFILMENT_STATUS_META, LIFECYCLE_META, ORDER_STATUS_META } from "@/domain/types";
 import { countryFlag, countryName, formatCurrency, formatDateTime } from "@/lib/format";
 import { KpiCard, Pill, SectionCard } from "@/components/Common";
 
@@ -52,7 +52,7 @@ export function Customer360Page() {
         {tab === "Overview" && <Overview data={data} />}
         {tab === "Timeline" && <Timeline data={data} />}
         {tab === "Conversations" && <List title="Conversations" rows={data.conversations.map((x) => [CHANNEL_LABELS[x.channel],x.subject,formatDateTime(x.lastMessageAt)])} />}
-        {tab === "Orders" && <List title="Orders" rows={data.orders.map((x) => [x.reference,x.productNames.join(", ") + " · " + ORDER_STATUS_META[x.status].label,formatCurrency(x.total,"NGN")])} />}
+        {tab === "Orders" && <List title="Orders" rows={data.orders.map((x) => [x.reference,x.productNames.join(", ") + " · " + ORDER_STATUS_META[x.orderStatus].label + " · " + FULFILMENT_STATUS_META[x.fulfilmentStatus].label,formatCurrency(x.total,"NGN")])} />}
         {tab === "Product Interests" && <List title="Product Interests" rows={data.interests.map((x) => [x.productName,x.intent.replaceAll("_"," "),formatDateTime(x.capturedAt)])} />}
         {tab === "Tasks" && <List title="Tasks" rows={data.tasks.map((x) => [x.title,x.status,formatDateTime(x.dueAt)])} />}
         {tab === "Delivery" && <List title="Delivery History" rows={data.deliveries.map((x) => [x.courier,x.status.replaceAll("_"," "),x.trackingRef])} />}
