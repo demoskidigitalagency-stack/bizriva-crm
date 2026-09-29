@@ -1,15 +1,22 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import { createInitialDatabase, type Database } from "@/domain/database";
-import type { Contact, LeadStage } from "@/domain/types";
+import type { Campaign, Contact, DeliveryStatus, LeadStage, OrderStatus, Task } from "@/domain/types";
 
-type NewContact = Pick<Contact, "firstName" | "lastName" | "phone" | "city" | "countryCode"> & {
-  email?: string;
-};
+type NewContact = Pick<Contact, "firstName" | "lastName" | "phone" | "city" | "countryCode"> & { email?: string };
+type NewTask = Pick<Task, "title" | "dueAt" | "priority" | "type"> & { contactId?: string; assigneeId?: string };
 
 interface AppDataContextValue {
   db: Database;
   addContact: (input: NewContact) => Contact;
   updateLeadStage: (leadId: string, stage: LeadStage) => void;
+  updateOrderStatus: (orderId: string, status: OrderStatus) => void;
+  updateDeliveryStatus: (deliveryId: string, status: DeliveryStatus) => void;
+  updateCampaignStatus: (campaignId: string, status: Campaign["status"]) => void;
+  updateProductStock: (productId: string, stock: number) => void;
+  toggleTask: (taskId: string) => void;
+  addTask: (input: NewTask) => Task;
+  markConversationRead: (conversationId: string) => void;
+  sendMessage: (conversationId: string, body: string) => void;
 }
 
 const AppDataContext = createContext<AppDataContextValue | null>(null);
@@ -48,9 +55,54 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       return contact;
     },
     updateLeadStage(leadId, stage) {
+      setDb(current => ({ ...current, leads: current.leads.map(l => l.id === leadId ? { ...l, stage, updatedAt: new Date().toISOString() } : l) }));
+    },
+    updateOrderStatus(orderId, status) {
+      setDb(current => ({ ...current, orders: current.orders.map(o => o.id === orderId ? { ...o, status } : o) }));
+    },
+    updateDeliveryStatus(deliveryId, status) {
+      setDb(current => ({ ...current, deliveries: current.deliveries.map(d => d.id === deliveryId ? { ...d, status, deliveredAt: status === "delivered" ? new Date().toISOString() : d.deliveredAt } : d) }));
+    },
+    updateCampaignStatus(campaignId, status) {
+      setDb(current => ({ ...current, campaigns: current.campaigns.map(c => c.id === campaignId ? { ...c, status } : c) }));
+    },
+    updateProductStock(productId, stock) {
+      setDb(current => ({ ...current, products: current.products.map(p => p.id === productId ? { ...p, stock: Math.max(0, Math.floor(stock)) } : p) }));
+    },
+    toggleTask(taskId) {
+      setDb(current => ({ ...current, tasks: current.tasks.map(t => t.id === taskId ? { ...t, status: t.status === "done" ? "open" : "done" } : t) }));
+    },
+    addTask(input) {
+      const task: Task = {
+        id: `task_local_${Date.now()}`,
+        title: input.title,
+        dueAt: input.dueAt,
+        status: "open",
+        priority: input.priority,
+        assigneeId: input.assigneeId ?? db.team[0]?.id ?? "u_ade",
+        type: input.type,
+        contactId: input.contactId,
+        createdAt: new Date().toISOString(),
+      };
+      setDb(current => ({ ...current, tasks: [task, ...current.tasks] }));
+      return task;
+    },
+    markConversationRead(conversationId) {
+      setDb(current => ({ ...current, conversations: current.conversations.map(c => c.id === conversationId ? { ...c, unread: false } : c) }));
+    },
+    sendMessage(conversationId, body) {
+      const trimmed = body.trim();
+      if (!trimmed) return;
+      const now = new Date().toISOString();
       setDb(current => ({
         ...current,
-        leads: current.leads.map(l => l.id === leadId ? { ...l, stage, updatedAt: new Date().toISOString() } : l),
+        conversations: current.conversations.map(c => c.id === conversationId ? {
+          ...c,
+          unread: false,
+          awaitingReply: false,
+          lastMessageAt: now,
+          messages: [...c.messages, { id: `msg_local_${Date.now()}`, conversationId, direction: "out", body: trimmed, at: now, authorId: c.assigneeId }],
+        } : c),
       }));
     },
   }), [db]);
