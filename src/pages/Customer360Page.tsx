@@ -83,7 +83,7 @@ function Overview({data}:{data:any}) {
         </div>
       </SectionCard>
       <SectionCard title="Channel identities">
-        <div className="space-y-2">{data.identities.map((i:any) => <div key={i.id} className="flex items-center justify-between rounded-lg border p-3"><div><div className="text-sm font-medium">{CHANNEL_LABELS[i.channel]}</div><div className="text-xs text-muted-foreground">{i.handle}</div></div><Pill tone={i.verified ? "success" : "neutral"}>{i.verified ? "Verified" : "Observed"}</Pill></div>)}</div>
+        <div className="space-y-2">{data.identities.map((i) => <div key={i.id} className="flex items-center justify-between rounded-lg border p-3"><div><div className="text-sm font-medium">{CHANNEL_LABELS[i.channel]}</div><div className="text-xs text-muted-foreground">{i.handle}</div></div><Pill tone={i.verified ? "success" : "neutral"}>{i.verified ? "Verified" : "Observed"}</Pill></div>)}</div>
       </SectionCard>
     </div>
     <Timeline data={data} compact />
@@ -92,7 +92,7 @@ function Overview({data}:{data:any}) {
 
 function Timeline({data,compact=false}:{data:any;compact?:boolean}) {
   const items = compact ? data.activities.slice(0,8) : data.activities;
-  return <SectionCard title={compact ? "Recent activity" : "Customer timeline"} subtitle="Acquisition, conversations, orders, delivery and payments in one history"><div>{items.map((a:any) => <div key={a.id} className="flex gap-3 border-l-2 border-accent pb-5 pl-4"><div className="min-w-0 flex-1"><div className="text-sm font-medium">{a.title}</div>{a.description && <div className="text-xs text-muted-foreground">{a.description}</div>}<div className="mt-1 text-[11px] text-muted-foreground">{formatDateTime(a.at)} · {a.kind}</div></div>{a.amount != null && <div className="text-sm font-semibold">{formatCurrency(a.amount,"NGN",{compact:true})}</div>}</div>)}</div></SectionCard>;
+  return <SectionCard title={compact ? "Recent activity" : "Customer timeline"} subtitle="Acquisition, conversations, orders, delivery and payments in one history"><div>{items.map((a) => <div key={a.id} className="flex gap-3 border-l-2 border-accent pb-5 pl-4"><div className="min-w-0 flex-1"><div className="text-sm font-medium">{a.title}</div>{a.description && <div className="text-xs text-muted-foreground">{a.description}</div>}<div className="mt-1 text-[11px] text-muted-foreground">{formatDateTime(a.at)} · {a.kind}</div></div>{a.amount != null && <div className="text-sm font-semibold">{formatCurrency(a.amount,"NGN",{compact:true})}</div>}</div>)}</div></SectionCard>;
 }
 
 function List({title,rows}:{title:string;rows:string[][]}) {
