@@ -50,6 +50,7 @@ export function AppShell() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
+  const [panel, setPanel] = useState<"create"|"ai"|"notifications"|"profile"|null>(null);
   const [query, setQuery] = useState("");
   const [workspace, setWorkspace] = useState(db.workspaces[0]?.id ?? "");
 
@@ -105,13 +106,27 @@ export function AppShell() {
           <button onClick={() => setCommandOpen(true)} className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border bg-background px-3 py-2 text-left text-sm text-muted-foreground md:max-w-xl">
             <Search className="h-4 w-4" /><span className="truncate">Search customers, orders, messages...</span><span className="ml-auto hidden rounded border px-1.5 py-0.5 text-[10px] sm:inline">⌘K</span>
           </button>
-          <button className="hidden items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium sm:flex"><Plus className="h-4 w-4" /> Create</button>
-          <button className="rounded-lg p-2 hover:bg-muted" title="Bizriva AI"><Sparkles className="h-5 w-5" /></button>
-          <button className="relative rounded-lg p-2 hover:bg-muted"><Bell className="h-5 w-5" /><span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-warning" /></button>
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">AA</div>
+          <button onClick={() => setPanel("create")} className="hidden items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium sm:flex"><Plus className="h-4 w-4" /> Create</button>
+          <button onClick={() => setPanel("ai")} className="rounded-lg p-2 hover:bg-muted" title="Bizriva AI"><Sparkles className="h-5 w-5" /></button>
+          <button onClick={() => setPanel("notifications")} className="relative rounded-lg p-2 hover:bg-muted"><Bell className="h-5 w-5" /><span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-warning" /></button>
+          <button onClick={() => setPanel("profile")} className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">AA</button>
         </header>
         <main className="scroll-thin min-h-0 flex-1 overflow-y-auto"><Outlet /></main>
       </div>
+
+      {panel && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/30" onClick={() => setPanel(null)}>
+          <div className="h-full w-full max-w-sm border-l bg-card p-5 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="mb-5 flex items-center justify-between"><h2 className="text-lg font-bold">{panel === "create" ? "Quick create" : panel === "ai" ? "Bizriva AI" : panel === "notifications" ? "Notifications" : "Account"}</h2><button onClick={() => setPanel(null)} className="rounded-lg p-2 hover:bg-muted"><X className="h-5 w-5"/></button></div>
+            {panel === "create" && <div className="grid gap-2">{[
+              ["New contact","/crm/contacts"],["New lead","/crm/leads"],["New order","/orders"],["New product","/products"],["New task","/crm/follow-ups"],["New campaign","/marketing"],["New workflow","/automation"]
+            ].map(([label,to]) => <button key={label} onClick={() => {navigate(to);setPanel(null);}} className="rounded-lg border p-3 text-left text-sm font-medium hover:bg-muted">{label}</button>)}</div>}
+            {panel === "ai" && <div className="space-y-4"><div className="rounded-xl border bg-muted/40 p-4 text-sm"><div className="font-semibold">AI orchestration is ready for provider connection.</div><p className="mt-2 text-muted-foreground">The production AI service will summarize conversations, qualify leads, draft replies and create controlled actions after an AI provider is configured in Integrations.</p></div><button onClick={() => {navigate("/integrations");setPanel(null);}} className="w-full rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground">Open integrations</button></div>}
+            {panel === "notifications" && <div className="space-y-2">{db.notifications.length ? db.notifications.slice(0,12).map(n => <div key={n.id} className="rounded-lg border p-3"><div className="text-sm font-semibold">{n.title}</div><div className="mt-1 text-xs text-muted-foreground">{n.body}</div></div>) : <div className="text-sm text-muted-foreground">No notifications.</div>}</div>}
+            {panel === "profile" && <div className="space-y-3"><div className="rounded-xl border p-4"><div className="font-semibold">Workspace account</div><div className="mt-1 text-sm text-muted-foreground">Account, security and session settings are managed from Settings.</div></div><button onClick={() => {navigate("/settings");setPanel(null);}} className="w-full rounded-lg border px-3 py-2 text-sm font-medium">Open settings</button></div>}
+          </div>
+        </div>
+      )}
 
       {commandOpen && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/35 px-4 pt-[10vh]" onClick={() => setCommandOpen(false)}>
