@@ -154,18 +154,17 @@ export interface LeadRow extends Lead {
 }
 
 export function buildLeadRows(db: Database): LeadRow[] {
-  return db.leads
-    .map((l) => {
-      const contact = db.contacts.find((c) => c.id === l.contactId);
-      if (!contact) return null;
-      return {
-        ...l,
-        contact,
-        productInterest: db.productInterests.find((p) => p.contactId === l.contactId)?.productName,
-        ownerName: getMember(db, l.ownerId)?.name ?? "Unassigned",
-      } satisfies LeadRow;
-    })
-    .filter((x): x is LeadRow => Boolean(x));
+  return db.leads.reduce<LeadRow[]>((rows, l) => {
+    const contact = db.contacts.find((c) => c.id === l.contactId);
+    if (!contact) return rows;
+    rows.push({
+      ...l,
+      contact,
+      productInterest: db.productInterests.find((p) => p.contactId === l.contactId)?.productName,
+      ownerName: getMember(db, l.ownerId)?.name ?? "Unassigned",
+    });
+    return rows;
+  }, []);
 }
 
 export function queryLeads(db: Database, q: LeadQuery = {}): Paged<LeadRow> {
