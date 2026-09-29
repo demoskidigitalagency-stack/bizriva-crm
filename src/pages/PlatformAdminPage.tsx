@@ -19,7 +19,7 @@ export function PlatformAdminPage() {
         <KpiCard label="Workspaces" value={String(db.workspaces.length)}/>
         <KpiCard label="Users" value={String(db.team.length)}/>
         <KpiCard label="Active contacts" value={String(db.contacts.length)}/>
-        <KpiCard label="Integration alerts" value={String(db.campaigns.filter(c=>c.status==="review_needed").length)} tone="warning"/>
+        <KpiCard label="Integration alerts" value={String(db.adCampaigns.filter(c=>c.status==="review_needed").length)} tone="warning"/>
       </div>
       <div className="grid gap-5 lg:grid-cols-2">
         <SectionCard title="Tenant workspaces" subtitle="Platform-level workspace registry">
