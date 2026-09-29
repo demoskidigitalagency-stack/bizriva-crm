@@ -4,7 +4,7 @@ async function signIn(page: Page) {
   await page.goto("/login");
   await page.getByLabel("Email").fill("owner@bizriva.test");
   await page.getByLabel("Password").fill("test1234");
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.locator("form").getByRole("button", { name: "Sign in" }).click();
   await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
 }
 
