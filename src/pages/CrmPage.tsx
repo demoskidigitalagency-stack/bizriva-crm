@@ -52,12 +52,12 @@ function CrmOverview() {
       <div className="grid gap-5 xl:grid-cols-[1.3fr_1fr]">
         <SectionCard title="Pipeline health" subtitle="Lead distribution by stage">
           <div className="grid gap-2 sm:grid-cols-2">
-            {data.stageCounts.map((s: any) => <div key={s.stage} className="flex items-center justify-between rounded-lg border p-3"><span className="text-sm capitalize">{String(s.stage).replaceAll("_"," ")}</span><span className="text-lg font-bold num">{s.count}</span></div>)}
+            {data.stageCounts.map((s) => <div key={s.stage} className="flex items-center justify-between rounded-lg border p-3"><span className="text-sm capitalize">{String(s.stage).replaceAll("_"," ")}</span><span className="text-lg font-bold num">{s.count}</span></div>)}
           </div>
         </SectionCard>
         <SectionCard title="Lead sources" subtitle="Value entering the pipeline">
           <div className="space-y-2">
-            {data.sources.slice(0,7).map((s: any) => <div key={s.source} className="flex items-center justify-between rounded-lg border p-3"><div><div className="text-sm font-medium">{SOURCE_LABELS[s.source]}</div><div className="text-xs text-muted-foreground">{s.leads} leads · {s.won} won</div></div><div className="font-semibold">{formatCurrency(s.value,"NGN",{compact:true})}</div></div>)}
+            {data.sources.slice(0,7).map((s) => <div key={s.source} className="flex items-center justify-between rounded-lg border p-3"><div><div className="text-sm font-medium">{SOURCE_LABELS[s.source]}</div><div className="text-xs text-muted-foreground">{s.leads} leads · {s.won} won</div></div><div className="font-semibold">{formatCurrency(s.value,"NGN",{compact:true})}</div></div>)}
           </div>
         </SectionCard>
       </div>
@@ -147,7 +147,7 @@ function Leads() {
   return <div className="p-4 md:p-6">
     <div className="mb-4 relative max-w-md"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search leads..." className="w-full rounded-lg border bg-card py-2 pl-9 pr-3 text-sm" /></div>
     <div className="overflow-hidden rounded-xl border bg-card"><div className="scroll-thin overflow-x-auto"><table className="w-full min-w-[1000px] text-sm"><thead className="bg-muted/60 text-left text-xs text-muted-foreground"><tr><th className="px-4 py-3">Lead</th><th>Stage</th><th>Interest</th><th>Source</th><th>Owner</th><th>Score</th><th>SLA</th><th>Value</th></tr></thead><tbody>
-      {rows.map((l: any) => <tr key={l.id} className="border-t"><td className="px-4 py-3"><Link to={"/contacts/" + l.contact.id} className="font-semibold hover:text-primary">{fullName(l.contact)}</Link><div className="text-xs text-muted-foreground">{l.contact.phone}</div></td><td><select value={l.stage} onChange={(e) => updateLeadStage(l.id,e.target.value as LeadStage)} className="rounded-md border bg-background px-2 py-1.5 text-xs">{LEAD_STAGES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select></td><td>{l.productInterest || "—"}</td><td>{SOURCE_LABELS[l.source]}</td><td>{l.ownerName}</td><td className="font-semibold">{l.score}</td><td><Pill tone={SLA_META[l.slaStatus].tone}>{SLA_META[l.slaStatus].label}</Pill></td><td className="font-semibold">{formatCurrency(l.value,"NGN",{compact:true})}</td></tr>)}
+      {rows.map((l) => <tr key={l.id} className="border-t"><td className="px-4 py-3"><Link to={"/contacts/" + l.contact.id} className="font-semibold hover:text-primary">{fullName(l.contact)}</Link><div className="text-xs text-muted-foreground">{l.contact.phone}</div></td><td><select value={l.stage} onChange={(e) => updateLeadStage(l.id,e.target.value as LeadStage)} className="rounded-md border bg-background px-2 py-1.5 text-xs">{LEAD_STAGES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select></td><td>{l.productInterest || "—"}</td><td>{SOURCE_LABELS[l.source]}</td><td>{l.ownerName}</td><td className="font-semibold">{l.score}</td><td><Pill tone={SLA_META[l.slaStatus].tone}>{SLA_META[l.slaStatus].label}</Pill></td><td className="font-semibold">{formatCurrency(l.value,"NGN",{compact:true})}</td></tr>)}
     </tbody></table></div></div>
   </div>;
 }
@@ -159,7 +159,7 @@ function Pipeline() {
   return <div className="scroll-thin overflow-x-auto p-4 md:p-6"><div className="flex min-w-max gap-3">
     {LEAD_STAGES.map((stage) => <div key={stage.id} className="w-72 shrink-0 rounded-xl bg-muted/50 p-2">
       <div className="flex items-center justify-between px-2 py-2"><span className="text-sm font-semibold">{stage.label}</span><span className="rounded-full bg-card px-2 py-0.5 text-xs">{groups[stage.id]?.length || 0}</span></div>
-      <div className="space-y-2">{(groups[stage.id] || []).slice(0,12).map((l: any) => <div key={l.id} className="rounded-lg border bg-card p-3 shadow-sm"><Link to={"/contacts/" + l.contact.id} className="font-semibold hover:text-primary">{fullName(l.contact)}</Link><div className="mt-1 text-xs text-muted-foreground">{l.productInterest || SOURCE_LABELS[l.source]}</div><div className="mt-3 flex items-center justify-between"><span className="text-sm font-semibold">{formatCurrency(l.value,"NGN",{compact:true})}</span><select value={l.stage} onChange={(e) => updateLeadStage(l.id,e.target.value as LeadStage)} className="max-w-28 rounded border bg-background p-1 text-[11px]">{LEAD_STAGES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select></div></div>)}</div>
+      <div className="space-y-2">{(groups[stage.id] || []).slice(0,12).map((l) => <div key={l.id} className="rounded-lg border bg-card p-3 shadow-sm"><Link to={"/contacts/" + l.contact.id} className="font-semibold hover:text-primary">{fullName(l.contact)}</Link><div className="mt-1 text-xs text-muted-foreground">{l.productInterest || SOURCE_LABELS[l.source]}</div><div className="mt-3 flex items-center justify-between"><span className="text-sm font-semibold">{formatCurrency(l.value,"NGN",{compact:true})}</span><select value={l.stage} onChange={(e) => updateLeadStage(l.id,e.target.value as LeadStage)} className="max-w-28 rounded border bg-background p-1 text-[11px]">{LEAD_STAGES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select></div></div>)}</div>
     </div>)}
   </div></div>;
 }
