@@ -6,6 +6,7 @@ import { TodayPage } from "@/pages/TodayPage";
 import { CrmPage } from "@/pages/CrmPage";
 import { Customer360Page } from "@/pages/Customer360Page";
 import { AuthPage } from "@/pages/AuthPage";
+import { PublicStorePage } from "@/pages/PublicStorePage";
 import { useAuth } from "@/state/AuthContext";
 import {
   InboxPage, OrdersPage, ProductsPage, InventoryPage, StorePage, DeliveryPage,
@@ -24,6 +25,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<AuthPage />} />
+      <Route path="/shop/:handle" element={<PublicStorePage />} />
       <Route element={<RequireAuth><AppShell /></RequireAuth>}>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<DashboardPage />} />
