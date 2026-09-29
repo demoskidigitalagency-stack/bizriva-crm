@@ -336,7 +336,7 @@ export function getDashboard(db: Database, filters: DashboardFilters) {
       { stage: "Delivered", value: delivered.length },
     ],
     salesPerformance: db.team
-      .filter((t) => ["sales_rep", "manager"].includes(t.role))
+      .filter((t) => ["sales_agent", "sales_manager"].includes(t.role))
       .map((t) => {
         const own = db.contacts.filter((c) => c.ownerId === t.id);
         const ids = new Set(own.map((c) => c.id));
