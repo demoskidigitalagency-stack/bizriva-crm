@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, CheckSquare, MessageCircle, Phone, ShoppingBag, StickyNote } from "lucide-react";
 import { useAppData } from "@/state/AppData";
-import { fullName, getCustomer360 } from "@/domain/repositories";
+import { fullName, getCustomer360, type Customer360 } from "@/domain/repositories";
 import { CHANNEL_LABELS, LIFECYCLE_META, ORDER_STATUS_META } from "@/domain/types";
 import { countryFlag, countryName, formatCurrency, formatDateTime } from "@/lib/format";
 import { KpiCard, Pill, SectionCard } from "@/components/Common";
@@ -62,7 +62,7 @@ export function Customer360Page() {
   );
 }
 
-function Overview({data}:{data:any}) {
+function Overview({data}:{data:Customer360}) {
   const c = data.contact;
   return <div className="space-y-5">
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -90,7 +90,7 @@ function Overview({data}:{data:any}) {
   </div>;
 }
 
-function Timeline({data,compact=false}:{data:any;compact?:boolean}) {
+function Timeline({data,compact=false}:{data:Customer360;compact?:boolean}) {
   const items = compact ? data.activities.slice(0,8) : data.activities;
   return <SectionCard title={compact ? "Recent activity" : "Customer timeline"} subtitle="Acquisition, conversations, orders, delivery and payments in one history"><div>{items.map((a) => <div key={a.id} className="flex gap-3 border-l-2 border-accent pb-5 pl-4"><div className="min-w-0 flex-1"><div className="text-sm font-medium">{a.title}</div>{a.description && <div className="text-xs text-muted-foreground">{a.description}</div>}<div className="mt-1 text-[11px] text-muted-foreground">{formatDateTime(a.at)} · {a.kind}</div></div>{a.amount != null && <div className="text-sm font-semibold">{formatCurrency(a.amount,"NGN",{compact:true})}</div>}</div>)}</div></SectionCard>;
 }
