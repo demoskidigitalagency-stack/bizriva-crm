@@ -338,7 +338,7 @@ export interface Product {
   reorderLevel: number;
 }
 
-export interface Campaign {
+export interface AdCampaign {
   id: ID;
   name: string;
   platform: "meta" | "tiktok" | "google";
@@ -347,6 +347,19 @@ export interface Campaign {
   revenue: number;
   leads: number;
   issue?: string;
+}
+
+export interface MarketingCampaign {
+  id: ID;
+  name: string;
+  channel: "whatsapp" | "email" | "sms";
+  status: "draft" | "scheduled" | "running" | "completed" | "paused";
+  segmentId?: ID;
+  sent: number;
+  delivered: number;
+  responses: number;
+  orders: number;
+  scheduledAt?: string;
 }
 
 export interface NotificationItem {
