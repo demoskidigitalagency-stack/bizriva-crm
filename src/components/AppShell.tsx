@@ -7,6 +7,7 @@ import {
   Bell, Sparkles, Plus, PanelLeftClose, PanelLeftOpen, Command, X
 } from "lucide-react";
 import { useAppData } from "@/state/AppData";
+import { useAuth } from "@/state/AuthContext";
 import { globalSearch } from "@/domain/repositories";
 
 type NavItem = { label: string; to: string; icon: React.ComponentType<{ className?: string }> };
@@ -46,6 +47,7 @@ const bottom: NavItem[] = [
 
 export function AppShell() {
   const { db } = useAppData();
+  const { signOut, user } = useAuth();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -123,7 +125,7 @@ export function AppShell() {
             ].map(([label,to]) => <button key={label} onClick={() => {navigate(to);setPanel(null);}} className="rounded-lg border p-3 text-left text-sm font-medium hover:bg-muted">{label}</button>)}</div>}
             {panel === "ai" && <div className="space-y-4"><div className="rounded-xl border bg-muted/40 p-4 text-sm"><div className="font-semibold">AI orchestration is ready for provider connection.</div><p className="mt-2 text-muted-foreground">The production AI service will summarize conversations, qualify leads, draft replies and create controlled actions after an AI provider is configured in Integrations.</p></div><button onClick={() => {navigate("/integrations");setPanel(null);}} className="w-full rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground">Open integrations</button></div>}
             {panel === "notifications" && <div className="space-y-2">{db.notifications.length ? db.notifications.slice(0,12).map(n => <div key={n.id} className="rounded-lg border p-3"><div className="text-sm font-semibold">{n.title}</div><div className="mt-1 text-xs text-muted-foreground">{n.body}</div></div>) : <div className="text-sm text-muted-foreground">No notifications.</div>}</div>}
-            {panel === "profile" && <div className="space-y-3"><div className="rounded-xl border p-4"><div className="font-semibold">Workspace account</div><div className="mt-1 text-sm text-muted-foreground">Account, security and session settings are managed from Settings.</div></div><button onClick={() => {navigate("/settings");setPanel(null);}} className="w-full rounded-lg border px-3 py-2 text-sm font-medium">Open settings</button></div>}
+            {panel === "profile" && <div className="space-y-3"><div className="rounded-xl border p-4"><div className="font-semibold">Workspace account</div><div className="mt-1 text-sm text-muted-foreground">{user?.email ?? "Signed in"} · Account, security and session settings are managed from Settings.</div></div><button onClick={() => {navigate("/settings");setPanel(null);}} className="w-full rounded-lg border px-3 py-2 text-sm font-medium">Open settings</button><button onClick={async () => {await signOut();setPanel(null);navigate("/login");}} className="w-full rounded-lg border border-destructive/30 px-3 py-2 text-sm font-medium text-destructive">Sign out</button></div>}
           </div>
         </div>
       )}
