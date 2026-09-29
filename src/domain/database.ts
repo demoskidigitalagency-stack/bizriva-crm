@@ -10,7 +10,8 @@ import * as seed from "./seed";
 import type {
   Activity,
   AcquisitionAttribution,
-  Campaign,
+  AdCampaign,
+  MarketingCampaign,
   ChannelIdentity,
   Contact,
   Conversation,
@@ -45,7 +46,8 @@ export interface Database {
   deliveries: DeliverySummary[];
   payments: PaymentSummary[];
   products: Product[];
-  campaigns: Campaign[];
+  adCampaigns: AdCampaign[];
+  marketingCampaigns: MarketingCampaign[];
   notifications: NotificationItem[];
   revenueTrend: typeof seed.revenueTrend;
 }
@@ -68,7 +70,8 @@ export function createInitialDatabase(): Database {
     deliveries: seed.deliveries,
     payments: seed.payments,
     products: seed.products,
-    campaigns: seed.campaigns,
+    adCampaigns: seed.adCampaigns,
+    marketingCampaigns: seed.marketingCampaigns,
     notifications: seed.notifications,
     revenueTrend: seed.revenueTrend,
   };
