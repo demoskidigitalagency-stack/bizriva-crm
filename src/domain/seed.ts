@@ -288,9 +288,16 @@ export const opportunities: Opportunity[] = leads
 
 /* ------------------------------------------------------------------- orders */
 
-const ORDER_STATUS_POOL = [
-  "pending_confirmation", "confirmed", "awaiting_dispatch", "in_transit",
-  "delivered", "delivered", "delivered", "returned", "cancelled",
+const ORDER_STATE_POOL = [
+  { orderStatus: "needs_confirmation", fulfilmentStatus: "unfulfilled" },
+  { orderStatus: "confirmed", fulfilmentStatus: "unfulfilled" },
+  { orderStatus: "processing", fulfilmentStatus: "packed" },
+  { orderStatus: "processing", fulfilmentStatus: "in_transit" },
+  { orderStatus: "completed", fulfilmentStatus: "delivered" },
+  { orderStatus: "completed", fulfilmentStatus: "delivered" },
+  { orderStatus: "completed", fulfilmentStatus: "delivered" },
+  { orderStatus: "completed", fulfilmentStatus: "returned" },
+  { orderStatus: "cancelled", fulfilmentStatus: "unfulfilled" },
 ] as const;
 
 export const orders: OrderSummary[] = [];
@@ -303,21 +310,22 @@ contacts.forEach((c, ci) => {
     orderSeq += 1;
     const prod = products[(ci + k) % products.length]!;
     const qty = int(1, 3);
-    const status = ORDER_STATUS_POOL[(ci + k) % ORDER_STATUS_POOL.length]!;
+    const state = ORDER_STATE_POOL[(ci + k) % ORDER_STATE_POOL.length]!;
     const placedDays = int(1, 300);
     const total = prod.price * qty;
     const method = chance(0.55) ? "cash_on_delivery" : chance(0.6) ? "bank_transfer" : "card";
     const paymentStatus =
-      status === "delivered" ? (method === "cash_on_delivery" && chance(0.18) ? "cod_pending" : "paid")
-        : status === "cancelled" ? "unpaid"
+      state.fulfilmentStatus === "delivered" ? (method === "cash_on_delivery" && chance(0.18) ? "cod_pending" : "paid")
+        : state.orderStatus === "cancelled" ? "unpaid"
           : method === "cash_on_delivery" ? "cod_pending"
-            : chance(0.5) ? "part_paid" : "paid";
+            : chance(0.5) ? "partially_paid" : "paid";
     const order: OrderSummary = {
       id: `ord_${orderSeq}`,
       reference: `BZ-${orderSeq}`,
       contactId: c.id,
       placedAt: daysAgo(placedDays, -int(0, 10)),
-      status,
+      orderStatus: state.orderStatus,
+      fulfilmentStatus: state.fulfilmentStatus,
       itemsCount: qty,
       total,
       cogs: prod.cost * qty,
@@ -330,13 +338,13 @@ contacts.forEach((c, ci) => {
     orders.push(order);
 
     const dStatus =
-      status === "delivered" ? "delivered"
-        : status === "in_transit" ? "in_transit"
-          : status === "awaiting_dispatch" ? "scheduled"
-            : status === "returned" ? "returned"
-              : status === "confirmed" ? "scheduled"
+      state.fulfilmentStatus === "delivered" ? "delivered"
+        : state.fulfilmentStatus === "in_transit" ? "in_transit"
+          : state.fulfilmentStatus === "packed" ? "scheduled"
+            : state.fulfilmentStatus === "returned" ? "returned"
+              : state.orderStatus === "confirmed" ? "scheduled"
                 : "not_scheduled";
-    const failed = status === "in_transit" && (ci + k) % 11 === 0;
+    const failed = state.fulfilmentStatus === "in_transit" && (ci + k) % 11 === 0;
     deliveries.push({
       id: `dl_${orderSeq}`,
       orderId: order.id,
