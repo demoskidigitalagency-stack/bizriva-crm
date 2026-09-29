@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, CheckSquare, MessageCircle, Phone, ShoppingBag, StickyNote } from "lucide-react";
 import { useAppData } from "@/state/AppData";
 import { fullName, getCustomer360, type Customer360 } from "@/domain/repositories";
@@ -12,6 +12,7 @@ const TABS = ["Overview","Timeline","Conversations","Orders","Product Interests"
 export function Customer360Page() {
   const { contactId } = useParams();
   const { db } = useAppData();
+  const navigate = useNavigate();
   const [tab,setTab] = useState("Overview");
   const data = useMemo(() => contactId ? getCustomer360(db,contactId) : undefined, [db,contactId]);
 
@@ -34,11 +35,11 @@ export function Customer360Page() {
             </div>
           </div>
           <div className="flex flex-wrap gap-2 xl:ml-auto">
-            <Action icon={<MessageCircle className="h-4 w-4"/>} text="Message" />
-            <Action icon={<Phone className="h-4 w-4"/>} text="Call" />
-            <Action icon={<ShoppingBag className="h-4 w-4"/>} text="Create Order" />
-            <Action icon={<CheckSquare className="h-4 w-4"/>} text="Task" />
-            <Action icon={<StickyNote className="h-4 w-4"/>} text="Note" />
+            <Action icon={<MessageCircle className="h-4 w-4"/>} text="Message" onClick={() => navigate("/inbox")} />
+            <a href={"tel:"+c.phone} className="flex items-center gap-2 rounded-lg border bg-background px-3 py-2 text-sm font-medium hover:bg-muted"><Phone className="h-4 w-4"/>Call</a>
+            <Action icon={<ShoppingBag className="h-4 w-4"/>} text="Create Order" onClick={() => navigate("/orders")} />
+            <Action icon={<CheckSquare className="h-4 w-4"/>} text="Task" onClick={() => navigate("/crm/follow-ups")} />
+            <Action icon={<StickyNote className="h-4 w-4"/>} text="Note" onClick={() => setTab("Notes")} />
           </div>
         </div>
       </div>
@@ -103,6 +104,6 @@ function Field({label,value}:{label:string;value:string}) {
   return <div><div className="text-xs text-muted-foreground">{label}</div><div className="mt-1 text-sm font-medium">{value}</div></div>;
 }
 
-function Action({icon,text}:{icon:ReactNode;text:string}) {
-  return <button onClick={() => window.alert(text + " workflow will connect in its implementation phase.")} className="flex items-center gap-2 rounded-lg border bg-background px-3 py-2 text-sm font-medium hover:bg-muted">{icon}{text}</button>;
+function Action({icon,text,onClick}:{icon:ReactNode;text:string;onClick:()=>void}) {
+  return <button onClick={onClick} className="flex items-center gap-2 rounded-lg border bg-background px-3 py-2 text-sm font-medium hover:bg-muted">{icon}{text}</button>;
 }
