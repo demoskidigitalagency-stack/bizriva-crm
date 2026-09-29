@@ -1,6 +1,6 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import { createInitialDatabase, type Database } from "@/domain/database";
-import type { Campaign, Contact, DeliveryStatus, LeadStage, OrderStatus, Task } from "@/domain/types";
+import type { Campaign, Contact, DeliveryStatus, FulfilmentStatus, LeadStage, OrderStatus, Task } from "@/domain/types";
 
 type NewContact = Pick<Contact, "firstName" | "lastName" | "phone" | "city" | "countryCode"> & { email?: string };
 type NewTask = Pick<Task, "title" | "dueAt" | "priority" | "type"> & { contactId?: string; assigneeId?: string };
@@ -10,6 +10,7 @@ interface AppDataContextValue {
   addContact: (input: NewContact) => Contact;
   updateLeadStage: (leadId: string, stage: LeadStage) => void;
   updateOrderStatus: (orderId: string, status: OrderStatus) => void;
+  updateFulfilmentStatus: (orderId: string, status: FulfilmentStatus) => void;
   updateDeliveryStatus: (deliveryId: string, status: DeliveryStatus) => void;
   updateCampaignStatus: (campaignId: string, status: Campaign["status"]) => void;
   updateProductStock: (productId: string, stock: number) => void;
@@ -59,6 +60,9 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     },
     updateOrderStatus(orderId, status) {
       setDb(current => ({ ...current, orders: current.orders.map(o => o.id === orderId ? { ...o, status } : o) }));
+    },
+    updateFulfilmentStatus(orderId, status) {
+      setDb(current => ({ ...current, orders: current.orders.map(o => o.id === orderId ? { ...o, fulfilmentStatus: status } : o) }));
     },
     updateDeliveryStatus(deliveryId, status) {
       setDb(current => ({ ...current, deliveries: current.deliveries.map(d => d.id === deliveryId ? { ...d, status, deliveredAt: status === "delivered" ? new Date().toISOString() : d.deliveredAt } : d) }));
