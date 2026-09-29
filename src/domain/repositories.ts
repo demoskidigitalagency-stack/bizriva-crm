@@ -233,9 +233,9 @@ export function getCustomer360(db: Database, id: ID): Customer360 | undefined {
   if (!contact) return undefined;
 
   const orders = db.orders.filter((o) => o.contactId === id).sort((a, b) => +new Date(b.placedAt) - +new Date(a.placedAt));
-  const deliveredOrders = orders.filter((o) => o.status === "delivered");
+  const deliveredOrders = orders.filter((o) => o.fulfilmentStatus === "delivered");
   const deliveredRevenue = deliveredOrders.reduce((s, o) => s + o.total, 0);
-  const lifetimeRevenue = orders.filter((o) => o.status !== "cancelled").reduce((s, o) => s + o.total, 0);
+  const lifetimeRevenue = orders.filter((o) => o.orderStatus !== "cancelled").reduce((s, o) => s + o.total, 0);
   const contributionProfit = deliveredOrders.reduce((s, o) => s + (o.total - o.cogs - o.shippingFee), 0);
   const opportunities = db.opportunities.filter((o) => o.contactId === id);
 
@@ -284,8 +284,8 @@ export function getDashboard(db: Database, filters: DashboardFilters) {
   const inRange = db.orders.filter(
     (o) => scopedIds.has(o.contactId) && isWithinDays(o.placedAt, rangeDays),
   );
-  const delivered = inRange.filter((o) => o.status === "delivered");
-  const revenue = inRange.filter((o) => o.status !== "cancelled").reduce((s, o) => s + o.total, 0);
+  const delivered = inRange.filter((o) => o.fulfilmentStatus === "delivered");
+  const revenue = inRange.filter((o) => o.orderStatus !== "cancelled").reduce((s, o) => s + o.total, 0);
   const deliveredRevenue = delivered.reduce((s, o) => s + o.total, 0);
   const contributionProfit = delivered.reduce((s, o) => s + (o.total - o.cogs - o.shippingFee), 0);
 
@@ -353,12 +353,12 @@ export function getDashboard(db: Database, filters: DashboardFilters) {
       .sort((a, b) => b.revenue - a.revenue),
     ads: db.campaigns.map((c) => ({ ...c, roas: c.spend ? c.revenue / c.spend : 0 })),
     fulfilment: {
-      pendingConfirmation: db.orders.filter((o) => o.status === "pending_confirmation").length,
-      awaitingDispatch: db.orders.filter((o) => o.status === "awaiting_dispatch").length,
-      inTransit: db.orders.filter((o) => o.status === "in_transit").length,
-      delivered: db.orders.filter((o) => o.status === "delivered").length,
+      pendingConfirmation: db.orders.filter((o) => o.orderStatus === "needs_confirmation").length,
+      awaitingDispatch: db.orders.filter((o) => o.fulfilmentStatus === "packed").length,
+      inTransit: db.orders.filter((o) => o.fulfilmentStatus === "in_transit").length,
+      delivered: db.orders.filter((o) => o.fulfilmentStatus === "delivered").length,
       failed: db.deliveries.filter((d) => d.status === "failed").length,
-      returned: db.orders.filter((o) => o.status === "returned").length,
+      returned: db.orders.filter((o) => o.fulfilmentStatus === "returned").length,
     },
     sources: [...sourceCounts.entries()]
       .map(([source, v]) => ({ source, ...v }))
@@ -416,8 +416,8 @@ export function getTodayQueues(db: Database): Queue[] {
   const tasksOpen = db.tasks.filter((t) => t.status === "open");
   const dueToday = tasksOpen.filter((t) => isToday(t.dueAt));
   const overdue = tasksOpen.filter((t) => isPast(t.dueAt) && !isToday(t.dueAt));
-  const confirm = db.orders.filter((o) => o.status === "pending_confirmation");
-  const dispatch = db.orders.filter((o) => o.status === "awaiting_dispatch");
+  const confirm = db.orders.filter((o) => o.orderStatus === "needs_confirmation");
+  const dispatch = db.orders.filter((o) => o.fulfilmentStatus === "packed");
   const failed = db.deliveries.filter((d) => d.status === "failed");
   const cod = db.payments.filter((p) => p.status === "cod_pending");
   const remit = db.payments.filter((p) => p.remittanceDueAt && !p.remitted);
