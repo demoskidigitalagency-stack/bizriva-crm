@@ -454,6 +454,7 @@ export const DELIVERY_STATUS_META: Record<DeliveryStatus, { label: string; tone:
   delivered: { label: "Delivered", tone: "success" },
   failed: { label: "Failed", tone: "danger" },
   returned: { label: "Returned", tone: "warning" },
+  rescheduled: { label: "Rescheduled", tone: "warning" },
 };
 
 export const PAYMENT_STATUS_META: Record<PaymentStatus, { label: string; tone: BadgeTone }> = {
