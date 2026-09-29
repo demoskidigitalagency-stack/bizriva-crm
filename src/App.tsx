@@ -1,19 +1,30 @@
+import type { ReactNode } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AppShell } from "@/components/AppShell";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { TodayPage } from "@/pages/TodayPage";
 import { CrmPage } from "@/pages/CrmPage";
 import { Customer360Page } from "@/pages/Customer360Page";
+import { AuthPage } from "@/pages/AuthPage";
+import { useAuth } from "@/state/AuthContext";
 import {
   InboxPage, OrdersPage, ProductsPage, InventoryPage, StorePage, DeliveryPage,
   MarketingPage, AdsPage, AutomationPage, FinancePage, AnalyticsPage, TeamPage,
   IntegrationsPage, SettingsPage, HelpPage
 } from "@/pages/ModulePages";
 
+function RequireAuth({ children }: { children: ReactNode }) {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">Loading Bizriva CRM…</div>;
+  if (!user) return <Navigate to="/login" replace />;
+  return children;
+}
+
 export default function App() {
   return (
     <Routes>
-      <Route element={<AppShell />}>
+      <Route path="/login" element={<AuthPage />} />
+      <Route element={<RequireAuth><AppShell /></RequireAuth>}>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/today" element={<TodayPage />} />
@@ -35,8 +46,8 @@ export default function App() {
         <Route path="/integrations" element={<IntegrationsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/help" element={<HelpPage />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Route>
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
 }
