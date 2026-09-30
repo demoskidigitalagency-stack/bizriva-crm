@@ -1,6 +1,7 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { createInitialDatabase, type Database } from "@/domain/database";
 import type { AdCampaign, Channel, Contact, DeliveryStatus, FulfilmentStatus, LeadStage, OrderStatus, OrderSummary, PaymentMethod, Task } from "@/domain/types";
+import { backendConfigured } from "@/lib/supabase";
 
 type NewContact = Pick<Contact, "firstName" | "lastName" | "phone" | "city" | "countryCode"> & { email?: string };
 type NewTask = Pick<Task, "title" | "dueAt" | "priority" | "type"> & { contactId?: string; assigneeId?: string };
@@ -23,9 +24,25 @@ interface AppDataContextValue {
 }
 
 const AppDataContext = createContext<AppDataContextValue | null>(null);
+const LOCAL_DB_KEY = "bizriva.crm.localDatabase.v1";
+
+function loadInitialDatabase(): Database {
+  if (backendConfigured) return createInitialDatabase();
+  try {
+    const raw = localStorage.getItem(LOCAL_DB_KEY);
+    if (raw) return JSON.parse(raw) as Database;
+  } catch {
+    localStorage.removeItem(LOCAL_DB_KEY);
+  }
+  return createInitialDatabase();
+}
 
 export function AppDataProvider({ children }: { children: ReactNode }) {
-  const [db, setDb] = useState<Database>(() => createInitialDatabase());
+  const [db, setDb] = useState<Database>(() => loadInitialDatabase());
+
+  useEffect(() => {
+    if (!backendConfigured) localStorage.setItem(LOCAL_DB_KEY, JSON.stringify(db));
+  }, [db]);
 
   const value = useMemo<AppDataContextValue>(() => ({
     db,
@@ -91,7 +108,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       setDb(current => ({ ...current, leads: current.leads.map(l => l.id === leadId ? { ...l, stage, updatedAt: new Date().toISOString() } : l) }));
     },
     updateOrderStatus(orderId, status) {
-      setDb(current => ({ ...current, orders: current.orders.map(o => o.id === orderId ? { ...o, status } : o) }));
+      setDb(current => ({ ...current, orders: current.orders.map(o => o.id === orderId ? { ...o, orderStatus: status } : o) }));
     },
     updateFulfilmentStatus(orderId, status) {
       setDb(current => ({ ...current, orders: current.orders.map(o => o.id === orderId ? { ...o, fulfilmentStatus: status } : o) }));
