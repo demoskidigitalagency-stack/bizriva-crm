@@ -16,6 +16,7 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 const LOCAL_KEY = "bizriva.crm.localUser";
+const localDevelopmentMode = import.meta.env.DEV && !supabase;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -23,9 +24,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!supabase) {
-      const raw = localStorage.getItem(LOCAL_KEY);
-      if (raw) {
-        try { setUser(JSON.parse(raw) as LocalUser); } catch { localStorage.removeItem(LOCAL_KEY); }
+      if (localDevelopmentMode) {
+        const raw = localStorage.getItem(LOCAL_KEY);
+        if (raw) {
+          try { setUser(JSON.parse(raw) as LocalUser); } catch { localStorage.removeItem(LOCAL_KEY); }
+        }
       }
       setLoading(false);
       return;
@@ -57,6 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (error) throw error;
         return;
       }
+      if (!localDevelopmentMode) throw new Error("Bizriva CRM authentication is not configured for this deployment.");
       const local = { id: "local-owner", email: email.trim().toLowerCase() };
       localStorage.setItem(LOCAL_KEY, JSON.stringify(local));
       setUser(local);
@@ -68,6 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (error) throw error;
         return;
       }
+      if (!localDevelopmentMode) throw new Error("Bizriva CRM authentication is not configured for this deployment.");
       const local = { id: "local-owner", email: email.trim().toLowerCase() };
       localStorage.setItem(LOCAL_KEY, JSON.stringify(local));
       setUser(local);
