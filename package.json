@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "lint": "eslint .",
+    "validate": "node scripts/validate-repository.mjs",
     "test:e2e": "playwright test"
   },
   "dependencies": {
