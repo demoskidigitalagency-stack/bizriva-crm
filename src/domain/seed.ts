@@ -67,24 +67,6 @@ export const workspaces: Workspace[] = [
     country: "NG",
     plan: "Growth",
   },
-  {
-    id: "ws_urbanfit",
-    name: "UrbanFit Apparel",
-    handle: "urbanfit",
-    industry: "Fashion Dropshipping",
-    currency: "NGN",
-    country: "NG",
-    plan: "Scale",
-  },
-  {
-    id: "ws_gadget",
-    name: "Gadget Republic",
-    handle: "gadgetrepublic",
-    industry: "Consumer Electronics",
-    currency: "NGN",
-    country: "GH",
-    plan: "Starter",
-  },
 ];
 
 export const team: TeamMember[] = [
