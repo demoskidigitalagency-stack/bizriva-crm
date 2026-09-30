@@ -1,19 +1,35 @@
+import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { Shield, Building2, Users, Activity, CreditCard } from "lucide-react";
 import { useAuth } from "@/state/AuthContext";
 import { useAppData } from "@/state/AppData";
+import { supabase } from "@/lib/supabase";
 import { KpiCard, PageHeader, Pill, SectionCard } from "@/components/Common";
 
 export function PlatformAdminPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { db } = useAppData();
-  const ownerEmail = (import.meta.env.VITE_PLATFORM_OWNER_EMAIL ?? "").trim().toLowerCase();
-  const email = user?.email?.toLowerCase() ?? "";
+  const [authorized, setAuthorized] = useState<boolean | null>(null);
 
-  if (!ownerEmail || email !== ownerEmail) return <Navigate to="/dashboard" replace />;
+  useEffect(() => {
+    let active = true;
+    async function check() {
+      if (!user || !supabase) {
+        if (active) setAuthorized(false);
+        return;
+      }
+      const { data, error } = await supabase.rpc("is_platform_admin");
+      if (active) setAuthorized(!error && data === true);
+    }
+    void check();
+    return () => { active = false; };
+  }, [user]);
+
+  if (authLoading || authorized === null) return <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">Checking platform authorization…</div>;
+  if (!authorized) return <Navigate to="/dashboard" replace />;
 
   return <div className="min-h-screen bg-background">
-    <PageHeader eyebrow="Bizriva Platform" title="Platform Administration" description="Private operator console. This area is intentionally outside tenant navigation." actions={<Shield className="h-6 w-6 text-primary"/>}/>
+    <PageHeader eyebrow="Bizriva Platform" title="Platform Administration" description="Private operator console. Authorization is enforced by the server database function." actions={<Shield className="h-6 w-6 text-primary"/>}/>
     <div className="space-y-5 p-4 md:p-6">
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard label="Workspaces" value={String(db.workspaces.length)}/>
