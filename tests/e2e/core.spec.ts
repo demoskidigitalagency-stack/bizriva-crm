@@ -29,3 +29,17 @@ test("public storefront creates an order confirmation", async ({ page }) => {
   await page.getByRole("button", { name: "Place order" }).click();
   await expect(page.getByRole("heading", { name: "Order received" })).toBeVisible();
 });
+
+
+test("order status changes persist across reload in local development mode", async ({ page }) => {
+  await signIn(page);
+  await page.goto("/orders");
+  const firstRow = page.locator("tbody tr").first();
+  await expect(firstRow).toBeVisible();
+  const statusSelect = firstRow.locator("select").first();
+  await statusSelect.selectOption("confirmed");
+  await expect(statusSelect).toHaveValue("confirmed");
+  await page.reload();
+  const reloadedStatus = page.locator("tbody tr").first().locator("select").first();
+  await expect(reloadedStatus).toHaveValue("confirmed");
+});
