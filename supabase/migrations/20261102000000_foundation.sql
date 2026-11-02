@@ -15,7 +15,7 @@
 create extension if not exists "pgcrypto";
 
 -- ───────────────────────────── enums ─────────────────────────────
-create type public.member_role as enum ('owner', 'manager', 'sales', 'support', 'dispatcher', 'rider');
+create type public.member_role as enum ('owner', 'manager', 'sales', 'support', 'dispatcher', 'finance');
 create type public.channel as enum ('whatsapp', 'messenger', 'instagram', 'sms', 'email', 'webchat', 'tiktok', 'phone');
 create type public.lead_stage as enum (
   'new_lead', 'first_contact', 'engaged', 'qualified', 'high_intent', 'negotiating', 'checkout_started',

@@ -4,7 +4,7 @@ Generated from `src/app/status.ts` and `src/app/modules.ts` by `bun run status`.
 
 | Track | Progress | |
 | --- | ---: | --- |
-| **Frontend — Practice Mode** (every page and button works on sample data) | **98%** | `████████████████████` |
+| **Frontend — Practice Mode** (every page and button works on sample data) | **100%** | `████████████████████` |
 | **Backend — Live** (works for real: auth, database, WhatsApp, AI) | **0%** | `░░░░░░░░░░░░░░░░░░░░` |
 
 Modules: 28 of 28 practice ready · 0 partly working · 0 planned.
@@ -46,7 +46,7 @@ Modules: 28 of 28 practice ready · 0 partly working · 0 planned.
 | ✅ | Workspace | Build Progress | Foundation | Practice ready | Kobolink, Prompt |
 | ✅ | Workspace | Help | Later | Practice ready | Bizriva |
 
-### Cross-cutting — 89% (15% of the frontend)
+### Cross-cutting — 100% (15% of the frontend)
 
 - [x] bizriva-crm set up from repo 3 (Bizriva) shell, design system and data types _(2026-11-02)_
 - [x] Appearance: Hybrid default, with Sandala, Kobolink and Bizriva as options _(2026-11-02)_
@@ -55,7 +55,7 @@ Modules: 28 of 28 practice ready · 0 partly working · 0 planned.
 - [x] Multi-workspace database schema drafted and isolation-tested _(2026-11-02)_
 - [x] Practice data saved in the browser, with Reset sample data _(2026-11-02)_
 - [x] Every link, search result and Today queue opens a real page _(2026-11-02)_
-- [ ] Crosswalk decisions agreed (menus, lead stages, order statuses, roles) — Use the 'Your decision' column in repo-comparison.xlsx
+- [x] Crosswalk decisions agreed (menus, lead stages, order statuses, roles) _(2026-11-02)_ — See DECISIONS.md — prompt's 13 lead stages and 10 order statuses, 6 roles, own Supabase + Vercel
 - [x] Click-through QA: every page on desktop and phone, light and dark, no console errors _(2026-11-02)_ — tests/practice_qa.py 46/46 and tests/practice_qa_modules.py 61/61
 
 ## Backend track
@@ -72,7 +72,7 @@ Modules: 28 of 28 practice ready · 0 partly working · 0 planned.
 
 _Real WhatsApp messages land in a shared, saved inbox for several agents._
 
-- [ ] Backend chosen and connected (Supabase project, environment) — Decision pending: Lovable Cloud or own Supabase
+- [ ] Backend chosen and connected (Supabase project, environment) — Chosen 2026-11-02: own Supabase project + Vercel hosting. Not yet connected.
 - [ ] Sign-up, sign-in, invitations
 - [ ] Workspaces with row-level isolation applied and tested
 - [ ] Roles and permissions enforced on the server

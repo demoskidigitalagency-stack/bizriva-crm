@@ -41,7 +41,7 @@ export const FRONTEND_CHECKLIST: StatusItem[] = [
   { id: "f-schema", label: "Multi-workspace database schema drafted and isolation-tested", weight: 2, done: true, doneOn: "2026-11-02" },
   { id: "f-persist", label: "Practice data saved in the browser, with Reset sample data", weight: 2, done: true, doneOn: "2026-11-02" },
   { id: "f-links", label: "Every link, search result and Today queue opens a real page", weight: 2, done: true, doneOn: "2026-11-02" },
-  { id: "f-decisions", label: "Crosswalk decisions agreed (menus, lead stages, order statuses, roles)", weight: 2, done: false, note: "Use the 'Your decision' column in repo-comparison.xlsx" },
+  { id: "f-decisions", label: "Crosswalk decisions agreed (menus, lead stages, order statuses, roles)", weight: 2, done: true, doneOn: "2026-11-02", note: "See DECISIONS.md — prompt's 13 lead stages and 10 order statuses, 6 roles, own Supabase + Vercel" },
   { id: "f-qa", label: "Click-through QA: every page on desktop and phone, light and dark, no console errors", weight: 3, done: true, doneOn: "2026-11-02", note: "tests/practice_qa.py 46/46 and tests/practice_qa_modules.py 61/61" },
 ];
 
@@ -51,7 +51,7 @@ export const PHASES: StatusPhase[] = [
     id: "p1", name: "Phase 1 — Core communication", share: 30,
     goal: "Real WhatsApp messages land in a shared, saved inbox for several agents.",
     items: [
-      { id: "p1-backend", label: "Backend chosen and connected (Supabase project, environment)", weight: 2, done: false, note: "Decision pending: Lovable Cloud or own Supabase" },
+      { id: "p1-backend", label: "Backend chosen and connected (Supabase project, environment)", weight: 2, done: false, note: "Chosen 2026-11-02: own Supabase project + Vercel hosting. Not yet connected." },
       { id: "p1-auth", label: "Sign-up, sign-in, invitations", weight: 2, done: false },
       { id: "p1-tenancy", label: "Workspaces with row-level isolation applied and tested", weight: 3, done: false },
       { id: "p1-roles", label: "Roles and permissions enforced on the server", weight: 2, done: false },
