@@ -7,7 +7,20 @@
  */
 
 import * as seed from "./seed";
+import * as practice from "./practice-seed";
 import type {
+  AgentConfig,
+  Broadcast,
+  BusinessSettings,
+  FollowUpRule,
+  IntegrationState,
+  KnowledgeEntry,
+  MediaAsset,
+  MessageTemplate,
+  Rider,
+  StockMovement,
+  Workflow,
+  WorkflowRun,
   Activity,
   AcquisitionAttribution,
   Campaign,
@@ -48,6 +61,28 @@ export interface Database {
   campaigns: Campaign[];
   notifications: NotificationItem[];
   revenueTrend: typeof seed.revenueTrend;
+  riders: Rider[];
+  knowledge: KnowledgeEntry[];
+  templates: MessageTemplate[];
+  followUpRules: FollowUpRule[];
+  broadcasts: Broadcast[];
+  workflows: Workflow[];
+  workflowRuns: WorkflowRun[];
+  media: MediaAsset[];
+  stockMovements: StockMovement[];
+  integrations: IntegrationState[];
+  agent: AgentConfig;
+  settings: BusinessSettings;
+}
+
+/** In-house deliveries get a rider by city so the Riders module has real-looking work. */
+function withRiders(deliveries: DeliverySummary[]): DeliverySummary[] {
+  const byCity: Record<string, string> = { Lagos: "r_musa", Ikeja: "r_kunle", Abuja: "r_emeka", Ibadan: "r_bisi" };
+  return deliveries.map((d, i) => {
+    if (d.courier !== "In-house Rider") return d;
+    const riderId = byCity[d.city] ?? (i % 2 ? "r_kunle" : "r_musa");
+    return { ...d, riderId };
+  });
 }
 
 export function createInitialDatabase(): Database {
@@ -65,12 +100,24 @@ export function createInitialDatabase(): Database {
     productInterests: seed.productInterests,
     segments: seed.segments,
     orders: seed.orders,
-    deliveries: seed.deliveries,
+    deliveries: withRiders(seed.deliveries),
     payments: seed.payments,
     products: seed.products,
     campaigns: seed.campaigns,
     notifications: seed.notifications,
     revenueTrend: seed.revenueTrend,
+    riders: practice.riders,
+    knowledge: practice.knowledge,
+    templates: practice.templates,
+    followUpRules: practice.followUpRules,
+    broadcasts: practice.broadcasts,
+    workflows: practice.workflows,
+    workflowRuns: practice.workflowRuns,
+    media: practice.media,
+    stockMovements: practice.stockMovements,
+    integrations: practice.integrations,
+    agent: practice.agent,
+    settings: practice.settings,
   };
 }
 

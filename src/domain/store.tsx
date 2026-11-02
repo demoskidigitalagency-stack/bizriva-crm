@@ -7,7 +7,25 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createInitialDatabase, CURRENT_USER_ID, NOW, type Database } from "./database";
-import type { Channel, Contact, DeliveryStatus, ID, LeadOutcome, LeadStage, Lifecycle, OrderStatus, PaymentMethod, Product, Task } from "./types";
+import type {
+  AgentConfig, Broadcast, BusinessSettings, Campaign, Channel, Contact, DeliveryStatus, FollowUpRule, ID, IntegrationState, KnowledgeEntry,
+  LeadOutcome, LeadStage, Lifecycle, MediaAsset, MessageTemplate, OrderStatus, PaymentMethod, Product, Rider, StockMovement, Task,
+  TeamMember, Workflow, WorkflowRun,
+} from "./types";
+
+/** Collections that the generic save/remove actions may touch. */
+export interface Editable {
+  riders: Rider;
+  knowledge: KnowledgeEntry;
+  templates: MessageTemplate;
+  followUpRules: FollowUpRule;
+  broadcasts: Broadcast;
+  workflows: Workflow;
+  media: MediaAsset;
+  campaigns: Campaign;
+  team: TeamMember;
+}
+type EditableKey = keyof Editable;
 
 /**
  * Practice Mode persistence: the whole sample database is saved in this
@@ -15,7 +33,7 @@ import type { Channel, Contact, DeliveryStatus, ID, LeadOutcome, LeadStage, Life
  * version when the seed or types change shape — old saves are then ignored.
  */
 const PRACTICE_KEY = "bizriva.practice-db";
-const PRACTICE_VERSION = 1;
+const PRACTICE_VERSION = 2; // v2: riders, knowledge base, templates, follow-ups, workflows, media, settings
 
 function loadPractice(): { db: Database; workspaceId: ID } | null {
   try {
@@ -79,6 +97,18 @@ interface StoreActions {
   mergeContacts: (keepId: ID, mergeIds: ID[]) => void;
   startLead: (contactId: ID) => void;
   resetPracticeData: () => void;
+  saveRecord: <K extends EditableKey>(collection: K, record: Omit<Editable[K], "id"> & { id?: ID }) => ID;
+  removeRecord: (collection: EditableKey, id: ID) => void;
+  updateSettings: (patch: Partial<BusinessSettings>) => void;
+  updateAgent: (patch: Partial<AgentConfig>) => void;
+  setIntegration: (id: IntegrationState["id"], status: IntegrationState["status"]) => void;
+  assignRider: (deliveryId: ID, riderId: ID | undefined) => void;
+  moveStock: (productId: ID, delta: number, reason: StockMovement["reason"], note?: string) => void;
+  recordPayment: (orderId: ID, method: PaymentMethod) => void;
+  logRun: (run: Omit<WorkflowRun, "id" | "at">) => void;
+  retryRun: (runId: ID) => void;
+  sendBroadcast: (broadcastId: ID) => void;
+  addCampaignSpend: (campaignId: ID, amount: number, revenue?: number) => void;
 }
 
 interface StoreValue {
@@ -144,7 +174,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const lines = input.items.filter((i) => i.qty > 0);
       if (!lines.length) return d;
       const products = lines.map((l) => ({ line: l, product: d.products.find((p) => p.id === l.productId) })).filter((x) => x.product);
-      const total = products.reduce((s, x) => s + x.product!.price * x.line.qty, 0) + 3500;
+      const subtotal = products.reduce((s, x) => s + x.product!.price * x.line.qty, 0);
+      const fee = subtotal >= d.settings.freeDeliveryOver ? 0 : d.settings.deliveryFee;
+      const total = subtotal + fee;
       const cogs = products.reduce((s, x) => s + x.product!.cost * x.line.qty, 0);
       const order = {
         id: newId("ord"),
@@ -155,7 +187,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         itemsCount: products.reduce((s, x) => s + x.line.qty, 0),
         total,
         cogs,
-        shippingFee: 3500,
+        shippingFee: fee,
         paymentStatus: input.method === "cash_on_delivery" ? ("cod_pending" as const) : ("unpaid" as const),
         paymentMethod: input.method,
         channel: input.channel,
@@ -407,6 +439,108 @@ export function DataProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+
+  const saveRecord = useCallback(<K extends EditableKey>(collection: K, record: Omit<Editable[K], "id"> & { id?: ID }): ID => {
+    const id = record.id ?? newId(collection.slice(0, 3));
+    setDb((d) => {
+      const list = d[collection] as unknown as { id: ID }[];
+      const exists = list.some((r) => r.id === id);
+      const next = exists ? list.map((r) => (r.id === id ? { ...r, ...record, id } : r)) : [{ ...record, id }, ...list];
+      return { ...d, [collection]: next };
+    });
+    return id;
+  }, []);
+
+  const removeRecord = useCallback((collection: EditableKey, id: ID) => {
+    setDb((d) => ({ ...d, [collection]: (d[collection] as unknown as { id: ID }[]).filter((r) => r.id !== id) }));
+  }, []);
+
+  const updateSettings = useCallback((patch: Partial<BusinessSettings>) => {
+    setDb((d) => ({ ...d, settings: { ...d.settings, ...patch } }));
+  }, []);
+
+  const updateAgent = useCallback((patch: Partial<AgentConfig>) => {
+    setDb((d) => ({ ...d, agent: { ...d.agent, ...patch } }));
+  }, []);
+
+  const setIntegration = useCallback((id: IntegrationState["id"], status: IntegrationState["status"]) => {
+    setDb((d) => ({
+      ...d,
+      integrations: d.integrations.map((x) => (x.id === id ? (status === "simulated" ? { id, status, connectedAt: new Date().toISOString() } : { id, status }) : x)),
+    }));
+  }, []);
+
+  const assignRider = useCallback((deliveryId: ID, riderId: ID | undefined) => {
+    setDb((d) => {
+      const del = d.deliveries.find((x) => x.id === deliveryId);
+      if (!del) return d;
+      const rider = d.riders.find((r) => r.id === riderId);
+      const next: Database = {
+        ...d,
+        deliveries: d.deliveries.map((x) => {
+          if (x.id !== deliveryId) return x;
+          const { riderId: _r, ...rest } = x;
+          return rider ? { ...rest, riderId: rider.id, courier: "In-house Rider" } : rest;
+        }),
+      };
+      return logActivity(next, del.contactId, rider ? `Delivery ${del.trackingRef} assigned to ${rider.name}` : `Rider removed from ${del.trackingRef}`);
+    });
+  }, []);
+
+  const moveStock = useCallback((productId: ID, delta: number, reason: StockMovement["reason"], note?: string) => {
+    setDb((d) => ({
+      ...d,
+      products: d.products.map((p) => (p.id === productId ? { ...p, stock: Math.max(0, p.stock + delta) } : p)),
+      stockMovements: [{ id: newId("sm"), productId, delta, reason, ...(note ? { note } : {}), at: new Date().toISOString() }, ...d.stockMovements],
+    }));
+  }, []);
+
+  const recordPayment = useCallback((orderId: ID, method: PaymentMethod) => {
+    setDb((d) => {
+      const order = d.orders.find((o) => o.id === orderId);
+      if (!order || order.paymentStatus === "paid") return d;
+      const now = new Date().toISOString();
+      const next: Database = {
+        ...d,
+        orders: d.orders.map((o) => (o.id === orderId ? { ...o, paymentStatus: "paid" as const, paymentMethod: method } : o)),
+        payments: [{ id: newId("pay"), orderId, contactId: order.contactId, amount: order.total, method, status: "paid", at: now }, ...d.payments],
+        contacts: d.contacts.map((c) => (c.id === order.contactId ? { ...c, outstandingBalance: Math.max(0, c.outstandingBalance - order.total) } : c)),
+      };
+      return logActivity(next, order.contactId, `Payment recorded for ${order.reference}`, "system", method.replace(/_/g, " "));
+    });
+  }, []);
+
+  const logRun = useCallback((run: Omit<WorkflowRun, "id" | "at">) => {
+    setDb((d) => ({ ...d, workflowRuns: [{ ...run, id: newId("run"), at: new Date().toISOString() }, ...d.workflowRuns] }));
+  }, []);
+
+  const retryRun = useCallback((runId: ID) => {
+    setDb((d) => ({
+      ...d,
+      workflowRuns: d.workflowRuns.map((r) => (r.id === runId && r.status === "failed" ? { ...r, status: "succeeded" as const, detail: `${r.detail} — retried and succeeded`, at: new Date().toISOString() } : r)),
+    }));
+  }, []);
+
+  const sendBroadcast = useCallback((broadcastId: ID) => {
+    setDb((d) => {
+      const bc = d.broadcasts.find((b) => b.id === broadcastId);
+      if (!bc || bc.status === "sent") return d;
+      const seg = d.segments.find((s) => s.id === bc.segmentId);
+      const size = seg?.memberCount ?? 0;
+      // Practice estimate: consent share from the whole contact base.
+      const consentShare = d.contacts.length ? d.contacts.filter((c) => c.consentMarketing).length / d.contacts.length : 0;
+      const recipients = Math.round(size * consentShare);
+      return {
+        ...d,
+        broadcasts: d.broadcasts.map((b) => (b.id === broadcastId ? { ...b, status: "sent" as const, sentAt: new Date().toISOString(), recipients, skippedNoConsent: size - recipients } : b)),
+      };
+    });
+  }, []);
+
+  const addCampaignSpend = useCallback((campaignId: ID, amount: number, revenue = 0) => {
+    setDb((d) => ({ ...d, campaigns: d.campaigns.map((c) => (c.id === campaignId ? { ...c, spend: c.spend + amount, revenue: c.revenue + revenue } : c)) }));
+  }, []);
+
   const resetPracticeData = useCallback(() => {
     try {
       localStorage.removeItem(PRACTICE_KEY);
@@ -424,10 +558,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
       actions: {
         addContact, createOrder, setLeadStage, setLeadOutcome, assignOwner, setLifecycle, completeTask, snoozeTask, addTask, addNote, logCall,
         sendReply, markNotificationsRead, setWorkspace: setWorkspaceId, setOrderStatus, recordCodCheck, setDeliveryStatus, markRemitted,
-        saveProduct, adjustStock, mergeContacts, startLead, resetPracticeData,
+        saveProduct, adjustStock, mergeContacts, startLead, resetPracticeData, saveRecord, removeRecord, updateSettings, updateAgent,
+        setIntegration, assignRider, moveStock, recordPayment, logRun, retryRun, sendBroadcast, addCampaignSpend,
       },
     }),
-    [db, workspaceId, addContact, createOrder, setLeadStage, setLeadOutcome, assignOwner, setLifecycle, completeTask, snoozeTask, addTask, addNote, logCall, sendReply, markNotificationsRead, setOrderStatus, recordCodCheck, setDeliveryStatus, markRemitted, saveProduct, adjustStock, mergeContacts, startLead, resetPracticeData],
+    [db, workspaceId, addContact, createOrder, setLeadStage, setLeadOutcome, assignOwner, setLifecycle, completeTask, snoozeTask, addTask, addNote, logCall, sendReply, markNotificationsRead, setOrderStatus, recordCodCheck, setDeliveryStatus, markRemitted, saveProduct, adjustStock, mergeContacts, startLead, resetPracticeData, saveRecord, removeRecord, updateSettings, updateAgent, setIntegration, assignRider, moveStock, recordPayment, logRun, retryRun, sendBroadcast, addCampaignSpend],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

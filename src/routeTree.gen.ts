@@ -11,14 +11,33 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SplatRouteImport } from './routes/$'
+import { Route as AdsRouteImport } from './routes/ads'
+import { Route as AiAgentRouteImport } from './routes/ai-agent'
+import { Route as AnalyticsRouteImport } from './routes/analytics'
+import { Route as AutomationRouteImport } from './routes/automation'
+import { Route as BillingRouteImport } from './routes/billing'
+import { Route as BroadcastsRouteImport } from './routes/broadcasts'
 import { Route as CodRouteImport } from './routes/cod'
 import { Route as CrmRouteImport } from './routes/crm'
+import { Route as DeliveryRouteImport } from './routes/delivery'
+import { Route as FollowUpsRouteImport } from './routes/follow-ups'
+import { Route as HelpRouteImport } from './routes/help'
 import { Route as InboxRouteImport } from './routes/inbox'
+import { Route as IntegrationsRouteImport } from './routes/integrations'
+import { Route as InventoryRouteImport } from './routes/inventory'
+import { Route as KnowledgeRouteImport } from './routes/knowledge'
+import { Route as MediaRouteImport } from './routes/media'
 import { Route as OrdersRouteImport } from './routes/orders'
+import { Route as PaymentsRouteImport } from './routes/payments'
 import { Route as ProductsRouteImport } from './routes/products'
 import { Route as ProgressRouteImport } from './routes/progress'
+import { Route as RidersRouteImport } from './routes/riders'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as StoreRouteImport } from './routes/store'
+import { Route as TeamRouteImport } from './routes/team'
+import { Route as TemplatesRouteImport } from './routes/templates'
 import { Route as TodayRouteImport } from './routes/today'
+import { Route as WorkflowHistoryRouteImport } from './routes/workflow-history'
 import { Route as CrmIndexRouteImport } from './routes/crm/index'
 import { Route as CrmCustomersRouteImport } from './routes/crm/customers'
 import { Route as CrmDuplicatesRouteImport } from './routes/crm/duplicates'
@@ -40,6 +59,36 @@ const SplatRoute = SplatRouteImport.update({
   path: '/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdsRoute = AdsRouteImport.update({
+  id: '/ads',
+  path: '/ads',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AiAgentRoute = AiAgentRouteImport.update({
+  id: '/ai-agent',
+  path: '/ai-agent',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AnalyticsRoute = AnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AutomationRoute = AutomationRouteImport.update({
+  id: '/automation',
+  path: '/automation',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BillingRoute = BillingRouteImport.update({
+  id: '/billing',
+  path: '/billing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BroadcastsRoute = BroadcastsRouteImport.update({
+  id: '/broadcasts',
+  path: '/broadcasts',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CodRoute = CodRouteImport.update({
   id: '/cod',
   path: '/cod',
@@ -50,14 +99,54 @@ const CrmRoute = CrmRouteImport.update({
   path: '/crm',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DeliveryRoute = DeliveryRouteImport.update({
+  id: '/delivery',
+  path: '/delivery',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FollowUpsRoute = FollowUpsRouteImport.update({
+  id: '/follow-ups',
+  path: '/follow-ups',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HelpRoute = HelpRouteImport.update({
+  id: '/help',
+  path: '/help',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const InboxRoute = InboxRouteImport.update({
   id: '/inbox',
   path: '/inbox',
   getParentRoute: () => rootRouteImport,
 } as any)
+const IntegrationsRoute = IntegrationsRouteImport.update({
+  id: '/integrations',
+  path: '/integrations',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InventoryRoute = InventoryRouteImport.update({
+  id: '/inventory',
+  path: '/inventory',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KnowledgeRoute = KnowledgeRouteImport.update({
+  id: '/knowledge',
+  path: '/knowledge',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MediaRoute = MediaRouteImport.update({
+  id: '/media',
+  path: '/media',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OrdersRoute = OrdersRouteImport.update({
   id: '/orders',
   path: '/orders',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PaymentsRoute = PaymentsRouteImport.update({
+  id: '/payments',
+  path: '/payments',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProductsRoute = ProductsRouteImport.update({
@@ -70,14 +159,39 @@ const ProgressRoute = ProgressRouteImport.update({
   path: '/progress',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RidersRoute = RidersRouteImport.update({
+  id: '/riders',
+  path: '/riders',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StoreRoute = StoreRouteImport.update({
+  id: '/store',
+  path: '/store',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TeamRoute = TeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TemplatesRoute = TemplatesRouteImport.update({
+  id: '/templates',
+  path: '/templates',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TodayRoute = TodayRouteImport.update({
   id: '/today',
   path: '/today',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WorkflowHistoryRoute = WorkflowHistoryRouteImport.update({
+  id: '/workflow-history',
+  path: '/workflow-history',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CrmIndexRoute = CrmIndexRouteImport.update({
@@ -134,14 +248,33 @@ const CrmContactsContactIdRoute = CrmContactsContactIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
+  '/ads': typeof AdsRoute
+  '/ai-agent': typeof AiAgentRoute
+  '/analytics': typeof AnalyticsRoute
+  '/automation': typeof AutomationRoute
+  '/billing': typeof BillingRoute
+  '/broadcasts': typeof BroadcastsRoute
   '/cod': typeof CodRoute
   '/crm': typeof CrmRouteWithChildren
+  '/delivery': typeof DeliveryRoute
+  '/follow-ups': typeof FollowUpsRoute
+  '/help': typeof HelpRoute
   '/inbox': typeof InboxRoute
+  '/integrations': typeof IntegrationsRoute
+  '/inventory': typeof InventoryRoute
+  '/knowledge': typeof KnowledgeRoute
+  '/media': typeof MediaRoute
   '/orders': typeof OrdersRoute
+  '/payments': typeof PaymentsRoute
   '/products': typeof ProductsRoute
   '/progress': typeof ProgressRoute
+  '/riders': typeof RidersRoute
   '/settings': typeof SettingsRoute
+  '/store': typeof StoreRoute
+  '/team': typeof TeamRoute
+  '/templates': typeof TemplatesRoute
   '/today': typeof TodayRoute
+  '/workflow-history': typeof WorkflowHistoryRoute
   '/crm/customers': typeof CrmCustomersRoute
   '/crm/duplicates': typeof CrmDuplicatesRoute
   '/crm/imports': typeof CrmImportsRoute
@@ -156,13 +289,32 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
+  '/ads': typeof AdsRoute
+  '/ai-agent': typeof AiAgentRoute
+  '/analytics': typeof AnalyticsRoute
+  '/automation': typeof AutomationRoute
+  '/billing': typeof BillingRoute
+  '/broadcasts': typeof BroadcastsRoute
   '/cod': typeof CodRoute
+  '/delivery': typeof DeliveryRoute
+  '/follow-ups': typeof FollowUpsRoute
+  '/help': typeof HelpRoute
   '/inbox': typeof InboxRoute
+  '/integrations': typeof IntegrationsRoute
+  '/inventory': typeof InventoryRoute
+  '/knowledge': typeof KnowledgeRoute
+  '/media': typeof MediaRoute
   '/orders': typeof OrdersRoute
+  '/payments': typeof PaymentsRoute
   '/products': typeof ProductsRoute
   '/progress': typeof ProgressRoute
+  '/riders': typeof RidersRoute
   '/settings': typeof SettingsRoute
+  '/store': typeof StoreRoute
+  '/team': typeof TeamRoute
+  '/templates': typeof TemplatesRoute
   '/today': typeof TodayRoute
+  '/workflow-history': typeof WorkflowHistoryRoute
   '/crm/customers': typeof CrmCustomersRoute
   '/crm/duplicates': typeof CrmDuplicatesRoute
   '/crm/imports': typeof CrmImportsRoute
@@ -178,14 +330,33 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
+  '/ads': typeof AdsRoute
+  '/ai-agent': typeof AiAgentRoute
+  '/analytics': typeof AnalyticsRoute
+  '/automation': typeof AutomationRoute
+  '/billing': typeof BillingRoute
+  '/broadcasts': typeof BroadcastsRoute
   '/cod': typeof CodRoute
   '/crm': typeof CrmRouteWithChildren
+  '/delivery': typeof DeliveryRoute
+  '/follow-ups': typeof FollowUpsRoute
+  '/help': typeof HelpRoute
   '/inbox': typeof InboxRoute
+  '/integrations': typeof IntegrationsRoute
+  '/inventory': typeof InventoryRoute
+  '/knowledge': typeof KnowledgeRoute
+  '/media': typeof MediaRoute
   '/orders': typeof OrdersRoute
+  '/payments': typeof PaymentsRoute
   '/products': typeof ProductsRoute
   '/progress': typeof ProgressRoute
+  '/riders': typeof RidersRoute
   '/settings': typeof SettingsRoute
+  '/store': typeof StoreRoute
+  '/team': typeof TeamRoute
+  '/templates': typeof TemplatesRoute
   '/today': typeof TodayRoute
+  '/workflow-history': typeof WorkflowHistoryRoute
   '/crm/customers': typeof CrmCustomersRoute
   '/crm/duplicates': typeof CrmDuplicatesRoute
   '/crm/imports': typeof CrmImportsRoute
@@ -202,14 +373,33 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/$'
+    | '/ads'
+    | '/ai-agent'
+    | '/analytics'
+    | '/automation'
+    | '/billing'
+    | '/broadcasts'
     | '/cod'
     | '/crm'
+    | '/delivery'
+    | '/follow-ups'
+    | '/help'
     | '/inbox'
+    | '/integrations'
+    | '/inventory'
+    | '/knowledge'
+    | '/media'
     | '/orders'
+    | '/payments'
     | '/products'
     | '/progress'
+    | '/riders'
     | '/settings'
+    | '/store'
+    | '/team'
+    | '/templates'
     | '/today'
+    | '/workflow-history'
     | '/crm/customers'
     | '/crm/duplicates'
     | '/crm/imports'
@@ -224,13 +414,32 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/$'
+    | '/ads'
+    | '/ai-agent'
+    | '/analytics'
+    | '/automation'
+    | '/billing'
+    | '/broadcasts'
     | '/cod'
+    | '/delivery'
+    | '/follow-ups'
+    | '/help'
     | '/inbox'
+    | '/integrations'
+    | '/inventory'
+    | '/knowledge'
+    | '/media'
     | '/orders'
+    | '/payments'
     | '/products'
     | '/progress'
+    | '/riders'
     | '/settings'
+    | '/store'
+    | '/team'
+    | '/templates'
     | '/today'
+    | '/workflow-history'
     | '/crm/customers'
     | '/crm/duplicates'
     | '/crm/imports'
@@ -245,14 +454,33 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/$'
+    | '/ads'
+    | '/ai-agent'
+    | '/analytics'
+    | '/automation'
+    | '/billing'
+    | '/broadcasts'
     | '/cod'
     | '/crm'
+    | '/delivery'
+    | '/follow-ups'
+    | '/help'
     | '/inbox'
+    | '/integrations'
+    | '/inventory'
+    | '/knowledge'
+    | '/media'
     | '/orders'
+    | '/payments'
     | '/products'
     | '/progress'
+    | '/riders'
     | '/settings'
+    | '/store'
+    | '/team'
+    | '/templates'
     | '/today'
+    | '/workflow-history'
     | '/crm/customers'
     | '/crm/duplicates'
     | '/crm/imports'
@@ -268,14 +496,33 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SplatRoute: typeof SplatRoute
+  AdsRoute: typeof AdsRoute
+  AiAgentRoute: typeof AiAgentRoute
+  AnalyticsRoute: typeof AnalyticsRoute
+  AutomationRoute: typeof AutomationRoute
+  BillingRoute: typeof BillingRoute
+  BroadcastsRoute: typeof BroadcastsRoute
   CodRoute: typeof CodRoute
   CrmRoute: typeof CrmRouteWithChildren
+  DeliveryRoute: typeof DeliveryRoute
+  FollowUpsRoute: typeof FollowUpsRoute
+  HelpRoute: typeof HelpRoute
   InboxRoute: typeof InboxRoute
+  IntegrationsRoute: typeof IntegrationsRoute
+  InventoryRoute: typeof InventoryRoute
+  KnowledgeRoute: typeof KnowledgeRoute
+  MediaRoute: typeof MediaRoute
   OrdersRoute: typeof OrdersRoute
+  PaymentsRoute: typeof PaymentsRoute
   ProductsRoute: typeof ProductsRoute
   ProgressRoute: typeof ProgressRoute
+  RidersRoute: typeof RidersRoute
   SettingsRoute: typeof SettingsRoute
+  StoreRoute: typeof StoreRoute
+  TeamRoute: typeof TeamRoute
+  TemplatesRoute: typeof TemplatesRoute
   TodayRoute: typeof TodayRoute
+  WorkflowHistoryRoute: typeof WorkflowHistoryRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -294,6 +541,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/ads': {
+      id: '/ads'
+      path: '/ads'
+      fullPath: '/ads'
+      preLoaderRoute: typeof AdsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ai-agent': {
+      id: '/ai-agent'
+      path: '/ai-agent'
+      fullPath: '/ai-agent'
+      preLoaderRoute: typeof AiAgentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/analytics': {
+      id: '/analytics'
+      path: '/analytics'
+      fullPath: '/analytics'
+      preLoaderRoute: typeof AnalyticsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/automation': {
+      id: '/automation'
+      path: '/automation'
+      fullPath: '/automation'
+      preLoaderRoute: typeof AutomationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/billing': {
+      id: '/billing'
+      path: '/billing'
+      fullPath: '/billing'
+      preLoaderRoute: typeof BillingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/broadcasts': {
+      id: '/broadcasts'
+      path: '/broadcasts'
+      fullPath: '/broadcasts'
+      preLoaderRoute: typeof BroadcastsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/cod': {
       id: '/cod'
       path: '/cod'
@@ -308,6 +597,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CrmRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/delivery': {
+      id: '/delivery'
+      path: '/delivery'
+      fullPath: '/delivery'
+      preLoaderRoute: typeof DeliveryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/follow-ups': {
+      id: '/follow-ups'
+      path: '/follow-ups'
+      fullPath: '/follow-ups'
+      preLoaderRoute: typeof FollowUpsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/help': {
+      id: '/help'
+      path: '/help'
+      fullPath: '/help'
+      preLoaderRoute: typeof HelpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/inbox': {
       id: '/inbox'
       path: '/inbox'
@@ -315,11 +625,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InboxRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/integrations': {
+      id: '/integrations'
+      path: '/integrations'
+      fullPath: '/integrations'
+      preLoaderRoute: typeof IntegrationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inventory': {
+      id: '/inventory'
+      path: '/inventory'
+      fullPath: '/inventory'
+      preLoaderRoute: typeof InventoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/knowledge': {
+      id: '/knowledge'
+      path: '/knowledge'
+      fullPath: '/knowledge'
+      preLoaderRoute: typeof KnowledgeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/media': {
+      id: '/media'
+      path: '/media'
+      fullPath: '/media'
+      preLoaderRoute: typeof MediaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/orders': {
       id: '/orders'
       path: '/orders'
       fullPath: '/orders'
       preLoaderRoute: typeof OrdersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/payments': {
+      id: '/payments'
+      path: '/payments'
+      fullPath: '/payments'
+      preLoaderRoute: typeof PaymentsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/products': {
@@ -336,6 +681,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProgressRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/riders': {
+      id: '/riders'
+      path: '/riders'
+      fullPath: '/riders'
+      preLoaderRoute: typeof RidersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -343,11 +695,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/store': {
+      id: '/store'
+      path: '/store'
+      fullPath: '/store'
+      preLoaderRoute: typeof StoreRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/team': {
+      id: '/team'
+      path: '/team'
+      fullPath: '/team'
+      preLoaderRoute: typeof TeamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/templates': {
+      id: '/templates'
+      path: '/templates'
+      fullPath: '/templates'
+      preLoaderRoute: typeof TemplatesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/today': {
       id: '/today'
       path: '/today'
       fullPath: '/today'
       preLoaderRoute: typeof TodayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/workflow-history': {
+      id: '/workflow-history'
+      path: '/workflow-history'
+      fullPath: '/workflow-history'
+      preLoaderRoute: typeof WorkflowHistoryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/crm/': {
@@ -454,14 +834,33 @@ const CrmRouteWithChildren = CrmRoute._addFileChildren(CrmRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SplatRoute: SplatRoute,
+  AdsRoute: AdsRoute,
+  AiAgentRoute: AiAgentRoute,
+  AnalyticsRoute: AnalyticsRoute,
+  AutomationRoute: AutomationRoute,
+  BillingRoute: BillingRoute,
+  BroadcastsRoute: BroadcastsRoute,
   CodRoute: CodRoute,
   CrmRoute: CrmRouteWithChildren,
+  DeliveryRoute: DeliveryRoute,
+  FollowUpsRoute: FollowUpsRoute,
+  HelpRoute: HelpRoute,
   InboxRoute: InboxRoute,
+  IntegrationsRoute: IntegrationsRoute,
+  InventoryRoute: InventoryRoute,
+  KnowledgeRoute: KnowledgeRoute,
+  MediaRoute: MediaRoute,
   OrdersRoute: OrdersRoute,
+  PaymentsRoute: PaymentsRoute,
   ProductsRoute: ProductsRoute,
   ProgressRoute: ProgressRoute,
+  RidersRoute: RidersRoute,
   SettingsRoute: SettingsRoute,
+  StoreRoute: StoreRoute,
+  TeamRoute: TeamRoute,
+  TemplatesRoute: TemplatesRoute,
   TodayRoute: TodayRoute,
+  WorkflowHistoryRoute: WorkflowHistoryRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

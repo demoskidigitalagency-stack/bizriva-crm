@@ -92,7 +92,7 @@ function OrderPanel({ order, onClose }: { order: OrderSummary; onClose: () => vo
                 <StatusBadge tone={DELIVERY_STATUS_META[delivery.status].tone}>{DELIVERY_STATUS_META[delivery.status].label}</StatusBadge>
               </p>
               <p className="mt-1 text-xs text-muted-foreground">{delivery.courier} · {delivery.city} · {delivery.attempts} attempt{delivery.attempts === 1 ? "" : "s"}</p>
-              <Link to="/$" params={{ _splat: "delivery" }} className="mt-2 inline-block text-xs font-medium text-primary hover:underline">Open delivery board</Link>
+              <Link to="/delivery" className="mt-2 inline-block text-xs font-medium text-primary hover:underline">Open delivery board</Link>
             </div>
           )}
 

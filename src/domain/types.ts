@@ -282,6 +282,7 @@ export interface DeliverySummary {
   attempts: number;
   city: string;
   failureReason?: string;
+  riderId?: ID;
 }
 
 export interface PaymentSummary {
@@ -435,3 +436,136 @@ export const SLA_META: Record<SlaStatus, { label: string; tone: BadgeTone }> = {
   breached: { label: "Breached", tone: "danger" },
   met: { label: "Met", tone: "neutral" },
 };
+
+/* ===================================================================
+ * Practice-mode records for the remaining modules (added 2026-11-02).
+ * Same rule as above: the backend must be able to serve these shapes.
+ * =================================================================== */
+
+export interface Rider {
+  id: ID;
+  name: string;
+  phone: string;
+  zone: string;
+  vehicle: "bike" | "car" | "van";
+  active: boolean;
+}
+
+export interface KnowledgeEntry {
+  id: ID;
+  topic: "company" | "faq" | "delivery" | "payment" | "returns" | "promotion" | "terms" | "script";
+  question: string;
+  answer: string;
+  keywords: string[];
+  updatedAt: string;
+}
+
+export interface MessageTemplate {
+  id: ID;
+  name: string;
+  category: "utility" | "marketing" | "authentication";
+  language: string;
+  body: string;
+  status: "draft" | "submitted" | "approved" | "rejected";
+  updatedAt: string;
+}
+
+export interface FollowUpRule {
+  id: ID;
+  name: string;
+  trigger: "no_reply_after_details" | "no_reply_after_price" | "checkout_abandoned" | "delivery_concern";
+  delayHours: number;
+  maxAttempts: number;
+  templateId?: ID;
+  message: string;
+  quietStart: string; // "21:00"
+  quietEnd: string; // "08:00"
+  enabled: boolean;
+}
+
+export interface Broadcast {
+  id: ID;
+  name: string;
+  segmentId: ID;
+  templateId: ID;
+  status: "draft" | "scheduled" | "sent";
+  scheduledFor?: string;
+  sentAt?: string;
+  recipients: number;
+  skippedNoConsent: number;
+}
+
+export interface WorkflowStep {
+  id: ID;
+  kind: "trigger" | "condition" | "wait" | "action";
+  label: string;
+}
+
+export interface Workflow {
+  id: ID;
+  name: string;
+  description: string;
+  active: boolean;
+  steps: WorkflowStep[];
+  updatedAt: string;
+}
+
+export interface WorkflowRun {
+  id: ID;
+  workflowId: ID;
+  contactId?: ID;
+  status: "succeeded" | "failed" | "skipped" | "running";
+  detail: string;
+  at: string;
+}
+
+export interface MediaAsset {
+  id: ID;
+  name: string;
+  kind: "image" | "video";
+  bytes: number;
+  productId?: ID;
+  /** Practice Mode keeps small images inline; the backend uses cloud storage URLs. */
+  url?: string;
+  addedAt: string;
+}
+
+export interface StockMovement {
+  id: ID;
+  productId: ID;
+  delta: number;
+  reason: "restock" | "sale" | "adjustment" | "return" | "damaged";
+  note?: string;
+  at: string;
+}
+
+export interface IntegrationState {
+  id: "whatsapp" | "messenger" | "instagram" | "meta_ads" | "sms" | "email" | "paystack" | "webchat";
+  status: "not_connected" | "simulated";
+  connectedAt?: string;
+}
+
+export interface AgentConfig {
+  enabled: boolean;
+  name: string;
+  greeting: string;
+  tone: "friendly" | "formal" | "playful";
+  handoffKeywords: string[];
+  maxImages: number;
+}
+
+export interface BusinessSettings {
+  businessName: string;
+  timezone: string;
+  deliveryFee: number;
+  freeDeliveryOver: number;
+  paymentLinkTemplate: string;
+  optOutKeywords: string[];
+  quietStart: string;
+  quietEnd: string;
+  maxFollowUpsPerDay: number;
+  notify: Record<"order_confirmed" | "dispatched" | "delivered" | "cod_request" | "feedback", "whatsapp" | "sms" | "email" | "off">;
+  storeEnabled: boolean;
+  storeSlug: string;
+  plan: "trial" | "starter" | "growth" | "scale";
+}

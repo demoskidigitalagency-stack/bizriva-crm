@@ -4,14 +4,14 @@ Generated from `src/app/status.ts` and `src/app/modules.ts` by `bun run status`.
 
 | Track | Progress | |
 | --- | ---: | --- |
-| **Frontend — Practice Mode** (every page and button works on sample data) | **37%** | `███████░░░░░░░░░░░░░` |
+| **Frontend — Practice Mode** (every page and button works on sample data) | **98%** | `████████████████████` |
 | **Backend — Live** (works for real: auth, database, WhatsApp, AI) | **0%** | `░░░░░░░░░░░░░░░░░░░░` |
 
-Modules: 8 of 28 practice ready · 1 partly working · 19 planned.
+Modules: 28 of 28 practice ready · 0 partly working · 0 planned.
 
 ## Frontend track
 
-### Modules — 30% (85% of the frontend)
+### Modules — 100% (85% of the frontend)
 
 ✅ practice ready · 🟡 partly working · ⬜ planned
 
@@ -24,29 +24,29 @@ Modules: 8 of 28 practice ready · 1 partly working · 19 planned.
 | ✅ | Sales | Orders | MVP | Practice ready | Kobolink, Prompt |
 | ✅ | Sales | COD Verification | MVP | Practice ready | Sandala, Prompt |
 | ✅ | Commerce | Products | MVP | Practice ready | Sandala, Kobolink, Prompt |
-| ⬜ | Commerce | Media Library | MVP | Planned | Prompt |
-| ⬜ | Commerce | Inventory | Later | Planned | Kobolink |
-| ⬜ | Commerce | Store | Later | Planned | Bizriva |
-| ⬜ | Delivery | Delivery | MVP | Planned | Kobolink, Prompt |
-| ⬜ | Delivery | Riders | Later | Planned | Kobolink |
-| ⬜ | Automation | AI Sales Agent | MVP | Planned | Kobolink, Prompt |
-| ⬜ | Automation | Knowledge Base | MVP | Planned | Prompt |
-| ⬜ | Automation | Follow-ups | MVP | Planned | Sandala, Prompt |
-| ⬜ | Automation | Templates | MVP | Planned | Prompt |
-| ⬜ | Automation | Broadcasts | Later | Planned | Sandala |
-| ⬜ | Automation | Automation Builder | Later | Planned | Bizriva, Prompt |
-| ⬜ | Automation | Workflow History | Later | Planned | Sandala, Prompt |
-| ⬜ | Growth | Ads and Attribution | Later | Planned | Kobolink, Prompt |
-| ⬜ | Money | Payments | Later | Planned | Kobolink, Prompt |
-| ⬜ | Insights | Analytics | MVP | Planned | Kobolink, Prompt |
-| ⬜ | Workspace | Team and Roles | MVP | Planned | Kobolink, Prompt |
-| ⬜ | Workspace | Integrations | MVP | Planned | Kobolink, Prompt |
-| 🟡 | Workspace | Settings | Foundation | Partly working | Sandala, Kobolink, Prompt |
-| ⬜ | Workspace | Billing | Later | Planned | Prompt |
+| ✅ | Commerce | Media Library | MVP | Practice ready | Prompt |
+| ✅ | Commerce | Inventory | Later | Practice ready | Kobolink |
+| ✅ | Commerce | Store | Later | Practice ready | Bizriva |
+| ✅ | Delivery | Delivery | MVP | Practice ready | Kobolink, Prompt |
+| ✅ | Delivery | Riders | Later | Practice ready | Kobolink |
+| ✅ | Automation | AI Sales Agent | MVP | Practice ready | Kobolink, Prompt |
+| ✅ | Automation | Knowledge Base | MVP | Practice ready | Prompt |
+| ✅ | Automation | Follow-ups | MVP | Practice ready | Sandala, Prompt |
+| ✅ | Automation | Templates | MVP | Practice ready | Prompt |
+| ✅ | Automation | Broadcasts | Later | Practice ready | Sandala |
+| ✅ | Automation | Automation Builder | Later | Practice ready | Bizriva, Prompt |
+| ✅ | Automation | Workflow History | Later | Practice ready | Sandala, Prompt |
+| ✅ | Growth | Ads and Attribution | Later | Practice ready | Kobolink, Prompt |
+| ✅ | Money | Payments | Later | Practice ready | Kobolink, Prompt |
+| ✅ | Insights | Analytics | MVP | Practice ready | Kobolink, Prompt |
+| ✅ | Workspace | Team and Roles | MVP | Practice ready | Kobolink, Prompt |
+| ✅ | Workspace | Integrations | MVP | Practice ready | Kobolink, Prompt |
+| ✅ | Workspace | Settings | Foundation | Practice ready | Sandala, Kobolink, Prompt |
+| ✅ | Workspace | Billing | Later | Practice ready | Prompt |
 | ✅ | Workspace | Build Progress | Foundation | Practice ready | Kobolink, Prompt |
-| ⬜ | Workspace | Help | Later | Planned | Bizriva |
+| ✅ | Workspace | Help | Later | Practice ready | Bizriva |
 
-### Cross-cutting — 72% (15% of the frontend)
+### Cross-cutting — 89% (15% of the frontend)
 
 - [x] bizriva-crm set up from repo 3 (Bizriva) shell, design system and data types _(2026-11-02)_
 - [x] Appearance: Hybrid default, with Sandala, Kobolink and Bizriva as options _(2026-11-02)_
@@ -56,7 +56,7 @@ Modules: 8 of 28 practice ready · 1 partly working · 19 planned.
 - [x] Practice data saved in the browser, with Reset sample data _(2026-11-02)_
 - [x] Every link, search result and Today queue opens a real page _(2026-11-02)_
 - [ ] Crosswalk decisions agreed (menus, lead stages, order statuses, roles) — Use the 'Your decision' column in repo-comparison.xlsx
-- [ ] Click-through QA: every page on desktop and phone, light and dark, no console errors — Automated run on 2026-11-02: 46/46 checks pass for the 8 practice-ready modules; repeat when all modules are built
+- [x] Click-through QA: every page on desktop and phone, light and dark, no console errors _(2026-11-02)_ — tests/practice_qa.py 46/46 and tests/practice_qa_modules.py 61/61
 
 ## Backend track
 

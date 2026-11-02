@@ -68,7 +68,7 @@ function ProductDialog({ product, open, onOpenChange }: { product?: Product | un
 function Products() {
   const db = useDb();
   const ws = useWorkspace();
-  const { adjustStock } = useActions();
+  const { moveStock } = useActions();
   const { p: requested } = Route.useSearch();
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<Product | "new" | null>(() => db.products.find((x) => x.id === requested) ?? null);
@@ -122,9 +122,9 @@ function Products() {
                       <td className="num px-3 py-2 text-right">{formatPercent(margin)}</td>
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-1.5">
-                          <Button variant="outline" size="icon" className="size-7" onClick={() => adjustStock(p.id, -1)} disabled={p.stock === 0} aria-label={`Remove one ${p.name}`}><Minus className="size-3" /></Button>
+                          <Button variant="outline" size="icon" className="size-7" onClick={() => moveStock(p.id, -1, "adjustment", "Quick adjust from Products")} disabled={p.stock === 0} aria-label={`Remove one ${p.name}`}><Minus className="size-3" /></Button>
                           <span className="num w-8 text-center">{p.stock}</span>
-                          <Button variant="outline" size="icon" className="size-7" onClick={() => adjustStock(p.id, 1)} aria-label={`Add one ${p.name}`}><Plus className="size-3" /></Button>
+                          <Button variant="outline" size="icon" className="size-7" onClick={() => moveStock(p.id, 1, "adjustment", "Quick adjust from Products")} aria-label={`Add one ${p.name}`}><Plus className="size-3" /></Button>
                           {p.stock <= p.reorderLevel && <StatusBadge tone={p.stock === 0 ? "danger" : "warning"}>{p.stock === 0 ? "Out" : "Low"}</StatusBadge>}
                         </div>
                       </td>

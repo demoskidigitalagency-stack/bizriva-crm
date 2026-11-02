@@ -4,7 +4,12 @@ import { Button } from "@/components/ui/button";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { useActions } from "@/domain/store";
+import { useEffect, useState } from "react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useActions, useDb } from "@/domain/store";
+import type { BusinessSettings } from "@/domain/types";
 import { PageHeader, Section, StatusBadge } from "@/components/app/primitives";
 import { THEMES, useAppearance } from "@/app/appearance";
 import { cn } from "@/lib/utils";
@@ -19,7 +24,7 @@ function Settings() {
   const { resetPracticeData } = useActions();
   return (
     <div className="space-y-5">
-      <PageHeader eyebrow="Workspace" title="Settings" description="Appearance is live now. Business, payments, notifications and consent settings arrive with the backend." />
+      <PageHeader eyebrow="Workspace" title="Settings" description="Everything here is saved in Practice Mode. With the backend, the same settings apply to every teammate." />
 
       <Section title="Appearance" description="Hybrid is the default. The other three are the original looks from each prototype. Your choice is saved on this device.">
         <div className="grid gap-3 p-4 sm:grid-cols-2" role="radiogroup" aria-label="Appearance">
@@ -89,16 +94,86 @@ function Settings() {
         </div>
       </Section>
 
-      <Section title="Coming with the backend" description="Listed so nothing from the three prototypes or the prompt gets lost.">
-        <ul className="grid gap-2 p-4 text-sm text-muted-foreground sm:grid-cols-2">
-          <li>Business profile, currency and time zone</li>
-          <li>Delivery fees and payment link template</li>
-          <li>Notification channels per event</li>
-          <li>Consent, opt-out keywords and suppression list</li>
-          <li>Quiet hours and follow-up limits</li>
-          <li>Chat appearance (from Sandala)</li>
+      <BusinessForm />
+    </div>
+  );
+}
+
+const EVENTS: { id: keyof BusinessSettings["notify"]; label: string }[] = [
+  { id: "cod_request", label: "Ask customer to confirm a COD order" },
+  { id: "order_confirmed", label: "Order confirmed" },
+  { id: "dispatched", label: "Out for delivery" },
+  { id: "delivered", label: "Delivered" },
+  { id: "feedback", label: "Ask for feedback" },
+];
+const CHANNELS = { whatsapp: "WhatsApp", sms: "SMS", email: "Email", off: "Don't send" } as const;
+
+function BusinessForm() {
+  const db = useDb();
+  const { updateSettings } = useActions();
+  const [d, setD] = useState(db.settings);
+  const [kw, setKw] = useState(db.settings.optOutKeywords.join(", "));
+  const [error, setError] = useState("");
+  const [saved, setSaved] = useState(false);
+  useEffect(() => { setD(db.settings); setKw(db.settings.optOutKeywords.join(", ")); }, [db.settings]);
+  const time = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+  const save = () => {
+    if (!d.businessName.trim()) return setError("Enter the business name.");
+    if (!(d.deliveryFee >= 0) || !(d.freeDeliveryOver >= 0)) return setError("Delivery amounts can't be negative.");
+    if (!d.paymentLinkTemplate.includes("{{order}}")) return setError("The payment link must include {{order}} where the order number goes.");
+    if (!time.test(d.quietStart) || !time.test(d.quietEnd)) return setError("Quiet hours use 24-hour time, like 21:00.");
+    const optOutKeywords = kw.split(",").map((x) => x.trim().toUpperCase()).filter(Boolean);
+    if (!optOutKeywords.length) return setError("Keep at least one opt-out keyword, such as STOP.");
+    updateSettings({ ...d, businessName: d.businessName.trim(), optOutKeywords });
+    setError("");
+    setSaved(true);
+    setTimeout(() => setSaved(false), 1500);
+  };
+  const num = (k: "deliveryFee" | "freeDeliveryOver" | "maxFollowUpsPerDay") => (e: React.ChangeEvent<HTMLInputElement>) => setD({ ...d, [k]: Number(e.target.value.replace(/,/g, "")) || 0 });
+
+  return (
+    <>
+      <Section title="Business and delivery">
+        <div className="grid gap-3 p-4 sm:grid-cols-2">
+          <div className="space-y-1.5"><Label htmlFor="bn">Business name</Label><Input id="bn" value={d.businessName} onChange={(e) => setD({ ...d, businessName: e.target.value })} /></div>
+          <div className="space-y-1.5"><Label>Time zone</Label>
+            <Select value={d.timezone} onValueChange={(v) => setD({ ...d, timezone: v })}>
+              <SelectTrigger aria-label="Time zone"><SelectValue>{d.timezone}</SelectValue></SelectTrigger>
+              <SelectContent>{["Africa/Lagos", "Africa/Accra", "Africa/Nairobi", "Africa/Johannesburg", "Europe/London"].map((z) => <SelectItem key={z} value={z}>{z}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5"><Label htmlFor="df">Delivery fee</Label><Input id="df" inputMode="numeric" value={d.deliveryFee} onChange={num("deliveryFee")} /></div>
+          <div className="space-y-1.5"><Label htmlFor="fo">Free delivery on orders over</Label><Input id="fo" inputMode="numeric" value={d.freeDeliveryOver} onChange={num("freeDeliveryOver")} /></div>
+          <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="pl">Payment link ({"{{order}}"} is replaced by the order number)</Label><Input id="pl" value={d.paymentLinkTemplate} onChange={(e) => setD({ ...d, paymentLinkTemplate: e.target.value })} /></div>
+        </div>
+      </Section>
+      <Section title="Customer notifications" description="Which channel each update goes out on">
+        <ul className="divide-y">
+          {EVENTS.map((ev) => (
+            <li key={ev.id} className="flex items-center justify-between gap-3 px-4 py-2 text-sm">
+              <span>{ev.label}</span>
+              <Select value={d.notify[ev.id]} onValueChange={(v) => setD({ ...d, notify: { ...d.notify, [ev.id]: v as keyof typeof CHANNELS } })}>
+                <SelectTrigger className="h-8 w-36" aria-label={ev.label}><SelectValue>{CHANNELS[d.notify[ev.id]]}</SelectValue></SelectTrigger>
+                <SelectContent>{(Object.keys(CHANNELS) as (keyof typeof CHANNELS)[]).map((c) => <SelectItem key={c} value={c}>{CHANNELS[c]}</SelectItem>)}</SelectContent>
+              </Select>
+            </li>
+          ))}
         </ul>
       </Section>
-    </div>
+      <Section title="Consent and limits" description="Protects customers and your WhatsApp number's quality rating">
+        <div className="grid gap-3 p-4 sm:grid-cols-2">
+          <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="ok">Opt-out keywords, separated by commas</Label><Input id="ok" value={kw} onChange={(e) => setKw(e.target.value)} /></div>
+          <div className="space-y-1.5"><Label htmlFor="qs">Quiet hours start</Label><Input id="qs" value={d.quietStart} onChange={(e) => setD({ ...d, quietStart: e.target.value })} placeholder="21:00" /></div>
+          <div className="space-y-1.5"><Label htmlFor="qe">Quiet hours end</Label><Input id="qe" value={d.quietEnd} onChange={(e) => setD({ ...d, quietEnd: e.target.value })} placeholder="08:00" /></div>
+          <div className="space-y-1.5"><Label htmlFor="mf">Most follow-ups per person per day</Label><Input id="mf" inputMode="numeric" value={d.maxFollowUpsPerDay} onChange={num("maxFollowUpsPerDay")} /></div>
+        </div>
+      </Section>
+      <div className="flex items-center gap-3">
+        <Button onClick={save}>Save settings</Button>
+        {saved && <span className="text-sm text-success" role="status">Saved</span>}
+        {error && <span className="text-sm text-destructive" role="alert">{error}</span>}
+      </div>
+    </>
   );
 }

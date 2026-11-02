@@ -175,7 +175,7 @@ function Dashboard() {
           </div>
         </Section>
 
-        <Section title="Ad performance" description="Spend, revenue and return per campaign" action={<Button asChild size="sm" variant="outline"><Link to="/$" params={{ _splat: "ads" }}>All campaigns</Link></Button>}>
+        <Section title="Ad performance" description="Spend, revenue and return per campaign" action={<Button asChild size="sm" variant="outline"><Link to="/ads">All campaigns</Link></Button>}>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>

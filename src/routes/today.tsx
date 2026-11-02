@@ -85,7 +85,7 @@ function Today() {
         eyebrow="Operations"
         title="Today"
         description={`${total} items across ${queues.filter((q) => q.count > 0).length} queues for ${ws.name}. Click any row to jump straight to the customer or module.`}
-        actions={<Button asChild size="sm" variant="outline"><Link to="/$" params={{ _splat: "automation" }}>Plan with AI</Link></Button>}
+        actions={<Button asChild size="sm" variant="outline"><Link to="/automation">Open automations</Link></Button>}
       />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {queues.map((q) => (

@@ -130,13 +130,17 @@ async def main():
         await step("tasks", t_tasks())
 
         async def t_dupes():
+            async def people():
+                await ready(pg, "/crm/contacts")
+                return int(re.search(r"(\d+) people", await pg.locator("main").inner_text()).group(1))
+            before = await people()
             await ready(pg, "/crm/duplicates")
-            groups = await pg.get_by_role("button", name="Merge").count()
-            if not groups:
+            if not await pg.get_by_role("button", name="Merge").count():
                 return ok("duplicates page (no groups to merge)", True)
             await pg.get_by_role("button", name="Merge").first.click()
             await pg.get_by_role("alertdialog").get_by_role("button", name="Merge").click(); await pg.wait_for_timeout(400)
-            ok("merge removes the duplicate group", await pg.get_by_role("button", name="Merge").count() == groups - 1, groups)
+            after = await people()
+            ok("merge folds a duplicate into the kept record", after == before - 1, f"{before} -> {after}")
         await step("duplicates", t_dupes())
 
         async def t_products():
@@ -200,7 +204,7 @@ async def main():
         async def t_mobile():
             m = await b.new_page(viewport={"width": 390, "height": 844}); wide = []
             for r in routes + ["/crm/contacts/ct_1"]:
-                await m.goto(B + r); await m.wait_for_load_state("load"); await m.wait_for_timeout(500)
+                await m.goto(B + r); await m.wait_for_load_state("load"); await m.wait_for_timeout(1500)
                 sw = await m.evaluate("document.documentElement.scrollWidth")
                 if sw > 392: wide.append(f"{r}={sw}")
             ok("no sideways scroll on a phone", not wide, ", ".join(wide))
