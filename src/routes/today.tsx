@@ -46,7 +46,7 @@ function QueueCard({ queue }: { queue: Queue }) {
               <button
                 onClick={() =>
                   item.contactId
-                    ? navigate({ to: "/$", params: { _splat: `crm/contacts/${item.contactId}` } })
+                    ? navigate({ to: "/crm/contacts/$contactId", params: { contactId: item.contactId } })
                     : navigate({ to: queue.route as never })
                 }
                 className="flex w-full items-center justify-between gap-3 rounded-md px-2 py-2 text-left text-sm hover:bg-accent/40"
@@ -87,7 +87,7 @@ function Today() {
         description={`${total} items across ${queues.filter((q) => q.count > 0).length} queues for ${ws.name}. Click any row to jump straight to the customer or module.`}
         actions={<Button asChild size="sm" variant="outline"><Link to="/$" params={{ _splat: "automation" }}>Plan with AI</Link></Button>}
       />
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {queues.map((q) => (
           <QueueCard key={q.key} queue={q} />
         ))}

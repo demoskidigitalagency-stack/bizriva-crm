@@ -1,14 +1,19 @@
 /**
- * Build status — the 0–100 checklist.
+ * Build status — two 0–100 tracks.
  *
- * Each phase carries a share of the 100%. Inside a phase, every item has a
- * weight; the phase's progress is (done weight / total weight) × phase share.
- * Tick an item by setting `done: true` and adding the date. STATUS.md is
- * generated from this file (`bun run status`), so the two never disagree.
+ * FRONTEND (Practice Mode): every module opens and every control works on
+ * sample data saved in the browser. 85% comes straight from the module states
+ * in modules.ts (practice = full, partial = half), 15% from the cross-cutting
+ * checklist below. Nothing here needs a backend.
  *
- * Rule from the master prompt: an item is only done when it works for real,
- * not when its screen exists.
+ * BACKEND: the same product working for real — auth, database, WhatsApp, AI.
+ * Phases 1–5, each carrying a share of 100. An item is only done when it works
+ * for real, not when its screen exists (rule from the master prompt).
+ *
+ * Tick an item by setting `done: true` and the date. STATUS.md is generated
+ * from this file (`bun run status`), so the report and the app never disagree.
  */
+import { MODULES, type BuildState } from "./modules";
 
 export interface StatusItem {
   id: string;
@@ -27,21 +32,23 @@ export interface StatusPhase {
   items: StatusItem[];
 }
 
+/** Frontend track — cross-cutting work that isn't a single module (15% of the frontend). */
+export const FRONTEND_CHECKLIST: StatusItem[] = [
+  { id: "f-repo", label: "bizriva-crm set up from repo 3 (Bizriva) shell, design system and data types", weight: 2, done: true, doneOn: "2026-11-02" },
+  { id: "f-themes", label: "Appearance: Hybrid default, with Sandala, Kobolink and Bizriva as options", weight: 2, done: true, doneOn: "2026-11-02" },
+  { id: "f-nav", label: "Unified navigation: every agreed menu present", weight: 2, done: true, doneOn: "2026-11-02" },
+  { id: "f-status", label: "Build Progress page and STATUS.md", weight: 1, done: true, doneOn: "2026-11-02" },
+  { id: "f-schema", label: "Multi-workspace database schema drafted and isolation-tested", weight: 2, done: true, doneOn: "2026-11-02" },
+  { id: "f-persist", label: "Practice data saved in the browser, with Reset sample data", weight: 2, done: true, doneOn: "2026-11-02" },
+  { id: "f-links", label: "Every link, search result and Today queue opens a real page", weight: 2, done: true, doneOn: "2026-11-02" },
+  { id: "f-decisions", label: "Crosswalk decisions agreed (menus, lead stages, order statuses, roles)", weight: 2, done: false, note: "Use the 'Your decision' column in repo-comparison.xlsx" },
+  { id: "f-qa", label: "Click-through QA: every page on desktop and phone, light and dark, no console errors", weight: 3, done: false, note: "Automated run on 2026-11-02: 46/46 checks pass for the 8 practice-ready modules; repeat when all modules are built" },
+];
+
+/** Backend track — phases 1 to 5. */
 export const PHASES: StatusPhase[] = [
   {
-    id: "p0", name: "Phase 0 — Foundation", share: 10,
-    goal: "One repo, one design system, one menu, one plan.",
-    items: [
-      { id: "p0-repo", label: "bizriva-crm set up from repo 3 (Bizriva) shell, design system and data types", weight: 2, done: true, doneOn: "2026-11-02" },
-      { id: "p0-themes", label: "Appearance: Hybrid default, with Sandala, Kobolink and Bizriva as options", weight: 2, done: true, doneOn: "2026-11-02" },
-      { id: "p0-nav", label: "Unified navigation: every agreed menu present, unbuilt ones shown as planned", weight: 2, done: true, doneOn: "2026-11-02" },
-      { id: "p0-status", label: "Build Progress page and STATUS.md (this checklist)", weight: 1, done: true, doneOn: "2026-11-02" },
-      { id: "p0-schema", label: "Multi-workspace database schema drafted (not yet applied)", weight: 2, done: true, doneOn: "2026-11-02" },
-      { id: "p0-decisions", label: "Crosswalk decisions agreed (menus, lead stages, order statuses, roles)", weight: 1, done: false, note: "Use the 'Your decision' column in repo-comparison.xlsx" },
-    ],
-  },
-  {
-    id: "p1", name: "Phase 1 — Core communication", share: 25,
+    id: "p1", name: "Phase 1 — Core communication", share: 30,
     goal: "Real WhatsApp messages land in a shared, saved inbox for several agents.",
     items: [
       { id: "p1-backend", label: "Backend chosen and connected (Supabase project, environment)", weight: 2, done: false, note: "Decision pending: Lovable Cloud or own Supabase" },
@@ -56,7 +63,7 @@ export const PHASES: StatusPhase[] = [
     ],
   },
   {
-    id: "p2", name: "Phase 2 — AI and automation", share: 20,
+    id: "p2", name: "Phase 2 — AI and automation", share: 22,
     goal: "Instant first replies from real catalogue data, and follow-ups that respect the rules.",
     items: [
       { id: "p2-catalogue", label: "Products with variants, prices and stock", weight: 2, done: false },
@@ -70,7 +77,7 @@ export const PHASES: StatusPhase[] = [
     ],
   },
   {
-    id: "p3", name: "Phase 3 — Sales and commerce", share: 20,
+    id: "p3", name: "Phase 3 — Sales and commerce", share: 22,
     goal: "Chats become confirmed, delivered, paid orders.",
     items: [
       { id: "p3-pipeline", label: "Lead pipeline with agreed stages", weight: 2, done: false },
@@ -83,7 +90,7 @@ export const PHASES: StatusPhase[] = [
     ],
   },
   {
-    id: "p4", name: "Phase 4 — More channels", share: 10,
+    id: "p4", name: "Phase 4 — More channels", share: 11,
     goal: "The same inbox for Messenger, Instagram, SMS, email and web chat.",
     items: [
       { id: "p4-meta", label: "Messenger and Instagram DMs", weight: 2, done: false },
@@ -134,8 +141,32 @@ export function phaseProgress(p: StatusPhase) {
   return { pctOfPhase, contribution: pctOfPhase * p.share, doneCount: p.items.filter((i) => i.done).length, count: p.items.length };
 }
 
-export function overallProgress(phases: StatusPhase[] = PHASES) {
+/** Backend track, 0–100. */
+export function backendProgress(phases: StatusPhase[] = PHASES) {
   const shareTotal = phases.reduce((s, p) => s + p.share, 0);
   const contribution = phases.reduce((s, p) => s + phaseProgress(p).contribution, 0);
   return shareTotal ? (contribution / shareTotal) * 100 : 0;
+}
+
+const STATE_CREDIT: Record<BuildState, number> = { live: 1, practice: 1, partial: 0.5, planned: 0 };
+
+/** Frontend (Practice Mode) track, 0–100. */
+export function frontendProgress() {
+  const moduleScore = MODULES.reduce((s, m) => s + STATE_CREDIT[m.state], 0) / MODULES.length;
+  const total = FRONTEND_CHECKLIST.reduce((s, i) => s + i.weight, 0);
+  const done = FRONTEND_CHECKLIST.filter((i) => i.done).reduce((s, i) => s + i.weight, 0);
+  const checklistScore = total ? done / total : 0;
+  return {
+    overall: moduleScore * 85 + checklistScore * 15,
+    modules: moduleScore * 100,
+    checklist: checklistScore * 100,
+    practiceCount: MODULES.filter((m) => m.state === "practice" || m.state === "live").length,
+    partialCount: MODULES.filter((m) => m.state === "partial").length,
+    plannedCount: MODULES.filter((m) => m.state === "planned").length,
+  };
+}
+
+/** Kept for the sidebar: the frontend track is the headline number until the backend starts. */
+export function overallProgress() {
+  return frontendProgress().overall;
 }

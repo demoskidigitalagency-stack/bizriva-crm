@@ -465,7 +465,7 @@ export function getTodayQueues(db: Database): Queue[] {
       description: "Scheduled for today",
       count: dueToday.length,
       tone: "info",
-      route: "/crm/follow-ups",
+      route: "/crm/tasks",
       items: dueToday.slice(0, 8).map((t) => ({
         id: t.id,
         primary: t.contactId ? name(t.contactId) : "Unassigned contact",
@@ -480,7 +480,7 @@ export function getTodayQueues(db: Database): Queue[] {
       description: "Past their due date and still open",
       count: overdue.length,
       tone: "danger",
-      route: "/crm/follow-ups",
+      route: "/crm/tasks",
       items: overdue.slice(0, 8).map((t) => ({
         id: t.id,
         primary: t.contactId ? name(t.contactId) : "Unassigned contact",
@@ -545,7 +545,7 @@ export function getTodayQueues(db: Database): Queue[] {
       count: cod.length,
       amount: cod.reduce((s, p) => s + p.amount, 0),
       tone: "warning",
-      route: "/finance",
+      route: "/payments",
       items: cod.slice(0, 8).map((p) => ({
         id: p.id,
         primary: name(p.contactId),
@@ -562,7 +562,7 @@ export function getTodayQueues(db: Database): Queue[] {
       count: remit.length,
       amount: remit.reduce((s, p) => s + p.amount, 0),
       tone: "danger",
-      route: "/finance",
+      route: "/payments",
       items: remit.slice(0, 8).map((p) => ({
         id: p.id,
         primary: name(p.contactId),
@@ -683,6 +683,7 @@ export interface SearchHit {
   group: "Contacts" | "Leads" | "Orders" | "Segments" | "Products";
   to: string;
   params?: Record<string, string>;
+  search?: Record<string, string>;
 }
 
 export function globalSearch(db: Database, term: string, limit = 12): SearchHit[] {
@@ -705,7 +706,7 @@ export function globalSearch(db: Database, term: string, limit = 12): SearchHit[
   });
   db.orders.forEach((o) => {
     if (o.reference.toLowerCase().includes(needle)) {
-      hits.push({ id: o.id, label: o.reference, sublabel: o.productNames.join(", "), group: "Orders", to: "/orders" });
+      hits.push({ id: o.id, label: o.reference, sublabel: o.productNames.join(", "), group: "Orders", to: "/orders", search: { o: o.id } });
     }
   });
   db.segments.forEach((s) => {
@@ -715,9 +716,44 @@ export function globalSearch(db: Database, term: string, limit = 12): SearchHit[
   });
   db.products.forEach((p) => {
     if (p.name.toLowerCase().includes(needle)) {
-      hits.push({ id: p.id, label: p.name, sublabel: `${p.category} · stock ${p.stock}`, group: "Products", to: "/inventory" });
+      hits.push({ id: p.id, label: p.name, sublabel: `${p.category} · stock ${p.stock}`, group: "Products", to: "/products", search: { p: p.id } });
     }
   });
 
   return hits.slice(0, limit);
+}
+
+/* ------------------------------------------------------- COD risk check */
+
+export interface CodRisk {
+  score: number; // 0 = no concerns, higher = riskier
+  level: "low" | "medium" | "high";
+  reasons: string[];
+}
+
+/**
+ * Practice-mode COD confidence check, from the master prompt's risk factors.
+ * It never labels a customer suspicious just for being new — first orders
+ * only add a small amount, and only alongside other signals.
+ */
+export function codRisk(db: Database, order: OrderSummary): CodRisk {
+  const reasons: string[] = [];
+  let score = 0;
+  const contact = getContact(db, order.contactId);
+  const deliveries = db.deliveries.filter((d) => d.contactId === order.contactId);
+  const refused = deliveries.filter((d) => d.status === "returned" || d.status === "failed").length;
+  const openSameDay = db.orders.filter(
+    (o) => o.contactId === order.contactId && o.id !== order.id && o.status === "pending_confirmation",
+  ).length;
+  const digits = (contact?.phone ?? "").replace(/\D/g, "");
+
+  if (refused) { score += 35 * refused; reasons.push(`${refused} earlier delivery failed or was returned`); }
+  if (openSameDay) { score += 25; reasons.push("Another unconfirmed order from the same customer"); }
+  if (digits.length < 10) { score += 30; reasons.push("Phone number looks incomplete"); }
+  if (!contact?.city) { score += 20; reasons.push("No delivery city"); }
+  if (contact && contact.outstandingBalance > 0) { score += 15; reasons.push("Has an unpaid balance"); }
+  if (order.total > 150_000) { score += 10; reasons.push("High order value for cash on delivery"); }
+  if (contact && contact.totalOrders <= 1 && reasons.length) { score += 5; reasons.push("First order"); }
+
+  return { score, level: score >= 50 ? "high" : score >= 20 ? "medium" : "low", reasons };
 }

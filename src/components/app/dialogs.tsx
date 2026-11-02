@@ -354,7 +354,7 @@ export function OrderDialog({ open, onOpenChange, contactId }: { open: boolean; 
 export function LeadStageSelect({ value, onChange, className }: { value: string; onChange: (stage: string) => void; className?: string }) {
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className={className ? `h-8 ${className}` : "h-8"}><SelectValue /></SelectTrigger>
+      <SelectTrigger className={className ? `h-8 ${className}` : "h-8"} aria-label="Lead stage"><SelectValue>{LEAD_STAGES.find((s) => s.id === value)?.label ?? value}</SelectValue></SelectTrigger>
       <SelectContent>
         {LEAD_STAGES.map((s) => <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>)}
       </SelectContent>

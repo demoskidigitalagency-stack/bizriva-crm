@@ -1,0 +1,244 @@
+import { useMemo, useState } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { Plus, Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { EmptyState, PersonAvatar, Section, StatusBadge } from "@/components/app/primitives";
+import { OrderDialog } from "@/components/app/dialogs";
+import { useActions, useDb, useWorkspace } from "@/domain/store";
+import { fullName } from "@/domain/repositories";
+import { CHANNEL_LABELS, DELIVERY_STATUS_META, ORDER_STATUS_META, PAYMENT_STATUS_META, type OrderStatus, type OrderSummary } from "@/domain/types";
+import { formatCurrency, formatDateTime, relativeTime } from "@/lib/format";
+
+export const Route = createFileRoute("/orders")({
+  head: () => ({ meta: [{ title: "Orders · Bizriva CRM" }] }),
+  // ?o=<orderId> opens that order.
+  validateSearch: (s: Record<string, unknown>): { o?: string } => (typeof s["o"] === "string" ? { o: s["o"] } : {}),
+  component: Orders,
+});
+
+const FILTERS: { id: "all" | OrderStatus; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "pending_confirmation", label: "To confirm" },
+  { id: "confirmed", label: "Confirmed" },
+  { id: "awaiting_dispatch", label: "Awaiting dispatch" },
+  { id: "in_transit", label: "In transit" },
+  { id: "delivered", label: "Delivered" },
+  { id: "returned", label: "Returned" },
+  { id: "cancelled", label: "Cancelled" },
+];
+
+/** The next step(s) an operator can take from each status. */
+const NEXT: Record<OrderStatus, { to: OrderStatus; label: string; variant?: "outline" | "destructive" }[]> = {
+  pending_confirmation: [{ to: "confirmed", label: "Mark confirmed" }, { to: "cancelled", label: "Cancel", variant: "outline" }],
+  confirmed: [{ to: "awaiting_dispatch", label: "Ready for dispatch" }, { to: "cancelled", label: "Cancel", variant: "outline" }],
+  awaiting_dispatch: [{ to: "in_transit", label: "Dispatched" }, { to: "cancelled", label: "Cancel", variant: "outline" }],
+  in_transit: [{ to: "delivered", label: "Delivered" }, { to: "returned", label: "Returned or refused", variant: "outline" }],
+  delivered: [{ to: "returned", label: "Customer returned it", variant: "outline" }],
+  returned: [],
+  cancelled: [],
+};
+
+function OrderPanel({ order, onClose }: { order: OrderSummary; onClose: () => void }) {
+  const db = useDb();
+  const ws = useWorkspace();
+  const { setOrderStatus } = useActions();
+  const c = db.contacts.find((x) => x.id === order.contactId);
+  const delivery = db.deliveries.find((d) => d.orderId === order.id);
+  const history = db.activities.filter((a) => a.contactId === order.contactId && a.title.includes(order.reference));
+  const money = (n: number) => formatCurrency(n, ws.currency);
+
+  return (
+    <Sheet open onOpenChange={(o) => !o && onClose()}>
+      <SheetContent className="w-full overflow-y-auto sm:max-w-md">
+        <SheetHeader>
+          <SheetTitle className="num">{order.reference}</SheetTitle>
+          <SheetDescription>Placed {formatDateTime(order.placedAt)} via {CHANNEL_LABELS[order.channel]}</SheetDescription>
+        </SheetHeader>
+        <div className="space-y-5 px-4 pb-6 text-sm">
+          <div className="flex flex-wrap gap-1.5">
+            <StatusBadge tone={ORDER_STATUS_META[order.status].tone}>{ORDER_STATUS_META[order.status].label}</StatusBadge>
+            <StatusBadge tone={PAYMENT_STATUS_META[order.paymentStatus].tone}>{PAYMENT_STATUS_META[order.paymentStatus].label}</StatusBadge>
+            <StatusBadge>{order.paymentMethod.replace(/_/g, " ")}</StatusBadge>
+          </div>
+
+          {c && (
+            <Link to="/crm/contacts/$contactId" params={{ contactId: c.id }} className="flex items-center gap-3 rounded-md border p-3 hover:bg-muted/40">
+              <PersonAvatar name={fullName(c)} size="md" />
+              <span className="min-w-0">
+                <span className="block font-medium">{fullName(c)}</span>
+                <span className="block text-xs text-muted-foreground">{c.phone} · {c.city}</span>
+              </span>
+            </Link>
+          )}
+
+          <div>
+            <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Items</p>
+            <ul className="space-y-1">{order.productNames.map((p) => <li key={p}>{p}</li>)}</ul>
+            <dl className="mt-3 space-y-1 border-t pt-2">
+              <div className="flex justify-between"><dt className="text-muted-foreground">Delivery fee</dt><dd className="num">{money(order.shippingFee)}</dd></div>
+              <div className="flex justify-between font-semibold"><dt>Total</dt><dd className="num">{money(order.total)}</dd></div>
+              <div className="flex justify-between text-xs text-muted-foreground"><dt>Margin after cost and delivery</dt><dd className="num">{money(order.total - order.cogs - order.shippingFee)}</dd></div>
+            </dl>
+          </div>
+
+          {delivery && (
+            <div className="rounded-md border p-3">
+              <p className="flex items-center justify-between gap-2">
+                <span className="font-medium">Delivery {delivery.trackingRef}</span>
+                <StatusBadge tone={DELIVERY_STATUS_META[delivery.status].tone}>{DELIVERY_STATUS_META[delivery.status].label}</StatusBadge>
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">{delivery.courier} · {delivery.city} · {delivery.attempts} attempt{delivery.attempts === 1 ? "" : "s"}</p>
+              <Link to="/$" params={{ _splat: "delivery" }} className="mt-2 inline-block text-xs font-medium text-primary hover:underline">Open delivery board</Link>
+            </div>
+          )}
+
+          {order.status === "pending_confirmation" && order.paymentMethod === "cash_on_delivery" && (
+            <p className="rounded-md bg-warning/15 p-3 text-xs">
+              Cash on delivery: confirm with the customer first. <Link to="/cod" className="font-medium underline">Open COD Verification</Link>
+            </p>
+          )}
+
+          {NEXT[order.status].length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {NEXT[order.status].map((n) => (
+                <Button key={n.to} size="sm" variant={n.variant ?? "default"} onClick={() => setOrderStatus(order.id, n.to)}>{n.label}</Button>
+              ))}
+            </div>
+          )}
+
+          <div>
+            <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">History</p>
+            {history.length === 0 ? <p className="text-muted-foreground">No changes yet.</p> : (
+              <ol className="space-y-1.5">
+                {history.map((a) => <li key={a.id}><span>{a.title}</span> <span className="text-xs text-muted-foreground">· {relativeTime(a.at)}</span></li>)}
+              </ol>
+            )}
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function PickCustomer({ open, onOpenChange, onPick }: { open: boolean; onOpenChange: (o: boolean) => void; onPick: (id: string) => void }) {
+  const db = useDb();
+  const [q, setQ] = useState("");
+  const needle = q.trim().toLowerCase();
+  const matches = db.contacts.filter((c) => !needle || `${fullName(c)} ${c.phone}`.toLowerCase().includes(needle)).slice(0, 8);
+  return (
+    <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (!o) setQ(""); }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Who is the order for?</DialogTitle>
+          <DialogDescription>Search by name or phone.</DialogDescription>
+        </DialogHeader>
+        <Input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name or phone" aria-label="Find customer" />
+        <ul className="max-h-72 divide-y overflow-y-auto rounded-md border">
+          {matches.map((c) => (
+            <li key={c.id}>
+              <button type="button" onClick={() => onPick(c.id)} className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm hover:bg-muted/50">
+                <PersonAvatar name={fullName(c)} />
+                <span className="min-w-0 flex-1 truncate">{fullName(c)}</span>
+                <span className="text-xs text-muted-foreground">{c.phone}</span>
+              </button>
+            </li>
+          ))}
+          {matches.length === 0 && <li className="px-3 py-4 text-center text-sm text-muted-foreground">No match. Add them in Contacts first.</li>}
+        </ul>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function Orders() {
+  const db = useDb();
+  const ws = useWorkspace();
+  const navigate = useNavigate({ from: "/orders" });
+  const { o: openId } = Route.useSearch();
+  const [filter, setFilter] = useState<"all" | OrderStatus>("all");
+  const [search, setSearch] = useState("");
+  const [picking, setPicking] = useState(false);
+  const [orderFor, setOrderFor] = useState<string | null>(null);
+
+  const counts = useMemo(() => {
+    const m = new Map<string, number>();
+    db.orders.forEach((o) => m.set(o.status, (m.get(o.status) ?? 0) + 1));
+    return m;
+  }, [db.orders]);
+
+  const needle = search.trim().toLowerCase();
+  const rows = db.orders
+    .filter((o) => filter === "all" || o.status === filter)
+    .filter((o) => {
+      if (!needle) return true;
+      const c = db.contacts.find((x) => x.id === o.contactId);
+      return `${o.reference} ${o.productNames.join(" ")} ${c ? `${fullName(c)} ${c.phone}` : ""}`.toLowerCase().includes(needle);
+    })
+    .sort((a, b) => +new Date(b.placedAt) - +new Date(a.placedAt));
+
+  const open = openId ? db.orders.find((o) => o.id === openId) : undefined;
+  const setOpen = (id?: string) => navigate({ search: id ? { o: id } : {}, replace: true });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-primary">Sales</p>
+          <h1 className="text-2xl font-bold">Orders</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Every order, from confirmation to delivery. Cash-on-delivery orders count as revenue only once delivered.</p>
+        </div>
+        <Button size="sm" onClick={() => setPicking(true)}><Plus className="size-4" /> New order</Button>
+      </div>
+
+      <Tabs value={filter} onValueChange={(v) => setFilter(v as "all" | OrderStatus)}>
+        <TabsList className="flex h-auto flex-wrap justify-start">
+          {FILTERS.map((f) => (
+            <TabsTrigger key={f.id} value={f.id}>{f.label} ({f.id === "all" ? db.orders.length : counts.get(f.id) ?? 0})</TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
+
+      <Section>
+        <div className="border-b p-3">
+          <div className="relative max-w-md">
+            <Search className="pointer-events-none absolute left-2.5 top-2.5 size-4 text-muted-foreground" aria-hidden="true" />
+            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Order ref, customer, phone, product" className="pl-8" aria-label="Search orders" />
+          </div>
+        </div>
+        {rows.length === 0 ? <EmptyState title="No orders here" /> : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[780px] text-sm">
+              <thead className="text-left text-xs uppercase tracking-wider text-muted-foreground">
+                <tr><th className="px-3 py-2">Order</th><th className="px-3 py-2">Customer</th><th className="px-3 py-2">Items</th><th className="px-3 py-2">Status</th><th className="px-3 py-2">Payment</th><th className="px-3 py-2 text-right">Total</th><th className="px-3 py-2">Placed</th></tr>
+              </thead>
+              <tbody className="divide-y">
+                {rows.map((o) => {
+                  const c = db.contacts.find((x) => x.id === o.contactId);
+                  return (
+                    <tr key={o.id} onClick={() => setOpen(o.id)} className="cursor-pointer hover:bg-muted/40">
+                      <td className="px-3 py-2"><button type="button" className="num font-semibold hover:underline" onClick={(e) => { e.stopPropagation(); setOpen(o.id); }}>{o.reference}</button></td>
+                      <td className="px-3 py-2">{c ? fullName(c) : "Unknown"}</td>
+                      <td className="max-w-[220px] truncate px-3 py-2 text-muted-foreground">{o.productNames.join(", ")}</td>
+                      <td className="px-3 py-2"><StatusBadge tone={ORDER_STATUS_META[o.status].tone}>{ORDER_STATUS_META[o.status].label}</StatusBadge></td>
+                      <td className="px-3 py-2"><StatusBadge tone={PAYMENT_STATUS_META[o.paymentStatus].tone}>{PAYMENT_STATUS_META[o.paymentStatus].label}</StatusBadge></td>
+                      <td className="num px-3 py-2 text-right">{formatCurrency(o.total, ws.currency)}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{relativeTime(o.placedAt)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Section>
+
+      {open && <OrderPanel order={open} onClose={() => setOpen()} />}
+      <PickCustomer open={picking} onOpenChange={setPicking} onPick={(id) => { setPicking(false); setOrderFor(id); }} />
+      {orderFor && <OrderDialog open onOpenChange={(o) => !o && setOrderFor(null)} contactId={orderFor} />}
+    </div>
+  );
+}

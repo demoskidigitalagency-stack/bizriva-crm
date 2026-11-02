@@ -91,7 +91,7 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
       <div className="border-t border-sidebar-border p-3">
         <Link to="/progress" onClick={onNavigate} className="block rounded-md px-2 py-1.5 text-xs hover:bg-sidebar-accent">
           <span className="flex items-center justify-between">
-            <span className="font-semibold text-sidebar-accent-foreground">Build progress</span>
+            <span className="font-semibold text-sidebar-accent-foreground">Frontend progress</span>
             <span className="num font-bold text-sidebar-primary">{Math.round(overall)}%</span>
           </span>
           <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-sidebar-accent">
@@ -145,7 +145,7 @@ function GlobalSearch() {
                   onSelect={() => {
                     setOpen(false);
                     setTerm("");
-                    navigate({ to: h.to, params: h.params } as never);
+                    navigate({ to: h.to, params: h.params, search: h.search } as never);
                   }}
                 >
                   <div className="min-w-0">

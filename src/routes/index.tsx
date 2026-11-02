@@ -228,7 +228,7 @@ function Dashboard() {
             {data.reactivation.length === 0 && <li className="text-sm text-muted-foreground">No reactivation candidates right now.</li>}
             {data.reactivation.map((c) => (
               <li key={c.id}>
-                <Link to="/$" params={{ _splat: `crm/contacts/${c.id}` }} className="flex items-center justify-between gap-3 rounded-md border p-2 text-sm hover:bg-accent/40">
+                <Link to="/crm/contacts/$contactId" params={{ contactId: c.id }} className="flex items-center justify-between gap-3 rounded-md border p-2 text-sm hover:bg-accent/40">
                   <span className="flex min-w-0 items-center gap-2">
                     <PersonAvatar name={`${c.firstName} ${c.lastName}`} />
                     <span className="min-w-0">

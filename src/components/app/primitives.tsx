@@ -37,7 +37,7 @@ export function PageHeader({ title, description, actions, eyebrow }: { title: st
 
 export function Section({ title, description, action, children, className, bodyClassName }: { title?: string; description?: string; action?: ReactNode; children: ReactNode; className?: string; bodyClassName?: string }) {
   return (
-    <section className={cn("rounded-lg border bg-card text-card-foreground", className)}>
+    <section className={cn("min-w-0 rounded-lg border bg-card text-card-foreground", className)}>
       {(title || action) && (
         <header className="flex items-start justify-between gap-3 border-b px-4 py-3">
           <div className="min-w-0">

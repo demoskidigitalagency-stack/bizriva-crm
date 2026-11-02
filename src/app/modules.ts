@@ -17,8 +17,9 @@ import {
 
 /** How real a module is today. Shown honestly in the UI — never overstated. */
 export type BuildState =
-  | "live" // built and saving real data
-  | "screen" // screen built, sample data only
+  | "live" // works against the real backend
+  | "practice" // every page opens and every control works, on sample data saved in this browser
+  | "partial" // screen exists but some controls are not wired yet
   | "planned"; // scoped, not built yet
 
 export type Phase = "Foundation" | "MVP" | "Later";
@@ -46,32 +47,32 @@ export const GROUPS = [
 
 export const MODULES: ModuleDef[] = [
   // Overview
-  { id: "dashboard", label: "Dashboard", path: "/", icon: LayoutDashboard, group: "Overview", phase: "MVP", state: "screen", sources: ["Bizriva", "Sandala", "Prompt"], decision: "Proposed",
+  { id: "dashboard", label: "Dashboard", path: "/", icon: LayoutDashboard, group: "Overview", phase: "MVP", state: "practice", sources: ["Bizriva", "Sandala", "Prompt"], decision: "Proposed",
     submenus: ["Revenue and delivered revenue", "Acquisition funnel", "Ad performance", "Fulfilment summary", "Recent activity"],
     summary: "Owner and manager view of revenue, leads, conversion, COD outstanding and ad return." },
-  { id: "today", label: "Today", path: "/today", icon: CalendarCheck, group: "Overview", phase: "MVP", state: "screen", sources: ["Bizriva"], decision: "Proposed",
+  { id: "today", label: "Today", path: "/today", icon: CalendarCheck, group: "Overview", phase: "MVP", state: "practice", sources: ["Bizriva"], decision: "Proposed",
     submenus: ["New leads", "Needs reply", "Follow-ups due", "Orders to confirm", "Awaiting dispatch", "Failed deliveries", "COD outstanding", "Low stock"],
     summary: "The action queue staff work through each day." },
 
   // Customers
-  { id: "inbox", label: "Inbox", path: "/inbox", icon: MessageSquare, group: "Customers", phase: "MVP", state: "screen", sources: ["Sandala", "Kobolink", "Prompt"], decision: "Proposed",
+  { id: "inbox", label: "Inbox", path: "/inbox", icon: MessageSquare, group: "Customers", phase: "MVP", state: "practice", sources: ["Sandala", "Kobolink", "Prompt"], decision: "Proposed",
     submenus: ["All", "Unread", "New enquiries", "Assigned", "Unassigned", "Priority", "Waiting on customer", "Waiting on us", "AI-handled", "Human-handled", "Closed", "Channel filter"],
     summary: "One shared inbox for every channel, so no conversation depends on a single phone." },
-  { id: "crm", label: "CRM", path: "/crm", icon: Users, group: "Customers", phase: "MVP", state: "planned", sources: ["Bizriva", "Sandala", "Prompt"], decision: "Proposed",
-    submenus: ["Overview", "Contacts", "Leads", "Customers", "Pipeline", "Tasks", "Segments", "Duplicates", "Imports"],
+  { id: "crm", label: "CRM", path: "/crm", icon: Users, group: "Customers", phase: "MVP", state: "practice", sources: ["Bizriva", "Sandala", "Prompt"], decision: "Proposed",
+    submenus: ["Overview", "Contacts", "Customer 360", "Customers", "Leads", "Pipeline", "Tasks", "Segments (view only until backend)", "Duplicates and merge", "CSV imports"],
     summary: "One identity per person: a Contact can become a Lead and later a Customer without duplicate records." },
 
   // Sales
-  { id: "orders", label: "Orders", path: "/orders", icon: ShoppingBag, group: "Sales", phase: "MVP", state: "planned", sources: ["Kobolink", "Prompt"], decision: "Proposed",
-    submenus: ["All orders", "Conversational checkout", "Edit before dispatch", "Cancellations", "Receipts"],
+  { id: "orders", label: "Orders", path: "/orders", icon: ShoppingBag, group: "Sales", phase: "MVP", state: "practice", sources: ["Kobolink", "Prompt"], decision: "Proposed",
+    submenus: ["All orders by status", "Order detail and next step", "New order for any contact", "Cancellations and returns", "Conversational checkout (with AI agent)", "Receipts (with backend)"],
     summary: "Orders captured from conversations, linked to the original lead and chat." },
-  { id: "cod", label: "COD Verification", path: "/cod", icon: ShieldCheck, group: "Sales", phase: "MVP", state: "planned", sources: ["Sandala", "Prompt"], decision: "Proposed",
+  { id: "cod", label: "COD Verification", path: "/cod", icon: ShieldCheck, group: "Sales", phase: "MVP", state: "practice", sources: ["Sandala", "Prompt"], decision: "Proposed",
     submenus: ["Pending verification", "Risk flags", "Human review", "Confirmation log"],
     summary: "Confirm name, phone, address, amount and COD terms before any courier run." },
 
   // Commerce
-  { id: "products", label: "Products", path: "/products", icon: Package, group: "Commerce", phase: "MVP", state: "planned", sources: ["Sandala", "Kobolink", "Prompt"], decision: "Proposed",
-    submenus: ["Catalogue", "Variants and packages", "Send product card", "Related products"],
+  { id: "products", label: "Products", path: "/products", icon: Package, group: "Commerce", phase: "MVP", state: "practice", sources: ["Sandala", "Kobolink", "Prompt"], decision: "Proposed",
+    submenus: ["Catalogue", "Add and edit", "Stock and low-stock alerts", "Margins", "Variants and send product card (with Media Library)"],
     summary: "The catalogue the AI agent and sales staff both answer from." },
   { id: "media", label: "Media Library", path: "/media", icon: Images, group: "Commerce", phase: "MVP", state: "planned", sources: ["Prompt"], decision: "Proposed",
     submenus: ["Images", "Videos", "Storage usage"],
@@ -122,11 +123,11 @@ export const MODULES: ModuleDef[] = [
     submenus: ["Members", "Roles: owner, manager, sales, support, dispatcher, rider", "Assignment rules"], summary: "Who can see and do what." },
   { id: "integrations", label: "Integrations", path: "/integrations", icon: Plug, group: "Workspace", phase: "MVP", state: "planned", sources: ["Kobolink", "Prompt"], decision: "Proposed",
     submenus: ["WhatsApp Cloud API", "Meta", "SMS", "Email", "Payments"], summary: "Connected channels, shown as connected only when they really are." },
-  { id: "settings", label: "Settings", path: "/settings", icon: Settings, group: "Workspace", phase: "Foundation", state: "screen", sources: ["Sandala", "Kobolink", "Prompt"], decision: "Proposed",
+  { id: "settings", label: "Settings", path: "/settings", icon: Settings, group: "Workspace", phase: "Foundation", state: "partial", sources: ["Sandala", "Kobolink", "Prompt"], decision: "Proposed",
     submenus: ["Appearance", "Business", "Payments", "Notifications", "Consent and preferences"], summary: "Workspace settings, including the appearance options." },
   { id: "billing", label: "Billing", path: "/billing", icon: CreditCard, group: "Workspace", phase: "Later", state: "planned", sources: ["Prompt"], decision: "Proposed",
     submenus: ["Plan", "Usage", "Invoices"], summary: "Subscription and usage." },
-  { id: "progress", label: "Build Progress", path: "/progress", icon: ListChecks, group: "Workspace", phase: "Foundation", state: "screen", sources: ["Kobolink", "Prompt"], decision: "Proposed",
+  { id: "progress", label: "Build Progress", path: "/progress", icon: ListChecks, group: "Workspace", phase: "Foundation", state: "practice", sources: ["Kobolink", "Prompt"], decision: "Proposed",
     submenus: ["Overall 0–100%", "By phase", "Acceptance tests"], summary: "Where the build stands, ticked box by box." },
   { id: "help", label: "Help", path: "/help", icon: HelpCircle, group: "Workspace", phase: "Later", state: "planned", sources: ["Bizriva"], decision: "Proposed",
     submenus: ["Docs", "Support"], summary: "Guides and support." },
@@ -150,6 +151,14 @@ export function findModule(pathname: string): ModuleDef | undefined {
 
 export const STATE_LABEL: Record<BuildState, string> = {
   live: "Live",
-  screen: "Screen only — sample data",
+  practice: "Practice ready",
+  partial: "Partly working",
   planned: "Planned",
+};
+
+export const STATE_TONE: Record<BuildState, "success" | "info" | "warning" | "neutral"> = {
+  live: "success",
+  practice: "info",
+  partial: "warning",
+  planned: "neutral",
 };

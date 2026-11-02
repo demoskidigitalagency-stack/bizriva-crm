@@ -22,6 +22,8 @@ export const Route = createFileRoute("/inbox")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
+  // ?c=<conversationId> opens that conversation (used by Customer 360 and Today).
+  validateSearch: (s: Record<string, unknown>): { c?: string } => (typeof s["c"] === "string" ? { c: s["c"] } : {}),
   component: Inbox,
 });
 
@@ -61,9 +63,10 @@ function Thread({ conversation }: { conversation: Conversation }) {
 function Inbox() {
   const db = useDb();
   const navigate = useNavigate();
-  const [tab, setTab] = useState("needs_reply");
+  const { c: requested } = Route.useSearch();
+  const [tab, setTab] = useState(requested ? "all" : "needs_reply");
   const [search, setSearch] = useState("");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(requested ?? null);
 
   const conversations = useMemo(() => {
     const needle = search.trim().toLowerCase();
@@ -143,7 +146,7 @@ function Inbox() {
                   </div>
                 </div>
                 <Button asChild size="sm" variant="outline">
-                  <Link to="/$" params={{ _splat: `crm/contacts/${contact.id}` }}>Open Customer 360</Link>
+                  <Link to="/crm/contacts/$contactId" params={{ contactId: contact.id }}>Open Customer 360</Link>
                 </Button>
               </header>
               <Thread conversation={selected} />

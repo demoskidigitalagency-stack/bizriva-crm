@@ -1,5 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Check, Moon, Sun } from "lucide-react";
+import { Check, Moon, RotateCcw, Sun } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { useActions } from "@/domain/store";
 import { PageHeader, Section, StatusBadge } from "@/components/app/primitives";
 import { THEMES, useAppearance } from "@/app/appearance";
 import { cn } from "@/lib/utils";
@@ -11,6 +16,7 @@ export const Route = createFileRoute("/settings")({
 
 function Settings() {
   const { theme, mode, setTheme, setMode } = useAppearance();
+  const { resetPracticeData } = useActions();
   return (
     <div className="space-y-5">
       <PageHeader eyebrow="Workspace" title="Settings" description="Appearance is live now. Business, payments, notifications and consent settings arrive with the backend." />
@@ -59,6 +65,27 @@ function Settings() {
               {m}
             </button>
           ))}
+        </div>
+      </Section>
+
+      <Section title="Practice data" description="Everything you change is saved in this browser only, so you can test flows across refreshes. Nothing reaches real customers.">
+        <div className="flex flex-wrap items-center justify-between gap-3 p-4">
+          <p className="text-sm text-muted-foreground">Start again with the original sample contacts, orders and conversations.</p>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" size="sm"><RotateCcw className="size-4" /> Reset sample data</Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Reset sample data?</AlertDialogTitle>
+                <AlertDialogDescription>Contacts, orders, tasks and messages you added or changed in this browser are replaced with the original sample data. Appearance stays as it is.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={resetPracticeData}>Reset</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </Section>
 

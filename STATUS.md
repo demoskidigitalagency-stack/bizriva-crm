@@ -1,34 +1,76 @@
 # Bizriva CRM — build status
 
-Generated from `src/app/status.ts` by `bun run status`. Edit that file, not this one.
+Generated from `src/app/status.ts` and `src/app/modules.ts` by `bun run status`. Edit those, not this file.
 
-**Overall: 9%**  `██░░░░░░░░░░░░░░░░░░`
+| Track | Progress | |
+| --- | ---: | --- |
+| **Frontend — Practice Mode** (every page and button works on sample data) | **37%** | `███████░░░░░░░░░░░░░` |
+| **Backend — Live** (works for real: auth, database, WhatsApp, AI) | **0%** | `░░░░░░░░░░░░░░░░░░░░` |
 
-An item is ticked only when it works for real, not when its screen exists.
+Modules: 8 of 28 practice ready · 1 partly working · 19 planned.
 
-| Phase | Share | Done | Progress |
-| --- | ---: | ---: | --- |
-| Phase 0 — Foundation | 10% | 5/6 | 90% |
-| Phase 1 — Core communication | 25% | 0/9 | 0% |
-| Phase 2 — AI and automation | 20% | 0/8 | 0% |
-| Phase 3 — Sales and commerce | 20% | 0/7 | 0% |
-| Phase 4 — More channels | 10% | 0/5 | 0% |
-| Phase 5 — Intelligence and monetisation | 15% | 0/7 | 0% |
+## Frontend track
 
-## Phase 0 — Foundation — 90%
+### Modules — 30% (85% of the frontend)
 
-_One repo, one design system, one menu, one plan._ Worth 10% of the build.
+✅ practice ready · 🟡 partly working · ⬜ planned
+
+| | Group | Module | Phase | Status | From |
+| --- | --- | --- | --- | --- | --- |
+| ✅ | Overview | Dashboard | MVP | Practice ready | Bizriva, Sandala, Prompt |
+| ✅ | Overview | Today | MVP | Practice ready | Bizriva |
+| ✅ | Customers | Inbox | MVP | Practice ready | Sandala, Kobolink, Prompt |
+| ✅ | Customers | CRM | MVP | Practice ready | Bizriva, Sandala, Prompt |
+| ✅ | Sales | Orders | MVP | Practice ready | Kobolink, Prompt |
+| ✅ | Sales | COD Verification | MVP | Practice ready | Sandala, Prompt |
+| ✅ | Commerce | Products | MVP | Practice ready | Sandala, Kobolink, Prompt |
+| ⬜ | Commerce | Media Library | MVP | Planned | Prompt |
+| ⬜ | Commerce | Inventory | Later | Planned | Kobolink |
+| ⬜ | Commerce | Store | Later | Planned | Bizriva |
+| ⬜ | Delivery | Delivery | MVP | Planned | Kobolink, Prompt |
+| ⬜ | Delivery | Riders | Later | Planned | Kobolink |
+| ⬜ | Automation | AI Sales Agent | MVP | Planned | Kobolink, Prompt |
+| ⬜ | Automation | Knowledge Base | MVP | Planned | Prompt |
+| ⬜ | Automation | Follow-ups | MVP | Planned | Sandala, Prompt |
+| ⬜ | Automation | Templates | MVP | Planned | Prompt |
+| ⬜ | Automation | Broadcasts | Later | Planned | Sandala |
+| ⬜ | Automation | Automation Builder | Later | Planned | Bizriva, Prompt |
+| ⬜ | Automation | Workflow History | Later | Planned | Sandala, Prompt |
+| ⬜ | Growth | Ads and Attribution | Later | Planned | Kobolink, Prompt |
+| ⬜ | Money | Payments | Later | Planned | Kobolink, Prompt |
+| ⬜ | Insights | Analytics | MVP | Planned | Kobolink, Prompt |
+| ⬜ | Workspace | Team and Roles | MVP | Planned | Kobolink, Prompt |
+| ⬜ | Workspace | Integrations | MVP | Planned | Kobolink, Prompt |
+| 🟡 | Workspace | Settings | Foundation | Partly working | Sandala, Kobolink, Prompt |
+| ⬜ | Workspace | Billing | Later | Planned | Prompt |
+| ✅ | Workspace | Build Progress | Foundation | Practice ready | Kobolink, Prompt |
+| ⬜ | Workspace | Help | Later | Planned | Bizriva |
+
+### Cross-cutting — 72% (15% of the frontend)
 
 - [x] bizriva-crm set up from repo 3 (Bizriva) shell, design system and data types _(2026-11-02)_
 - [x] Appearance: Hybrid default, with Sandala, Kobolink and Bizriva as options _(2026-11-02)_
-- [x] Unified navigation: every agreed menu present, unbuilt ones shown as planned _(2026-11-02)_
-- [x] Build Progress page and STATUS.md (this checklist) _(2026-11-02)_
-- [x] Multi-workspace database schema drafted (not yet applied) _(2026-11-02)_
+- [x] Unified navigation: every agreed menu present _(2026-11-02)_
+- [x] Build Progress page and STATUS.md _(2026-11-02)_
+- [x] Multi-workspace database schema drafted and isolation-tested _(2026-11-02)_
+- [x] Practice data saved in the browser, with Reset sample data _(2026-11-02)_
+- [x] Every link, search result and Today queue opens a real page _(2026-11-02)_
 - [ ] Crosswalk decisions agreed (menus, lead stages, order statuses, roles) — Use the 'Your decision' column in repo-comparison.xlsx
+- [ ] Click-through QA: every page on desktop and phone, light and dark, no console errors — Automated run on 2026-11-02: 46/46 checks pass for the 8 practice-ready modules; repeat when all modules are built
 
-## Phase 1 — Core communication — 0%
+## Backend track
 
-_Real WhatsApp messages land in a shared, saved inbox for several agents._ Worth 25% of the build.
+| Phase | Share | Done | Progress |
+| --- | ---: | ---: | --- |
+| Phase 1 — Core communication | 30% | 0/9 | 0% |
+| Phase 2 — AI and automation | 22% | 0/8 | 0% |
+| Phase 3 — Sales and commerce | 22% | 0/7 | 0% |
+| Phase 4 — More channels | 11% | 0/5 | 0% |
+| Phase 5 — Intelligence and monetisation | 15% | 0/7 | 0% |
+
+### Phase 1 — Core communication — 0%
+
+_Real WhatsApp messages land in a shared, saved inbox for several agents._
 
 - [ ] Backend chosen and connected (Supabase project, environment) — Decision pending: Lovable Cloud or own Supabase
 - [ ] Sign-up, sign-in, invitations
@@ -40,9 +82,9 @@ _Real WhatsApp messages land in a shared, saved inbox for several agents._ Worth
 - [ ] Send replies, media and templates from the inbox
 - [ ] Inbox updates live; assignment and transfer
 
-## Phase 2 — AI and automation — 0%
+### Phase 2 — AI and automation — 0%
 
-_Instant first replies from real catalogue data, and follow-ups that respect the rules._ Worth 20% of the build.
+_Instant first replies from real catalogue data, and follow-ups that respect the rules._
 
 - [ ] Products with variants, prices and stock
 - [ ] Media library in cloud storage
@@ -53,9 +95,9 @@ _Instant first replies from real catalogue data, and follow-ups that respect the
 - [ ] Follow-up engine: 24-hour window, caps, quiet hours, stop on reply
 - [ ] Consent records, opt-out keywords, suppression list
 
-## Phase 3 — Sales and commerce — 0%
+### Phase 3 — Sales and commerce — 0%
 
-_Chats become confirmed, delivered, paid orders._ Worth 20% of the build.
+_Chats become confirmed, delivered, paid orders._
 
 - [ ] Lead pipeline with agreed stages
 - [ ] Lead scoring from real buying actions
@@ -65,9 +107,9 @@ _Chats become confirmed, delivered, paid orders._ Worth 20% of the build.
 - [ ] Dispatch board and delivery outcomes
 - [ ] Order, dispatch and delivery notifications
 
-## Phase 4 — More channels — 0%
+### Phase 4 — More channels — 0%
 
-_The same inbox for Messenger, Instagram, SMS, email and web chat._ Worth 10% of the build.
+_The same inbox for Messenger, Instagram, SMS, email and web chat._
 
 - [ ] Messenger and Instagram DMs
 - [ ] SMS
@@ -75,9 +117,9 @@ _The same inbox for Messenger, Instagram, SMS, email and web chat._ Worth 10% of
 - [ ] Website chat
 - [ ] Meta lead forms and ad referral data
 
-## Phase 5 — Intelligence and monetisation — 0%
+### Phase 5 — Intelligence and monetisation — 0%
 
-_Know which ad made the money; charge for the product._ Worth 15% of the build.
+_Know which ad made the money; charge for the product._
 
 - [ ] Analytics: created vs confirmed vs delivered
 - [ ] Ad attribution, ROAS, cost per delivered order
@@ -87,7 +129,7 @@ _Know which ad made the money; charge for the product._ Worth 15% of the build.
 - [ ] Super Admin console
 - [ ] All 15 acceptance tests pass end to end
 
-## Acceptance tests — 0/15
+### Acceptance tests — 0/15
 
 - [ ] 1. Ad click starts a WhatsApp chat; contact and ad source recorded
 - [ ] 2. 'Hello' gets an immediate correct greeting
@@ -104,36 +146,3 @@ _Know which ad made the money; charge for the product._ Worth 15% of the build.
 - [ ] 13. Integration failure retries without duplicate messages or orders
 - [ ] 14. One business cannot read another business's data
 - [ ] 15. Opt-out stops marketing automation
-
-## Modules
-
-| Group | Module | Phase | Status | From |
-| --- | --- | --- | --- | --- |
-| Overview | Dashboard | MVP | Screen only — sample data | Bizriva, Sandala, Prompt |
-| Overview | Today | MVP | Screen only — sample data | Bizriva |
-| Customers | Inbox | MVP | Screen only — sample data | Sandala, Kobolink, Prompt |
-| Customers | CRM | MVP | Planned | Bizriva, Sandala, Prompt |
-| Sales | Orders | MVP | Planned | Kobolink, Prompt |
-| Sales | COD Verification | MVP | Planned | Sandala, Prompt |
-| Commerce | Products | MVP | Planned | Sandala, Kobolink, Prompt |
-| Commerce | Media Library | MVP | Planned | Prompt |
-| Commerce | Inventory | Later | Planned | Kobolink |
-| Commerce | Store | Later | Planned | Bizriva |
-| Delivery | Delivery | MVP | Planned | Kobolink, Prompt |
-| Delivery | Riders | Later | Planned | Kobolink |
-| Automation | AI Sales Agent | MVP | Planned | Kobolink, Prompt |
-| Automation | Knowledge Base | MVP | Planned | Prompt |
-| Automation | Follow-ups | MVP | Planned | Sandala, Prompt |
-| Automation | Templates | MVP | Planned | Prompt |
-| Automation | Broadcasts | Later | Planned | Sandala |
-| Automation | Automation Builder | Later | Planned | Bizriva, Prompt |
-| Automation | Workflow History | Later | Planned | Sandala, Prompt |
-| Growth | Ads and Attribution | Later | Planned | Kobolink, Prompt |
-| Money | Payments | Later | Planned | Kobolink, Prompt |
-| Insights | Analytics | MVP | Planned | Kobolink, Prompt |
-| Workspace | Team and Roles | MVP | Planned | Kobolink, Prompt |
-| Workspace | Integrations | MVP | Planned | Kobolink, Prompt |
-| Workspace | Settings | Foundation | Screen only — sample data | Sandala, Kobolink, Prompt |
-| Workspace | Billing | Later | Planned | Prompt |
-| Workspace | Build Progress | Foundation | Screen only — sample data | Kobolink, Prompt |
-| Workspace | Help | Later | Planned | Bizriva |

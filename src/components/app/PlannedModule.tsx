@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Hammer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader, StatusBadge } from "./primitives";
-import { STATE_LABEL, type ModuleDef } from "@/app/modules";
+import { STATE_LABEL, STATE_TONE, type ModuleDef } from "@/app/modules";
 
 /**
  * Honest page for a module that is in the agreed menu but not built yet.
@@ -16,7 +16,7 @@ export function PlannedModule({ module: m }: { module: ModuleDef }) {
         eyebrow={`${m.group} · ${m.phase === "Later" ? "Later phase" : m.phase}`}
         title={m.label}
         description={m.summary}
-        actions={<StatusBadge tone={m.state === "live" ? "success" : m.state === "screen" ? "warning" : "neutral"}>{STATE_LABEL[m.state]}</StatusBadge>}
+        actions={<StatusBadge tone={STATE_TONE[m.state]}>{STATE_LABEL[m.state]}</StatusBadge>}
       />
       <div className="rounded-lg border border-dashed bg-card p-6 sm:p-8">
         <div className="flex items-start gap-4">

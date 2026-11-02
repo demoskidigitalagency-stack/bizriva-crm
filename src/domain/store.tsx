@@ -5,9 +5,36 @@
  * screen code.
  */
 
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createInitialDatabase, CURRENT_USER_ID, NOW, type Database } from "./database";
-import type { Channel, Contact, ID, LeadOutcome, LeadStage, Lifecycle, PaymentMethod, Task } from "./types";
+import type { Channel, Contact, DeliveryStatus, ID, LeadOutcome, LeadStage, Lifecycle, OrderStatus, PaymentMethod, Product, Task } from "./types";
+
+/**
+ * Practice Mode persistence: the whole sample database is saved in this
+ * browser so testers can work through flows across refreshes. Bump the
+ * version when the seed or types change shape — old saves are then ignored.
+ */
+const PRACTICE_KEY = "bizriva.practice-db";
+const PRACTICE_VERSION = 1;
+
+function loadPractice(): { db: Database; workspaceId: ID } | null {
+  try {
+    const raw = localStorage.getItem(PRACTICE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { v: number; db: Database; workspaceId: ID };
+    return parsed.v === PRACTICE_VERSION ? { db: parsed.db, workspaceId: parsed.workspaceId } : null;
+  } catch {
+    return null;
+  }
+}
+
+function savePractice(db: Database, workspaceId: ID) {
+  try {
+    localStorage.setItem(PRACTICE_KEY, JSON.stringify({ v: PRACTICE_VERSION, db, workspaceId }));
+  } catch {
+    /* storage full or blocked: practice data lasts for this visit only */
+  }
+}
 
 export interface CreateContactInput {
   firstName: string;
@@ -43,6 +70,15 @@ interface StoreActions {
   sendReply: (conversationId: ID, text: string) => void;
   markNotificationsRead: () => void;
   setWorkspace: (id: ID) => void;
+  setOrderStatus: (orderId: ID, status: OrderStatus, note?: string) => void;
+  recordCodCheck: (orderId: ID, result: "confirmed" | "unreachable" | "cancelled", note?: string) => void;
+  setDeliveryStatus: (deliveryId: ID, status: DeliveryStatus, failureReason?: string) => void;
+  markRemitted: (paymentId: ID) => void;
+  saveProduct: (product: Omit<Product, "id"> & { id?: ID }) => void;
+  adjustStock: (productId: ID, delta: number) => void;
+  mergeContacts: (keepId: ID, mergeIds: ID[]) => void;
+  startLead: (contactId: ID) => void;
+  resetPracticeData: () => void;
 }
 
 interface StoreValue {
@@ -59,6 +95,19 @@ const newId = (prefix: string) => `${prefix}_${Date.now().toString(36)}${(seq++)
 export function DataProvider({ children }: { children: ReactNode }) {
   const [db, setDb] = useState<Database>(createInitialDatabase);
   const [workspaceId, setWorkspaceId] = useState<ID>("ws_luxe");
+  // Load the saved practice data after mount (not during render) so server and client markup match.
+  const loaded = useRef(false);
+  useEffect(() => {
+    const saved = loadPractice();
+    if (saved) {
+      setDb(saved.db);
+      setWorkspaceId(saved.workspaceId);
+    }
+    loaded.current = true;
+  }, []);
+  useEffect(() => {
+    if (loaded.current) savePractice(db, workspaceId);
+  }, [db, workspaceId]);
 
   const logActivity = (d: Database, contactId: ID, title: string, kind: "lead" | "note" | "task" | "conversation" | "order" | "system" = "system", description?: string): Database => ({
     ...d,
@@ -224,13 +273,161 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setDb((d) => ({ ...d, notifications: d.notifications.map((n) => ({ ...n, read: true })) }));
   }, []);
 
+
+  const setOrderStatus = useCallback((orderId: ID, status: OrderStatus, note?: string) => {
+    setDb((d) => {
+      const order = d.orders.find((o) => o.id === orderId);
+      if (!order || order.status === status) return d;
+      const now = new Date().toISOString();
+      let next: Database = { ...d, orders: d.orders.map((o) => (o.id === orderId ? { ...o, status } : o)) };
+      // Delivered COD orders become realised revenue only now (master prompt rule).
+      if (status === "delivered") {
+        next = {
+          ...next,
+          orders: next.orders.map((o) => (o.id === orderId && o.paymentStatus === "cod_pending" ? { ...o, paymentStatus: "paid" as const } : o)),
+          deliveries: next.deliveries.map((x) => (x.orderId === orderId ? { ...x, status: "delivered" as const, deliveredAt: now } : x)),
+          contacts: next.contacts.map((c) => (c.id === order.contactId ? { ...c, deliveredRevenue: c.deliveredRevenue + order.total, lastPurchaseAt: now } : c)),
+        };
+        if (order.paymentMethod === "cash_on_delivery" && !next.payments.some((p) => p.orderId === orderId)) {
+          next = {
+            ...next,
+            payments: [{ id: newId("pay"), orderId, contactId: order.contactId, amount: order.total, method: "cash_on_delivery", status: "paid", at: now, remittanceDueAt: new Date(Date.now() + 2 * 86_400_000).toISOString(), remitted: false }, ...next.payments],
+          };
+        }
+      }
+      if (status === "awaiting_dispatch" && !next.deliveries.some((x) => x.orderId === orderId)) {
+        const city = d.contacts.find((c) => c.id === order.contactId)?.city ?? "";
+        next = {
+          ...next,
+          deliveries: [{ id: newId("dl"), orderId, contactId: order.contactId, courier: "Unassigned", trackingRef: `TRK-${order.reference}`, status: "scheduled", scheduledFor: new Date(Date.now() + 86_400_000).toISOString(), attempts: 0, city }, ...next.deliveries],
+        };
+      }
+      if (status === "in_transit") {
+        next = { ...next, deliveries: next.deliveries.map((x) => (x.orderId === orderId ? { ...x, status: "in_transit" as const } : x)) };
+      }
+      return logActivity(next, order.contactId, `Order ${order.reference}: ${status.replace(/_/g, " ")}`, "order", note);
+    });
+  }, []);
+
+  const recordCodCheck = useCallback((orderId: ID, result: "confirmed" | "unreachable" | "cancelled", note?: string) => {
+    setDb((d) => {
+      const order = d.orders.find((o) => o.id === orderId);
+      if (!order) return d;
+      const status: OrderStatus = result === "confirmed" ? "confirmed" : result === "cancelled" ? "cancelled" : order.status;
+      const title = result === "confirmed" ? `COD confirmed by customer for ${order.reference}` : result === "cancelled" ? `COD order ${order.reference} cancelled` : `COD check: customer unreachable for ${order.reference}`;
+      const next: Database = {
+        ...d,
+        orders: d.orders.map((o) => (o.id === orderId ? { ...o, status } : o)),
+        contacts: d.contacts.map((c) => (c.id === order.contactId ? { ...c, lastActivityAt: new Date().toISOString() } : c)),
+      };
+      return logActivity(next, order.contactId, title, "order", note);
+    });
+  }, []);
+
+  const setDeliveryStatus = useCallback((deliveryId: ID, status: DeliveryStatus, failureReason?: string) => {
+    setDb((d) => {
+      const del = d.deliveries.find((x) => x.id === deliveryId);
+      if (!del) return d;
+      const now = new Date().toISOString();
+      const attempts = status === "failed" ? del.attempts + 1 : del.attempts;
+      const next: Database = {
+        ...d,
+        deliveries: d.deliveries.map((x) => {
+          if (x.id !== deliveryId) return x;
+          const { failureReason: _f, ...rest } = x;
+          return { ...rest, status, attempts, ...(status === "delivered" ? { deliveredAt: now } : {}), ...(failureReason ? { failureReason } : {}) };
+        }),
+      };
+      return logActivity(next, del.contactId, `Delivery ${del.trackingRef}: ${status.replace(/_/g, " ")}`, "system", failureReason);
+    });
+    const del = db.deliveries.find((x) => x.id === deliveryId);
+    if (del && status === "delivered") setOrderStatus(del.orderId, "delivered");
+    if (del && status === "returned") setOrderStatus(del.orderId, "returned", failureReason);
+  }, [db.deliveries, setOrderStatus]);
+
+  const markRemitted = useCallback((paymentId: ID) => {
+    setDb((d) => {
+      const pay = d.payments.find((p) => p.id === paymentId);
+      if (!pay) return d;
+      return logActivity({ ...d, payments: d.payments.map((p) => (p.id === paymentId ? { ...p, remitted: true } : p)) }, pay.contactId, "COD cash remitted", "system");
+    });
+  }, []);
+
+  const saveProduct = useCallback((product: Omit<Product, "id"> & { id?: ID }) => {
+    setDb((d) => {
+      if (product.id && d.products.some((p) => p.id === product.id)) {
+        return { ...d, products: d.products.map((p) => (p.id === product.id ? { ...p, ...product, id: p.id } : p)) };
+      }
+      return { ...d, products: [{ ...product, id: newId("prd") }, ...d.products] };
+    });
+  }, []);
+
+  const adjustStock = useCallback((productId: ID, delta: number) => {
+    setDb((d) => ({ ...d, products: d.products.map((p) => (p.id === productId ? { ...p, stock: Math.max(0, p.stock + delta) } : p)) }));
+  }, []);
+
+  const mergeContacts = useCallback((keepId: ID, mergeIds: ID[]) => {
+    setDb((d) => {
+      const keep = d.contacts.find((c) => c.id === keepId);
+      const merged = d.contacts.filter((c) => mergeIds.includes(c.id) && c.id !== keepId);
+      if (!keep || !merged.length) return d;
+      const ids = new Set(merged.map((c) => c.id));
+      const move = <T extends { contactId?: ID }>(rows: T[]) => rows.map((r) => (r.contactId && ids.has(r.contactId) ? { ...r, contactId: keepId } : r));
+      const sum = (k: "totalOrders" | "lifetimeValue" | "deliveredRevenue" | "contributionProfit" | "outstandingBalance" | "notesCount") => merged.reduce((s, c) => s + c[k], keep[k]);
+      const next: Database = {
+        ...d,
+        contacts: d.contacts
+          .filter((c) => !ids.has(c.id))
+          .map((c) => (c.id === keepId ? {
+            ...c,
+            tags: [...new Set([...c.tags, ...merged.flatMap((m) => m.tags)])],
+            totalOrders: sum("totalOrders"), lifetimeValue: sum("lifetimeValue"), deliveredRevenue: sum("deliveredRevenue"),
+            contributionProfit: sum("contributionProfit"), outstandingBalance: sum("outstandingBalance"), notesCount: sum("notesCount"),
+            leadScore: Math.max(c.leadScore, ...merged.map((m) => m.leadScore)),
+          } : c)),
+        channelIdentities: move(d.channelIdentities), attributions: move(d.attributions), leads: move(d.leads), opportunities: move(d.opportunities),
+        activities: move(d.activities), tasks: move(d.tasks), conversations: move(d.conversations), productInterests: move(d.productInterests),
+        orders: move(d.orders), deliveries: move(d.deliveries), payments: move(d.payments),
+      };
+      return logActivity(next, keepId, `Merged ${merged.length} duplicate record${merged.length > 1 ? "s" : ""}`, "system", merged.map((m) => `${m.firstName} ${m.lastName} (${m.phone})`).join(", "));
+    });
+  }, []);
+
+  const startLead = useCallback((contactId: ID) => {
+    setDb((d) => {
+      const c = d.contacts.find((x) => x.id === contactId);
+      if (!c || d.leads.some((l) => l.contactId === contactId && l.stage !== "won")) return d;
+      const now = new Date().toISOString();
+      const next: Database = {
+        ...d,
+        leads: [{ id: newId("ld"), contactId, stage: "new_lead", source: c.source, ownerId: c.ownerId, score: c.leadScore, value: 0, slaStatus: "on_track", createdAt: now, updatedAt: now }, ...d.leads],
+        contacts: d.contacts.map((x) => (x.id === contactId && (x.lifecycle === "contact" || x.lifecycle === "prospect") ? { ...x, lifecycle: "lead" as const } : x)),
+      };
+      return logActivity(next, contactId, "Lead opened", "lead");
+    });
+  }, []);
+
+  const resetPracticeData = useCallback(() => {
+    try {
+      localStorage.removeItem(PRACTICE_KEY);
+    } catch {
+      /* nothing saved */
+    }
+    setDb(createInitialDatabase());
+    setWorkspaceId("ws_luxe");
+  }, []);
+
   const value = useMemo<StoreValue>(
     () => ({
       db,
       workspaceId,
-      actions: { addContact, createOrder, setLeadStage, setLeadOutcome, assignOwner, setLifecycle, completeTask, snoozeTask, addTask, addNote, logCall, sendReply, markNotificationsRead, setWorkspace: setWorkspaceId },
+      actions: {
+        addContact, createOrder, setLeadStage, setLeadOutcome, assignOwner, setLifecycle, completeTask, snoozeTask, addTask, addNote, logCall,
+        sendReply, markNotificationsRead, setWorkspace: setWorkspaceId, setOrderStatus, recordCodCheck, setDeliveryStatus, markRemitted,
+        saveProduct, adjustStock, mergeContacts, startLead, resetPracticeData,
+      },
     }),
-    [db, workspaceId, addContact, createOrder, setLeadStage, setLeadOutcome, assignOwner, setLifecycle, completeTask, snoozeTask, addTask, addNote, logCall, sendReply, markNotificationsRead],
+    [db, workspaceId, addContact, createOrder, setLeadStage, setLeadOutcome, assignOwner, setLifecycle, completeTask, snoozeTask, addTask, addNote, logCall, sendReply, markNotificationsRead, setOrderStatus, recordCodCheck, setDeliveryStatus, markRemitted, saveProduct, adjustStock, mergeContacts, startLead, resetPracticeData],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
