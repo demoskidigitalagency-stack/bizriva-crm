@@ -80,7 +80,9 @@ function Analytics() {
           <TabsList><TabsTrigger value="7">7 days</TabsTrigger><TabsTrigger value="30">30 days</TabsTrigger><TabsTrigger value="90">90 days</TabsTrigger><TabsTrigger value="all">All</TabsTrigger></TabsList>
         </Tabs>
       </div>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <KpiCard label="Average order value" value={delivered.length ? money(realised / delivered.length) : "—"} hint="delivered orders" />
+        <KpiCard label="Repeat customers" value={(() => { const buyers = db.contacts.filter((c) => c.totalOrders > 0); return buyers.length ? `${Math.round((buyers.filter((c) => c.totalOrders >= 2).length / buyers.length) * 100)}%` : "—"; })()} hint="of buyers, all time" tone="success" />
         <KpiCard label="Delivered revenue" value={money(realised)} hint={`${money(booked)} booked`} tone="success" />
         <KpiCard label="Orders created" value={String(created)} />
         <KpiCard label="Delivery success" value={dispatched ? `${Math.round((delivered.length / dispatched) * 100)}%` : "—"} hint={`${returned} returned`} tone="info" />

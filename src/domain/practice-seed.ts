@@ -101,6 +101,8 @@ export const integrations: IntegrationState[] = [
   { id: "email", status: "not_connected" },
   { id: "paystack", status: "not_connected" },
   { id: "webchat", status: "not_connected" },
+  { id: "couriers", status: "not_connected" },
+  { id: "lead_form", status: "not_connected" },
 ];
 
 export const agent: AgentConfig = {
@@ -126,4 +128,28 @@ export const settings: BusinessSettings = {
   storeEnabled: false,
   storeSlug: "luxehair",
   plan: "trial",
+  staffAlerts: { newMessage: true, dispatchRisk: true },
+  chat: { bubbleTails: true, flagMissingDetails: true },
 };
+
+/** Product descriptions for the catalogue (AI agent and store use them). */
+export const productDescriptions: Record<string, string> = {
+  p_1: "100% raw Vietnamese hair, bone straight, 20 inches. Can be dyed and heat-styled.",
+  p_2: "Double drawn body wave, full from root to tip, 18 inches.",
+  p_3: "HD lace frontal, 13x4, melts into all skin tones.",
+  p_4: "Glueless pixie curl wig, ready to wear out of the box.",
+  p_5: "Kinky straight clip-in set, blends with natural 4C texture.",
+  p_6: "Shampoo, conditioner and serum for silk-pressed hair.",
+  p_7: "Satin bonnet and scarf set to protect hair overnight.",
+  p_8: "Burgundy deep wave, 22 inches, pre-coloured.",
+};
+
+/**
+ * Customer messages that include delivery details, so "pull details from the chat"
+ * has something to find in Practice Mode. Inserted into a few sample chats.
+ */
+export const detailMessages: string[] = [
+  "My name is {first} {last}. Deliver to 14 Admiralty Way, Lekki Phase 1, Lagos. Landmark: opposite Mega Plaza. My number is 0803 412 7781.",
+  "Please send it to No 5 Allen Avenue, Ikeja. Close to the Shoprite. You can call me on 0815 220 9034.",
+  "This is {first}. Address: 22 Aminu Kano Crescent, Wuse 2, Abuja. Near Banex Plaza. 0902 771 4410",
+];

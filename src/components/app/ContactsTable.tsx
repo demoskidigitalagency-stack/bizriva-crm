@@ -4,10 +4,10 @@ import { ArrowDownUp, Download, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { EmptyState, PersonAvatar, Section, StatusBadge } from "./primitives";
+import { EmptyState, KpiCard, PersonAvatar, Section, StatusBadge } from "./primitives";
 import { ContactDialog } from "./dialogs";
 import { useDb, useWorkspace } from "@/domain/store";
-import { fullName, getMember, queryContacts, type ContactSortKey } from "@/domain/repositories";
+import { campaignNames, fullName, getMember, queryContacts, type ContactSortKey } from "@/domain/repositories";
 import { LIFECYCLE_META, SOURCE_LABELS, type AcquisitionSource, type Lifecycle } from "@/domain/types";
 import { formatCurrency, relativeTime } from "@/lib/format";
 
@@ -36,6 +36,8 @@ export function ContactsTable({ lifecycles, title, description }: { lifecycles?:
   const [lifecycle, setLifecycle] = useState<Lifecycle | "all">("all");
   const [source, setSource] = useState<AcquisitionSource | "all">("all");
   const [owner, setOwner] = useState<string>("all");
+  const [campaign, setCampaign] = useState<string>("all");
+  const [cod, setCod] = useState<"all" | "unverified" | "confirmed" | "none">("all");
   const [sortKey, setSortKey] = useState<ContactSortKey>("lastActivityAt");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(1);
@@ -48,12 +50,14 @@ export function ContactsTable({ lifecycles, title, description }: { lifecycles?:
       lifecycle: lifecycle === "all" ? allowed : [lifecycle],
       sources: source === "all" ? [] : [source],
       owners: owner === "all" ? [] : [owner],
+      campaigns: campaign === "all" ? [] : [campaign],
+      ...(cod === "all" ? {} : { cod }),
       sortKey,
       sortDir,
       page,
       pageSize: 15,
     }),
-    [search, lifecycle, source, owner, sortKey, sortDir, page, allowed],
+    [search, lifecycle, source, owner, campaign, cod, sortKey, sortDir, page, allowed],
   );
   const result = queryContacts(db, query);
   const everyMatch = queryContacts(db, { ...query, page: 1, pageSize: 100_000 }).rows;
@@ -82,6 +86,21 @@ export function ContactsTable({ lifecycles, title, description }: { lifecycles?:
         </div>
       </div>
 
+      {lifecycles && (() => {
+        const people = db.contacts.filter((c) => lifecycles.includes(c.lifecycle));
+        const repeat = people.filter((c) => c.totalOrders >= 2).length;
+        const ltv = people.reduce((s, c) => s + c.lifetimeValue, 0);
+        const orders = people.reduce((s, c) => s + c.totalOrders, 0);
+        return (
+          <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+            <KpiCard label="Customers" value={String(people.length)} />
+            <KpiCard label="Repeat buyers" value={String(repeat)} hint={people.length ? `${Math.round((repeat / people.length) * 100)}% of customers` : ""} tone="success" />
+            <KpiCard label="Total lifetime value" value={formatCurrency(ltv, ws.currency, { compact: true })} tone="info" />
+            <KpiCard label="Average order value" value={orders ? formatCurrency(ltv / orders, ws.currency, { compact: true }) : "—"} />
+          </div>
+        );
+      })()}
+
       <Section>
         <div className="flex flex-wrap items-center gap-2 border-b p-3">
           <div className="relative min-w-0 flex-1 basis-56">
@@ -109,6 +128,22 @@ export function ContactsTable({ lifecycles, title, description }: { lifecycles?:
             <SelectContent>
               <SelectItem value="all">All owners</SelectItem>
               {db.team.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={campaign} onValueChange={(v) => reset(() => setCampaign(v))}>
+            <SelectTrigger className="h-9 w-48" aria-label="Ad campaign"><SelectValue>{campaign === "all" ? "All ad campaigns" : campaign}</SelectValue></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All ad campaigns</SelectItem>
+              {campaignNames(db).map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={cod} onValueChange={(v) => reset(() => setCod(v as typeof cod))}>
+            <SelectTrigger className="h-9 w-44" aria-label="COD verification"><SelectValue>{{ all: "Any verification", unverified: "Unverified COD order", confirmed: "COD confirmed", none: "No COD orders" }[cod]}</SelectValue></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Any verification</SelectItem>
+              <SelectItem value="unverified">Unverified COD order</SelectItem>
+              <SelectItem value="confirmed">COD confirmed</SelectItem>
+              <SelectItem value="none">No COD orders</SelectItem>
             </SelectContent>
           </Select>
           <Select value={sortKey} onValueChange={(v) => reset(() => setSortKey(v as ContactSortKey))}>

@@ -185,7 +185,7 @@ async def main():
 
         async def t_links():
             await ready(pg, "/inbox")
-            await pg.get_by_role("link", name="Open Customer 360").click(); await pg.wait_for_timeout(800)
+            await pg.get_by_role("link", name="Customer 360", exact=True).first.click(); await pg.wait_for_timeout(800)
             ok("Inbox → Customer 360", "/crm/contacts/" in pg.url, pg.url)
             msg = pg.get_by_role("link", name="Message")
             if await msg.count():

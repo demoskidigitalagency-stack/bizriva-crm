@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { Bell, ChevronsUpDown, Menu, Moon, Palette, Search, Sun } from "lucide-react";
+import { Bell, ChevronsUpDown, Menu, Moon, Palette, Plus, Search, Sun } from "lucide-react";
+import { ContactDialog, OrderDialog, PickCustomer, TaskDialog } from "./dialogs";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -193,6 +194,30 @@ function Notifications() {
   );
 }
 
+/** Kobolink's quick actions: start an order, contact or task from any page. */
+function QuickCreate() {
+  const [open, setOpen] = useState<"order" | "contact" | "task" | null>(null);
+  const [orderFor, setOrderFor] = useState<string | null>(null);
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button size="sm" className="gap-1"><Plus className="size-4" /><span className="hidden sm:inline">New</span></Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => setOpen("order")}>New order</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setOpen("contact")}>New contact</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setOpen("task")}>New task</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <PickCustomer open={open === "order"} onOpenChange={(o) => !o && setOpen(null)} onPick={(id) => { setOpen(null); setOrderFor(id); }} />
+      {orderFor && <OrderDialog open onOpenChange={(o) => !o && setOrderFor(null)} contactId={orderFor} />}
+      <ContactDialog open={open === "contact"} onOpenChange={(o) => !o && setOpen(null)} />
+      <TaskDialog open={open === "task"} onOpenChange={(o) => !o && setOpen(null)} />
+    </>
+  );
+}
+
 function AppearanceMenu() {
   const { theme, mode, setTheme, setMode } = useAppearance();
   return (
@@ -249,6 +274,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Button>
           <GlobalSearch />
           <div className="ml-auto flex items-center gap-1">
+            <QuickCreate />
             <AppearanceMenu />
             <Notifications />
             <DropdownMenu>

@@ -8,7 +8,9 @@ import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useActions, useDb } from "@/domain/store";
+import { useActions, useDb, useWorkspace } from "@/domain/store";
+import { Switch } from "@/components/ui/switch";
+import type { CurrencyCode } from "@/lib/format";
 import type { BusinessSettings } from "@/domain/types";
 import { PageHeader, Section, StatusBadge } from "@/components/app/primitives";
 import { THEMES, useAppearance } from "@/app/appearance";
@@ -110,7 +112,10 @@ const CHANNELS = { whatsapp: "WhatsApp", sms: "SMS", email: "Email", off: "Don't
 
 function BusinessForm() {
   const db = useDb();
-  const { updateSettings } = useActions();
+  const { updateSettings, updateWorkspace } = useActions();
+  const ws = useWorkspace();
+  const [currency, setCurrency] = useState<CurrencyCode>(ws.currency);
+  useEffect(() => { setCurrency(ws.currency); }, [ws.currency]);
   const [d, setD] = useState(db.settings);
   const [kw, setKw] = useState(db.settings.optOutKeywords.join(", "));
   const [error, setError] = useState("");
@@ -126,6 +131,7 @@ function BusinessForm() {
     const optOutKeywords = kw.split(",").map((x) => x.trim().toUpperCase()).filter(Boolean);
     if (!optOutKeywords.length) return setError("Keep at least one opt-out keyword, such as STOP.");
     updateSettings({ ...d, businessName: d.businessName.trim(), optOutKeywords });
+    if (currency !== ws.currency) updateWorkspace({ currency });
     setError("");
     setSaved(true);
     setTimeout(() => setSaved(false), 1500);
@@ -141,6 +147,12 @@ function BusinessForm() {
             <Select value={d.timezone} onValueChange={(v) => setD({ ...d, timezone: v })}>
               <SelectTrigger aria-label="Time zone"><SelectValue>{d.timezone}</SelectValue></SelectTrigger>
               <SelectContent>{["Africa/Lagos", "Africa/Accra", "Africa/Nairobi", "Africa/Johannesburg", "Europe/London"].map((z) => <SelectItem key={z} value={z}>{z}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5"><Label>Currency</Label>
+            <Select value={currency} onValueChange={(v) => setCurrency(v as CurrencyCode)}>
+              <SelectTrigger aria-label="Currency"><SelectValue>{currency}</SelectValue></SelectTrigger>
+              <SelectContent>{(["NGN", "GHS", "KES", "ZAR", "USD", "GBP", "EUR"] as CurrencyCode[]).map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div className="space-y-1.5"><Label htmlFor="df">Delivery fee</Label><Input id="df" inputMode="numeric" value={d.deliveryFee} onChange={num("deliveryFee")} /></div>
@@ -159,6 +171,19 @@ function BusinessForm() {
               </Select>
             </li>
           ))}
+        </ul>
+      </Section>
+      <Section title="Team alerts" description="Shown in the bell at the top of every page">
+        <ul className="divide-y">
+          <li className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm"><span>New customer message</span><Switch checked={d.staffAlerts.newMessage} onCheckedChange={(v) => setD({ ...d, staffAlerts: { ...d.staffAlerts, newMessage: v } })} aria-label="New customer message alerts" /></li>
+          <li className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm"><span>High-risk cash-on-delivery order</span><Switch checked={d.staffAlerts.dispatchRisk} onCheckedChange={(v) => setD({ ...d, staffAlerts: { ...d.staffAlerts, dispatchRisk: v } })} aria-label="Dispatch risk alerts" /></li>
+        </ul>
+      </Section>
+      <Section title="Chat display" description="From Sandala's chat appearance settings">
+        <ul className="divide-y">
+          <li className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm"><span>WhatsApp-style bubble tails</span><Switch checked={d.chat.bubbleTails} onCheckedChange={(v) => setD({ ...d, chat: { ...d.chat, bubbleTails: v } })} aria-label="Bubble tails" /></li>
+          <li className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm"><span>Flag chats where we don't have a delivery address yet</span><Switch checked={d.chat.flagMissingDetails} onCheckedChange={(v) => setD({ ...d, chat: { ...d.chat, flagMissingDetails: v } })} aria-label="Flag missing address" /></li>
+          <li className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm text-muted-foreground"><span>Keep messages even if the customer deletes or uses disappearing messages</span><span className="text-xs">Always on — every message is saved when it arrives</span></li>
         </ul>
       </Section>
       <Section title="Consent and limits" description="Protects customers and your WhatsApp number's quality rating">

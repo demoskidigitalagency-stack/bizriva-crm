@@ -1,14 +1,17 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Send } from "lucide-react";
+import { FlaskConical, Megaphone, Package, Send, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { PageHeader, Section, StatusBadge, EmptyState, PersonAvatar } from "@/components/app/primitives";
-import { useActions, useDb } from "@/domain/store";
-import { fullName } from "@/domain/repositories";
-import { CHANNEL_LABELS, type Conversation } from "@/domain/types";
-import { relativeTime, initials } from "@/lib/format";
+import { OrderDialog } from "@/components/app/dialogs";
+import { useActions, useDb, useWorkspace } from "@/domain/store";
+import { CURRENT_USER_ID } from "@/domain/database";
+import { INBOX_VIEWS, fullName, getMember, inboxMatches, type InboxView } from "@/domain/repositories";
+import { extractDetails } from "@/domain/extract";
+import { CHANNEL_LABELS, LEAD_STAGES, ORDER_STATUS_META, SOURCE_LABELS, type Conversation } from "@/domain/types";
+import { formatCurrency, relativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/inbox")({
@@ -16,10 +19,6 @@ export const Route = createFileRoute("/inbox")({
     meta: [
       { title: "Inbox · Bizriva CRM" },
       { name: "description", content: "Answer customer conversations from WhatsApp, Instagram, TikTok and more — one identity per customer." },
-      { property: "og:title", content: "Inbox · Bizriva CRM" },
-      { property: "og:description", content: "Answer customer conversations from WhatsApp, Instagram, TikTok and more." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   // ?c=<conversationId> opens that conversation (used by Customer 360 and Today).
@@ -27,36 +26,176 @@ export const Route = createFileRoute("/inbox")({
   component: Inbox,
 });
 
+function SendProduct({ conversationId }: { conversationId: string }) {
+  const db = useDb();
+  const ws = useWorkspace();
+  const { sendProductCard } = useActions();
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const list = db.products.filter((p) => p.active !== false && (!q.trim() || p.name.toLowerCase().includes(q.trim().toLowerCase())));
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button size="sm" variant="outline" aria-label="Send product"><Package className="size-4" /><span className="hidden sm:inline">Product</span></Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-80 p-2">
+        <Input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a product" aria-label="Find a product" className="mb-2 h-8" />
+        <ul className="max-h-64 overflow-y-auto">
+          {list.map((p) => {
+            const photos = db.media.filter((m) => m.productId === p.id).length;
+            return (
+              <li key={p.id}>
+                <button
+                  type="button"
+                  onClick={() => { sendProductCard(conversationId, p.id); setOpen(false); setQ(""); }}
+                  className="flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-muted"
+                >
+                  <span className="min-w-0"><span className="block truncate">{p.name}</span><span className="text-xs text-muted-foreground">{p.stock > 0 ? `${p.stock} in stock` : "Out of stock"} · {photos} photo{photos === 1 ? "" : "s"}</span></span>
+                  <span className="num shrink-0 text-xs font-semibold">{formatCurrency(p.price, ws.currency)}</span>
+                </button>
+              </li>
+            );
+          })}
+          {list.length === 0 && <li className="px-2 py-3 text-center text-xs text-muted-foreground">No visible products match</li>}
+        </ul>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function Thread({ conversation }: { conversation: Conversation }) {
-  const { sendReply } = useActions();
+  const db = useDb();
+  const { sendReply, simulateIncoming } = useActions();
   const [text, setText] = useState("");
+  const [sim, setSim] = useState("");
+  const [simOpen, setSimOpen] = useState(false);
+  const tails = db.settings.chat.bubbleTails;
   const submit = () => {
     if (!text.trim()) return;
     sendReply(conversation.id, text);
     setText("");
   };
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex min-h-0 flex-1 flex-col">
       <ul className="scroll-thin flex-1 space-y-2 overflow-y-auto bg-chat p-4">
         {conversation.messages.map((m) => (
           <li key={m.id} className={cn("flex", m.direction === "out" ? "justify-end" : "justify-start")}>
-            <div className={cn("max-w-[80%] rounded-lg px-3 py-2 text-sm", m.direction === "out" ? "bg-primary text-primary-foreground" : "bg-chat-in text-chat-in-foreground shadow-xs")}>
+            <div className={cn(
+              "max-w-[80%] rounded-lg px-3 py-2 text-sm",
+              m.direction === "out" ? "bg-primary text-primary-foreground" : "bg-chat-in text-chat-in-foreground shadow-xs",
+              tails && (m.direction === "out" ? "rounded-br-none" : "rounded-bl-none"),
+            )}>
               <p className="whitespace-pre-wrap">{m.body}</p>
               <p className={cn("mt-1 text-[10px]", m.direction === "out" ? "text-primary-foreground/70" : "text-muted-foreground")}>{relativeTime(m.at)}</p>
             </div>
           </li>
         ))}
       </ul>
+      {simOpen && (
+        <form className="flex items-center gap-2 border-t bg-surface px-3 py-2" onSubmit={(e) => { e.preventDefault(); simulateIncoming(conversation.id, sim); setSim(""); }}>
+          <FlaskConical className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <Input value={sim} onChange={(e) => setSim(e.target.value)} placeholder="Type as the customer (practice only)" aria-label="Simulated customer message" className="h-8" />
+          <Button type="submit" size="sm" variant="outline" disabled={!sim.trim()}>Receive</Button>
+          <Button type="button" size="icon" variant="ghost" className="size-8" onClick={() => setSimOpen(false)} aria-label="Close practice message"><X className="size-4" /></Button>
+        </form>
+      )}
       <div className="flex items-center gap-2 border-t p-3">
+        <SendProduct conversationId={conversation.id} />
         <Input
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && submit()}
           placeholder={`Reply on ${CHANNEL_LABELS[conversation.channel]}…`}
+          aria-label="Reply"
         />
         <Button size="sm" onClick={submit} disabled={!text.trim()}><Send className="size-4" /> Send</Button>
+        {!simOpen && <Button size="icon" variant="ghost" className="size-8 shrink-0" onClick={() => setSimOpen(true)} title="Simulate a customer message (practice)" aria-label="Simulate a customer message"><FlaskConical className="size-4" /></Button>}
       </div>
     </div>
+  );
+}
+
+/** Kobolink's customer sidebar + Sandala's auto-extracted contact card. */
+function CustomerPanel({ conversation }: { conversation: Conversation }) {
+  const db = useDb();
+  const ws = useWorkspace();
+  const { updateContactDetails } = useActions();
+  const [ordering, setOrdering] = useState(false);
+  const c = db.contacts.find((x) => x.id === conversation.contactId);
+  const found = useMemo(() => extractDetails(conversation), [conversation]);
+  if (!c) return null;
+  const lead = db.leads.find((l) => l.contactId === c.id);
+  const orders = db.orders.filter((o) => o.contactId === c.id).sort((a, b) => +new Date(b.placedAt) - +new Date(a.placedAt));
+  const interest = db.productInterests.find((p) => p.contactId === c.id);
+
+  const [first, ...rest] = (found.name ?? "").split(" ");
+  const candidates: { key: "name" | "phone" | "address" | "landmark" | "city"; label: string; value: string | undefined; current: string | undefined }[] = [
+    { key: "name", label: "Name", value: found.name, current: fullName(c) },
+    { key: "phone", label: "Phone", value: found.phone, current: c.phone },
+    { key: "address", label: "Address", value: found.address, current: c.address },
+    { key: "landmark", label: "Landmark", value: found.landmark, current: c.landmark },
+    { key: "city", label: "City", value: found.city, current: c.city },
+  ];
+  const newOnes = candidates.filter((x) => x.value && x.value.replace(/\s/g, "").toLowerCase() !== (x.current ?? "").replace(/\s/g, "").toLowerCase());
+  const save = () => updateContactDetails(c.id, {
+    ...(found.name && rest.length ? { firstName: first!, lastName: rest.join(" ") } : {}),
+    ...(found.phone ? { phone: found.phone } : {}),
+    ...(found.address ? { address: found.address } : {}),
+    ...(found.landmark ? { landmark: found.landmark } : {}),
+    ...(found.city ? { city: found.city } : {}),
+  });
+
+  return (
+    <aside className="min-w-0 space-y-3 text-sm" aria-label="Customer details">
+      <Section title="Customer" action={<Link to="/crm/contacts/$contactId" params={{ contactId: c.id }} className="text-xs text-primary hover:underline">Customer 360</Link>}>
+        <dl className="space-y-1.5 p-3">
+          <div className="flex justify-between gap-2"><dt className="text-muted-foreground">Phone</dt><dd className="text-right">{c.phone}</dd></div>
+          <div className="flex justify-between gap-2"><dt className="text-muted-foreground">Address</dt><dd className="text-right">{c.address ?? <span className="text-muted-foreground">Not saved</span>}</dd></div>
+          {c.landmark && <div className="flex justify-between gap-2"><dt className="text-muted-foreground">Landmark</dt><dd className="text-right">{c.landmark}</dd></div>}
+          <div className="flex justify-between gap-2"><dt className="text-muted-foreground">City</dt><dd>{c.city}</dd></div>
+          <div className="flex justify-between gap-2"><dt className="text-muted-foreground">Owner</dt><dd>{getMember(db, c.ownerId)?.name ?? "Unassigned"}</dd></div>
+          {lead && <div className="flex justify-between gap-2"><dt className="text-muted-foreground">Lead stage</dt><dd><StatusBadge tone="brand">{LEAD_STAGES.find((s) => s.id === lead.stage)?.label}</StatusBadge></dd></div>}
+          {interest && <div className="flex justify-between gap-2"><dt className="text-muted-foreground">Interested in</dt><dd className="text-right">{interest.productName}</dd></div>}
+        </dl>
+      </Section>
+
+      <Section title="Found in this chat" description="Pulled from the customer's messages">
+        <div className="space-y-2 p-3">
+          {candidates.every((x) => !x.value) ? (
+            <p className="text-xs text-muted-foreground">Nothing yet. Ask for their name, phone and full delivery address.</p>
+          ) : (
+            <>
+              <dl className="space-y-1">
+                {candidates.filter((x) => x.value).map((x) => (
+                  <div key={x.key} className="flex justify-between gap-2">
+                    <dt className="text-muted-foreground">{x.label}</dt>
+                    <dd className="text-right">{x.value}{newOnes.includes(x) && <StatusBadge tone="info" className="ml-1">New</StatusBadge>}</dd>
+                  </div>
+                ))}
+              </dl>
+              <Button size="sm" className="w-full" disabled={!newOnes.length} onClick={save}><Sparkles className="size-3.5" /> {newOnes.length ? `Save ${newOnes.length} to contact` : "Already saved"}</Button>
+            </>
+          )}
+        </div>
+      </Section>
+
+      <Section title="Orders" action={<Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setOrdering(true)}>New order</Button>}>
+        {orders.length === 0 ? <p className="p-3 text-xs text-muted-foreground">No orders yet.</p> : (
+          <ul className="divide-y">
+            {orders.slice(0, 4).map((o) => (
+              <li key={o.id}>
+                <Link to="/orders" search={{ o: o.id }} className="flex items-center justify-between gap-2 px-3 py-2 hover:bg-muted/40">
+                  <span className="num font-medium">{o.reference}</span>
+                  <StatusBadge tone={ORDER_STATUS_META[o.status].tone}>{ORDER_STATUS_META[o.status].label}</StatusBadge>
+                  <span className="num text-xs">{formatCurrency(o.total, ws.currency, { compact: true })}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Section>
+      {ordering && <OrderDialog open onOpenChange={(o) => !o && setOrdering(false)} contactId={c.id} />}
+    </aside>
   );
 }
 
@@ -64,24 +203,32 @@ function Inbox() {
   const db = useDb();
   const navigate = useNavigate();
   const { c: requested } = Route.useSearch();
-  const [tab, setTab] = useState(requested ? "all" : "needs_reply");
+  const [view, setView] = useState<InboxView>(requested ? "all" : "needs_reply");
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(requested ?? null);
+  useEffect(() => { if (requested) setSelectedId(requested); }, [requested]);
+
+  const counts = useMemo(() => Object.fromEntries(INBOX_VIEWS.map((v) => [v.id, db.conversations.filter((c) => inboxMatches(db, c, v.id, CURRENT_USER_ID)).length])) as Record<InboxView, number>, [db]);
 
   const conversations = useMemo(() => {
     const needle = search.trim().toLowerCase();
     return db.conversations
-      .filter((c) => (tab === "needs_reply" ? c.awaitingReply : true))
+      .filter((c) => inboxMatches(db, c, view, CURRENT_USER_ID))
       .filter((c) => {
         if (!needle) return true;
         const contact = db.contacts.find((x) => x.id === c.contactId);
-        return `${contact ? fullName(contact) : ""} ${c.subject} ${c.messages.map((m) => m.body).join(" ")}`.toLowerCase().includes(needle);
+        return `${contact ? `${fullName(contact)} ${contact.phone}` : ""} ${c.subject} ${c.messages.map((m) => m.body).join(" ")}`.toLowerCase().includes(needle);
       })
       .sort((a, b) => +new Date(b.lastMessageAt) - +new Date(a.lastMessageAt));
-  }, [db, tab, search]);
+  }, [db, view, search]);
 
-  const selected = conversations.find((c) => c.id === selectedId) ?? conversations[0];
+  const selected = conversations.find((c) => c.id === selectedId) ?? db.conversations.find((c) => c.id === selectedId) ?? conversations[0];
   const contact = selected ? db.contacts.find((c) => c.id === selected.contactId) : undefined;
+  const ad = contact ? db.attributions.find((a) => a.contactId === contact.id) : undefined;
+  const missingDetails = (cid: string) => {
+    const p = db.contacts.find((x) => x.id === cid);
+    return db.settings.chat.flagMissingDetails && !!p && !p.address;
+  };
 
   return (
     <div>
@@ -90,20 +237,27 @@ function Inbox() {
         title="Inbox"
         description="Every conversation is tied to the customer's single identity — no duplicate threads across channels."
       />
-      <div className="grid gap-4 lg:grid-cols-[minmax(280px,360px)_1fr]">
-        <div className="space-y-3">
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search conversations…" />
-          <Tabs value={tab} onValueChange={setTab}>
-            <TabsList className="w-full">
-              <TabsTrigger value="needs_reply" className="flex-1">Needs reply</TabsTrigger>
-              <TabsTrigger value="all" className="flex-1">All</TabsTrigger>
-            </TabsList>
-          </Tabs>
+      <div className="scroll-thin -mx-1 mb-3 flex gap-1.5 overflow-x-auto px-1 pb-1" role="tablist" aria-label="Inbox filters">
+        {INBOX_VIEWS.map((v) => (
+          <button
+            key={v.id}
+            role="tab"
+            aria-selected={view === v.id}
+            onClick={() => setView(v.id)}
+            className={cn("shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors", view === v.id ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:bg-muted")}
+          >
+            {v.label} <span className="num opacity-75">{counts[v.id]}</span>
+          </button>
+        ))}
+      </div>
+      <div className="grid gap-4 lg:grid-cols-[minmax(260px,320px)_minmax(0,1fr)] xl:grid-cols-[minmax(260px,320px)_minmax(0,1fr)_280px]">
+        <div className="min-w-0 space-y-3">
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, phone or message" aria-label="Search conversations" />
           <Section bodyClassName="p-0" className="overflow-hidden">
             {conversations.length === 0 ? (
-              <EmptyState title="Inbox zero" description={tab === "needs_reply" ? "Every customer has an answer. Switch to All to browse the history." : "No conversations match that search."} />
+              <EmptyState title="Nothing here" description={view === "needs_reply" ? "Every customer has an answer." : "No conversations match this filter."} />
             ) : (
-              <ul className="max-h-[560px] overflow-y-auto">
+              <ul className="max-h-[600px] overflow-y-auto">
                 {conversations.map((c) => {
                   const person = db.contacts.find((x) => x.id === c.contactId);
                   const last = c.messages[c.messages.length - 1];
@@ -116,13 +270,14 @@ function Inbox() {
                         <PersonAvatar name={person ? fullName(person) : "Unknown"} />
                         <span className="min-w-0 flex-1">
                           <span className="flex items-center justify-between gap-2">
-                            <span className="truncate text-sm font-semibold">{person ? fullName(person) : "Unknown contact"}</span>
+                            <span className={cn("truncate text-sm", c.unread ? "font-bold" : "font-semibold")}>{person ? fullName(person) : "Unknown contact"}</span>
                             <span className="shrink-0 text-[10px] text-muted-foreground">{relativeTime(c.lastMessageAt)}</span>
                           </span>
                           <span className="block truncate text-xs text-muted-foreground">{last?.body}</span>
-                          <span className="mt-1 flex items-center gap-1.5">
+                          <span className="mt-1 flex flex-wrap items-center gap-1">
                             <StatusBadge tone="neutral">{CHANNEL_LABELS[c.channel]}</StatusBadge>
                             {c.awaitingReply && <StatusBadge tone="warning">Awaiting reply</StatusBadge>}
+                            {missingDetails(c.contactId) && <StatusBadge tone="neutral">No address</StatusBadge>}
                           </span>
                         </span>
                       </button>
@@ -134,20 +289,28 @@ function Inbox() {
           </Section>
         </div>
 
-        <Section bodyClassName="flex h-[640px] flex-col p-0" className="overflow-hidden">
+        <Section bodyClassName="flex h-[680px] flex-col p-0" className="min-w-0 overflow-hidden">
           {selected && contact ? (
             <>
-              <header className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
-                <div className="flex min-w-0 items-center gap-2.5">
-                  <PersonAvatar name={fullName(contact)} size="md" />
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-bold">{fullName(contact)}</p>
-                    <p className="truncate text-xs text-muted-foreground">{contact.phone} · {CHANNEL_LABELS[selected.channel]} · {contact.city}</p>
+              <header className="border-b px-4 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <PersonAvatar name={fullName(contact)} size="md" />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-bold">{fullName(contact)}</p>
+                      <p className="truncate text-xs text-muted-foreground">{contact.phone} · {CHANNEL_LABELS[selected.channel]} · {contact.city}</p>
+                    </div>
                   </div>
+                  <Button asChild size="sm" variant="outline" className="xl:hidden">
+                    <Link to="/crm/contacts/$contactId" params={{ contactId: contact.id }}>Open Customer 360</Link>
+                  </Button>
                 </div>
-                <Button asChild size="sm" variant="outline">
-                  <Link to="/crm/contacts/$contactId" params={{ contactId: contact.id }}>Open Customer 360</Link>
-                </Button>
+                {ad && (
+                  <p className="mt-2 flex items-center gap-1.5 rounded-md bg-surface px-2 py-1 text-xs text-muted-foreground" title="Ad source">
+                    <Megaphone className="size-3.5 shrink-0" aria-hidden="true" />
+                    <span className="truncate">From {SOURCE_LABELS[ad.source]}{ad.campaign ? ` · ${ad.campaign}` : ""}{ad.adSet ? ` · ${ad.adSet}` : ""}{ad.creative ? ` · ${ad.creative}` : ""}</span>
+                  </p>
+                )}
               </header>
               <Thread conversation={selected} />
             </>
@@ -159,6 +322,12 @@ function Inbox() {
             />
           )}
         </Section>
+
+        {selected && contact && (
+          <div className="lg:col-span-2 xl:col-span-1">
+            <CustomerPanel conversation={selected} />
+          </div>
+        )}
       </div>
     </div>
   );

@@ -74,6 +74,10 @@ export interface ContactQuery {
   countries?: string[];
   minScore?: number;
   hasOrders?: boolean;
+  /** Ad campaign the contact came from (Sandala's ad-campaign filter). */
+  campaigns?: string[];
+  /** COD verification state (Sandala's verification filter). */
+  cod?: "unverified" | "confirmed" | "none";
   sortKey?: ContactSortKey;
   sortDir?: "asc" | "desc";
   page?: number;
@@ -89,6 +93,8 @@ export function queryContacts(db: Database, q: ContactQuery = {}): Paged<Contact
     countries = [],
     minScore = 0,
     hasOrders,
+    campaigns = [],
+    cod,
     sortKey = "lastActivityAt",
     sortDir = "desc",
     page = 1,
@@ -96,6 +102,12 @@ export function queryContacts(db: Database, q: ContactQuery = {}): Paged<Contact
   } = q;
 
   const needle = search.trim().toLowerCase();
+  const campaignOf = new Map(db.attributions.map((a) => [a.contactId, a.campaign]));
+  const codState = (id: ID): "unverified" | "confirmed" | "none" => {
+    const mine = db.orders.filter((o) => o.contactId === id && o.paymentMethod === "cash_on_delivery");
+    if (mine.some((o) => o.status === "pending_confirmation")) return "unverified";
+    return mine.length ? "confirmed" : "none";
+  };
   let rows = db.contacts.filter((c) => {
     if (needle) {
       const hay = `${c.firstName} ${c.lastName} ${c.phone} ${c.email ?? ""} ${c.city} ${c.tags.join(" ")}`.toLowerCase();
@@ -108,6 +120,8 @@ export function queryContacts(db: Database, q: ContactQuery = {}): Paged<Contact
     if (c.leadScore < minScore) return false;
     if (hasOrders === true && c.totalOrders === 0) return false;
     if (hasOrders === false && c.totalOrders > 0) return false;
+    if (campaigns.length && !campaigns.includes(campaignOf.get(c.id) ?? "")) return false;
+    if (cod && codState(c.id) !== cod) return false;
     return true;
   });
 
@@ -756,4 +770,46 @@ export function codRisk(db: Database, order: OrderSummary): CodRisk {
   if (contact && contact.totalOrders <= 1 && reasons.length) { score += 5; reasons.push("First order"); }
 
   return { score, level: score >= 50 ? "high" : score >= 20 ? "medium" : "low", reasons };
+}
+
+/* ------------------------------------------------------- inbox views */
+
+export type InboxView = "needs_reply" | "all" | "unread" | "new" | "unverified" | "dispatched" | "cancelled" | "mine";
+
+export const INBOX_VIEWS: { id: InboxView; label: string }[] = [
+  { id: "needs_reply", label: "Needs reply" },
+  { id: "all", label: "All" },
+  { id: "unread", label: "Unread" },
+  { id: "new", label: "New enquiries" },
+  { id: "unverified", label: "Unverified orders" },
+  { id: "dispatched", label: "Dispatched" },
+  { id: "cancelled", label: "Cancelled or out of town" },
+  { id: "mine", label: "Assigned to me" },
+];
+
+/**
+ * Inbox filters, adapted from Sandala's quick filters to cash on delivery
+ * ("Awaiting deposit" is gone by decision 2).
+ */
+export function inboxMatches(db: Database, c: Database["conversations"][number], view: InboxView, me: ID): boolean {
+  const orders = () => db.orders.filter((o) => o.contactId === c.contactId);
+  switch (view) {
+    case "needs_reply": return c.awaitingReply;
+    case "unread": return c.unread;
+    case "new": {
+      const lead = db.leads.find((l) => l.contactId === c.contactId);
+      return !!lead && (lead.stage === "new_lead" || lead.stage === "assigned") && !orders().length;
+    }
+    case "unverified": return orders().some((o) => o.status === "pending_confirmation" && o.paymentMethod === "cash_on_delivery");
+    case "dispatched": return orders().some((o) => o.status === "in_transit" || o.status === "awaiting_dispatch");
+    case "cancelled": return orders().some((o) => o.status === "cancelled" || o.status === "returned")
+      || db.deliveries.some((d) => d.contactId === c.contactId && d.status === "failed");
+    case "mine": return c.assigneeId === me;
+    default: return true;
+  }
+}
+
+/** Distinct ad campaigns contacts came from (for filters). */
+export function campaignNames(db: Database): string[] {
+  return [...new Set(db.attributions.map((a) => a.campaign).filter((x): x is string => !!x))].sort();
 }

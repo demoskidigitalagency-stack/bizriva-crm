@@ -75,6 +75,21 @@ export interface Database {
   settings: BusinessSettings;
 }
 
+/** A few sample chats get a customer message with delivery details (see practice-seed). */
+function withDetailMessages(conversations: Conversation[], contacts: Contact[]): Conversation[] {
+  return conversations.map((c, i) => {
+    if (i % 5 !== 1) return c;
+    const who = contacts.find((x) => x.id === c.contactId);
+    const tpl = practice.detailMessages[i % practice.detailMessages.length]!;
+    const body = tpl.replace("{first}", who?.firstName ?? "Ada").replace("{last}", who?.lastName ?? "Okafor");
+    const first = c.messages[0];
+    if (!first) return c;
+    const at = new Date(new Date(first.at).getTime() + 5 * 60_000).toISOString();
+    const msg = { id: `${first.id}_details`, conversationId: c.id, direction: "in" as const, body, at };
+    return { ...c, messages: [first, msg, ...c.messages.slice(1)] };
+  });
+}
+
 /** In-house deliveries get a rider by city so the Riders module has real-looking work. */
 function withRiders(deliveries: DeliverySummary[]): DeliverySummary[] {
   const byCity: Record<string, string> = { Lagos: "r_musa", Ikeja: "r_kunle", Abuja: "r_emeka", Ibadan: "r_bisi" };
@@ -96,13 +111,13 @@ export function createInitialDatabase(): Database {
     opportunities: seed.opportunities,
     activities: seed.activities,
     tasks: seed.tasks,
-    conversations: seed.conversations,
+    conversations: withDetailMessages(seed.conversations, seed.contacts),
     productInterests: seed.productInterests,
     segments: seed.segments,
     orders: seed.orders,
     deliveries: withRiders(seed.deliveries),
     payments: seed.payments,
-    products: seed.products,
+    products: seed.products.map((p) => ({ ...p, active: true, description: practice.productDescriptions[p.id] ?? "" })),
     campaigns: seed.campaigns,
     notifications: seed.notifications,
     revenueTrend: seed.revenueTrend,

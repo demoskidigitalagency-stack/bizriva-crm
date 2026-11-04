@@ -54,6 +54,7 @@ function Customer360Page() {
             <p className="mt-0.5 text-sm text-muted-foreground">
               {countryFlag(c.countryCode)} {c.city} · {c.phone}{c.email ? ` · ${c.email}` : ""}
             </p>
+            {(c.address || c.landmark) && <p className="mt-0.5 text-sm text-muted-foreground">Delivery: {[c.address, c.landmark].filter(Boolean).join(" · ")}</p>}
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <StatusBadge tone={LIFECYCLE_META[c.lifecycle].tone}>{LIFECYCLE_META[c.lifecycle].label}</StatusBadge>
               <StatusBadge>Score {c.leadScore}</StatusBadge>

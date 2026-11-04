@@ -4,6 +4,8 @@ import { Minus, Pencil, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EmptyState, KpiCard, Section, StatusBadge } from "@/components/app/primitives";
 import { useActions, useDb, useWorkspace } from "@/domain/store";
@@ -17,11 +19,12 @@ export const Route = createFileRoute("/products")({
   component: Products,
 });
 
-type Draft = { id?: string; name: string; category: string; price: string; cost: string; stock: string; reorderLevel: string };
+type Draft = { id?: string; name: string; category: string; price: string; cost: string; stock: string; reorderLevel: string; description: string; active: boolean; deposit: string };
 const toDraft = (p?: Product): Draft => ({
   ...(p ? { id: p.id } : {}),
   name: p?.name ?? "", category: p?.category ?? "", price: p ? String(p.price) : "", cost: p ? String(p.cost) : "",
   stock: p ? String(p.stock) : "0", reorderLevel: p ? String(p.reorderLevel) : "5",
+  description: p?.description ?? "", active: p?.active !== false, deposit: p?.deposit ? String(p.deposit) : "",
 });
 
 function ProductDialog({ product, open, onOpenChange }: { product?: Product | undefined; open: boolean; onOpenChange: (o: boolean) => void }) {
@@ -35,7 +38,9 @@ function ProductDialog({ product, open, onOpenChange }: { product?: Product | un
     if (!d.name.trim()) return setError("Enter a product name.");
     if (!(num(d.price) > 0)) return setError("Enter a selling price above zero.");
     if (Number.isNaN(num(d.cost)) || num(d.cost) < 0) return setError("Enter the cost, or 0 if you don't know it yet.");
-    saveProduct({ ...(d.id ? { id: d.id } : {}), name: d.name.trim(), category: d.category.trim() || "General", price: num(d.price), cost: num(d.cost) || 0, stock: Math.max(0, Math.round(num(d.stock) || 0)), reorderLevel: Math.max(0, Math.round(num(d.reorderLevel) || 0)) });
+    const deposit = d.deposit.trim() ? num(d.deposit) : 0;
+    if (Number.isNaN(deposit) || deposit < 0 || deposit > num(d.price)) return setError("Deposit must be between 0 and the selling price.");
+    saveProduct({ ...(d.id ? { id: d.id } : {}), name: d.name.trim(), category: d.category.trim() || "General", price: num(d.price), cost: num(d.cost) || 0, stock: Math.max(0, Math.round(num(d.stock) || 0)), reorderLevel: Math.max(0, Math.round(num(d.reorderLevel) || 0)), description: d.description.trim(), active: d.active, deposit });
     onOpenChange(false);
   };
   const set = (k: keyof Draft) => (e: React.ChangeEvent<HTMLInputElement>) => { setD((x) => ({ ...x, [k]: e.target.value })); setError(""); };
@@ -45,7 +50,7 @@ function ProductDialog({ product, open, onOpenChange }: { product?: Product | un
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>{product ? "Edit product" : "New product"}</DialogTitle>
-          <DialogDescription>Prices here are what the AI agent and sales staff quote. Variants, media and FAQs come with the Media Library.</DialogDescription>
+          <DialogDescription>Prices here are what the AI agent and sales staff quote. Photos are added in the Media Library.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="pn">Name</Label><Input id="pn" value={d.name} onChange={set("name")} placeholder="Brazilian body wave, 20 inch" /></div>
@@ -54,6 +59,9 @@ function ProductDialog({ product, open, onOpenChange }: { product?: Product | un
           <div className="space-y-1.5"><Label htmlFor="pco">Cost</Label><Input id="pco" inputMode="decimal" value={d.cost} onChange={set("cost")} placeholder="28000" /></div>
           <div className="space-y-1.5"><Label htmlFor="ps">In stock</Label><Input id="ps" inputMode="numeric" value={d.stock} onChange={set("stock")} /></div>
           <div className="space-y-1.5"><Label htmlFor="pr">Reorder at</Label><Input id="pr" inputMode="numeric" value={d.reorderLevel} onChange={set("reorderLevel")} /></div>
+          <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="pd">Description (the AI agent and product cards use it)</Label><Textarea id="pd" rows={2} value={d.description} onChange={(e) => { setD((x) => ({ ...x, description: e.target.value })); setError(""); }} /></div>
+          <div className="space-y-1.5"><Label htmlFor="pdep">Deposit to book (optional)</Label><Input id="pdep" inputMode="decimal" value={d.deposit} onChange={set("deposit")} placeholder="0 = pure cash on delivery" /></div>
+          <label className="flex items-center gap-2 self-end pb-2 text-sm"><Switch checked={d.active} onCheckedChange={(v) => setD((x) => ({ ...x, active: v }))} aria-label="Visible" /> Visible to customers and the AI agent</label>
         </div>
         {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
         <DialogFooter>
@@ -116,7 +124,7 @@ function Products() {
                   const margin = p.price ? ((p.price - p.cost) / p.price) * 100 : 0;
                   return (
                     <tr key={p.id} className="hover:bg-muted/40">
-                      <td className="px-3 py-2"><span className="block font-medium">{p.name}</span><span className="block text-xs text-muted-foreground">{p.category}</span></td>
+                      <td className="px-3 py-2"><span className="block font-medium">{p.name} {p.active === false && <StatusBadge>Hidden</StatusBadge>}</span><span className="block text-xs text-muted-foreground">{p.category}{p.deposit ? ` · deposit ${money(p.deposit)}` : ""}</span></td>
                       <td className="num px-3 py-2 text-right">{money(p.price)}</td>
                       <td className="num px-3 py-2 text-right text-muted-foreground">{money(p.cost)}</td>
                       <td className="num px-3 py-2 text-right">{formatPercent(margin)}</td>

@@ -7,6 +7,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createInitialDatabase, CURRENT_USER_ID, NOW, type Database } from "./database";
+import { codRisk } from "./repositories";
 import type {
   AgentConfig, Broadcast, BusinessSettings, Campaign, Channel, Contact, DeliveryStatus, FollowUpRule, ID, IntegrationState, KnowledgeEntry,
   LeadOutcome, LeadStage, Lifecycle, MediaAsset, MessageTemplate, OrderStatus, PaymentMethod, Product, Rider, StockMovement, Task,
@@ -33,7 +34,7 @@ type EditableKey = keyof Editable;
  * version when the seed or types change shape — old saves are then ignored.
  */
 const PRACTICE_KEY = "bizriva.practice-db";
-const PRACTICE_VERSION = 2; // v2: riders, knowledge base, templates, follow-ups, workflows, media, settings
+const PRACTICE_VERSION = 3; // v3: product details, staff alerts, chat options, contact address, detail messages
 
 function loadPractice(): { db: Database; workspaceId: ID } | null {
   try {
@@ -109,6 +110,11 @@ interface StoreActions {
   retryRun: (runId: ID) => void;
   sendBroadcast: (broadcastId: ID) => void;
   addCampaignSpend: (campaignId: ID, amount: number, revenue?: number) => void;
+  updateContactDetails: (contactId: ID, patch: Partial<Pick<Contact, "firstName" | "lastName" | "phone" | "city" | "address" | "landmark">>) => void;
+  simulateIncoming: (conversationId: ID, text: string) => void;
+  sendProductCard: (conversationId: ID, productId: ID) => void;
+  updateWorkspace: (patch: Partial<Pick<Database["workspaces"][number], "name" | "currency">>) => void;
+  submitLeadForm: (input: { name: string; phone: string; productId?: ID; message?: string }) => ID | null;
 }
 
 interface StoreValue {
@@ -125,6 +131,8 @@ const newId = (prefix: string) => `${prefix}_${Date.now().toString(36)}${(seq++)
 export function DataProvider({ children }: { children: ReactNode }) {
   const [db, setDb] = useState<Database>(createInitialDatabase);
   const [workspaceId, setWorkspaceId] = useState<ID>("ws_luxe");
+  const workspaceIdRef = useRef<ID>("ws_luxe");
+  useEffect(() => { workspaceIdRef.current = workspaceId; }, [workspaceId]);
   // Load the saved practice data after mount (not during render) so server and client markup match.
   const loaded = useRef(false);
   useEffect(() => {
@@ -145,6 +153,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
       { id: newId("act"), contactId, kind, title, at: new Date().toISOString(), actorId: CURRENT_USER_ID, ...(description ? { description } : {}) },
       ...d.activities,
     ],
+  });
+
+
+  const notify = (d: Database, title: string, body: string, tone: "info" | "warning" | "success" = "info"): Database => ({
+    ...d,
+    notifications: [{ id: newId("n"), title, body, at: new Date().toISOString(), read: false, tone }, ...d.notifications],
   });
 
   const addContact = useCallback((input: CreateContactInput) => {
@@ -202,7 +216,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
             : c,
         ),
       };
-      return logActivity(next, input.contactId, `Order ${order.reference} placed`, "order", order.productNames.join(", "));
+      let withLog = logActivity(next, input.contactId, `Order ${order.reference} placed`, "order", order.productNames.join(", "));
+      if (order.paymentMethod === "cash_on_delivery" && withLog.settings.staffAlerts.dispatchRisk) {
+        const risk = codRisk(withLog, order);
+        if (risk.level === "high") {
+          const who = withLog.contacts.find((c) => c.id === input.contactId);
+          withLog = notify(withLog, `High-risk COD order ${order.reference}`, `${who ? `${who.firstName} ${who.lastName}` : "Customer"}: ${risk.reasons.join("; ")}. Confirm before dispatch.`, "warning");
+        }
+      }
+      return withLog;
     });
   }, []);
 
@@ -541,6 +563,90 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setDb((d) => ({ ...d, campaigns: d.campaigns.map((c) => (c.id === campaignId ? { ...c, spend: c.spend + amount, revenue: c.revenue + revenue } : c)) }));
   }, []);
 
+
+  const updateContactDetails = useCallback((contactId: ID, patch: Partial<Pick<Contact, "firstName" | "lastName" | "phone" | "city" | "address" | "landmark">>) => {
+    setDb((d) => {
+      const clean = Object.fromEntries(Object.entries(patch).filter(([, v]) => typeof v === "string" && v.trim())) as typeof patch;
+      if (!Object.keys(clean).length) return d;
+      const next: Database = { ...d, contacts: d.contacts.map((c) => (c.id === contactId ? { ...c, ...clean, lastActivityAt: new Date().toISOString() } : c)) };
+      return logActivity(next, contactId, "Details saved from chat", "system", Object.entries(clean).map(([k, v]) => `${k}: ${v}`).join(" · "));
+    });
+  }, []);
+
+  const simulateIncoming = useCallback((conversationId: ID, text: string) => {
+    setDb((d) => {
+      const conv = d.conversations.find((c) => c.id === conversationId);
+      const body = text.trim();
+      if (!conv || !body) return d;
+      const now = new Date().toISOString();
+      let next: Database = {
+        ...d,
+        conversations: d.conversations.map((c) => (c.id === conversationId ? { ...c, unread: true, awaitingReply: true, lastMessageAt: now, messages: [...c.messages, { id: newId("m"), conversationId, direction: "in" as const, body, at: now }] } : c)),
+        contacts: d.contacts.map((c) => (c.id === conv.contactId ? { ...c, lastActivityAt: now } : c)),
+      };
+      if (next.settings.staffAlerts.newMessage) {
+        const who = next.contacts.find((c) => c.id === conv.contactId);
+        next = notify(next, `New message from ${who ? `${who.firstName} ${who.lastName}` : "a customer"}`, body.slice(0, 90));
+      }
+      return logActivity(next, conv.contactId, "Message received (practice)", "conversation", body);
+    });
+  }, []);
+
+  const sendProductCard = useCallback((conversationId: ID, productId: ID) => {
+    setDb((d) => {
+      const conv = d.conversations.find((c) => c.id === conversationId);
+      const p = d.products.find((x) => x.id === productId);
+      if (!conv || !p) return d;
+      const currency = d.workspaces.find((w) => w.id === "ws_luxe")?.currency ?? d.workspaces[0]?.currency ?? "NGN";
+      const price = new Intl.NumberFormat("en-NG", { style: "currency", currency, maximumFractionDigits: 0 }).format(p.price);
+      const photos = d.media.filter((m) => m.productId === p.id).length;
+      const body = [`${p.name} — ${price}`, p.description, p.deposit ? `Deposit to book: ${new Intl.NumberFormat("en-NG", { style: "currency", currency, maximumFractionDigits: 0 }).format(p.deposit)}` : "Pay on delivery available.", photos ? `[${Math.min(photos, d.agent.maxImages)} photo${Math.min(photos, d.agent.maxImages) > 1 ? "s" : ""} attached]` : "", "Reply YES to order."].filter(Boolean).join("\n");
+      const now = new Date().toISOString();
+      let next: Database = {
+        ...d,
+        conversations: d.conversations.map((c) => (c.id === conversationId ? { ...c, unread: false, awaitingReply: false, lastMessageAt: now, messages: [...c.messages, { id: newId("m"), conversationId, direction: "out" as const, body, at: now, authorId: CURRENT_USER_ID }] } : c)),
+      };
+      if (!next.productInterests.some((pi) => pi.contactId === conv.contactId && pi.productId === p.id)) {
+        next = { ...next, productInterests: [{ id: newId("pi"), contactId: conv.contactId, productId: p.id, productName: p.name, category: p.category, intent: "asked_price", capturedAt: now }, ...next.productInterests] };
+      }
+      return logActivity(next, conv.contactId, `Product card sent: ${p.name}`, "conversation");
+    });
+  }, []);
+
+  const updateWorkspace = useCallback((patch: Partial<Pick<Database["workspaces"][number], "name" | "currency">>) => {
+    setDb((d) => ({ ...d, workspaces: d.workspaces.map((w) => (w.id === workspaceIdRef.current ? { ...w, ...patch } : w)) }));
+  }, []);
+
+  const submitLeadForm = useCallback((input: { name: string; phone: string; productId?: ID; message?: string }): ID | null => {
+    const name = input.name.trim();
+    const phone = input.phone.trim();
+    if (!name || phone.replace(/\D/g, "").length < 10) return null;
+    const contactId = newId("ct");
+    setDb((d) => {
+      const now = new Date().toISOString();
+      const [firstName, ...rest] = name.split(/\s+/);
+      const product = d.products.find((p) => p.id === input.productId);
+      const owner = d.team.find((t) => t.role === "sales_rep" && t.active)?.id ?? d.team[0]!.id;
+      const contact: Contact = {
+        id: contactId, firstName: firstName!, lastName: rest.join(" ") || "—", phone, countryCode: "NG", city: "Lagos", lifecycle: "lead", source: "website",
+        ownerId: owner, leadScore: 20, tags: ["web-form"], createdAt: now, lastActivityAt: now, totalOrders: 0, lifetimeValue: 0, deliveredRevenue: 0,
+        contributionProfit: 0, outstandingBalance: 0, consentMarketing: false, notesCount: 0,
+      };
+      const convId = `cv_${contactId}`;
+      const body = input.message?.trim() || (product ? `Interested in ${product.name}` : "Submitted the website form");
+      let next: Database = {
+        ...d,
+        contacts: [contact, ...d.contacts],
+        leads: [{ id: newId("ld"), contactId, stage: "new_lead", source: "website", ownerId: owner, score: 20, value: product?.price ?? 0, slaStatus: "on_track", createdAt: now, updatedAt: now }, ...d.leads],
+        conversations: [{ id: convId, contactId, channel: "webchat", subject: body.slice(0, 48), unread: true, awaitingReply: true, assigneeId: owner, lastMessageAt: now, messages: [{ id: newId("m"), conversationId: convId, direction: "in", body, at: now }] }, ...d.conversations],
+        ...(product ? { productInterests: [{ id: newId("pi"), contactId, productId: product.id, productName: product.name, category: product.category, intent: "browsing" as const, capturedAt: now }, ...d.productInterests] } : {}),
+      };
+      if (next.settings.staffAlerts.newMessage) next = notify(next, `New web form lead: ${name}`, body.slice(0, 90));
+      return logActivity(next, contactId, "Lead captured from website form", "lead", body);
+    });
+    return contactId;
+  }, []);
+
   const resetPracticeData = useCallback(() => {
     try {
       localStorage.removeItem(PRACTICE_KEY);
@@ -560,9 +666,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
         sendReply, markNotificationsRead, setWorkspace: setWorkspaceId, setOrderStatus, recordCodCheck, setDeliveryStatus, markRemitted,
         saveProduct, adjustStock, mergeContacts, startLead, resetPracticeData, saveRecord, removeRecord, updateSettings, updateAgent,
         setIntegration, assignRider, moveStock, recordPayment, logRun, retryRun, sendBroadcast, addCampaignSpend,
+        updateContactDetails, simulateIncoming, sendProductCard, updateWorkspace, submitLeadForm,
       },
     }),
-    [db, workspaceId, addContact, createOrder, setLeadStage, setLeadOutcome, assignOwner, setLifecycle, completeTask, snoozeTask, addTask, addNote, logCall, sendReply, markNotificationsRead, setOrderStatus, recordCodCheck, setDeliveryStatus, markRemitted, saveProduct, adjustStock, mergeContacts, startLead, resetPracticeData, saveRecord, removeRecord, updateSettings, updateAgent, setIntegration, assignRider, moveStock, recordPayment, logRun, retryRun, sendBroadcast, addCampaignSpend],
+    [db, workspaceId, addContact, createOrder, setLeadStage, setLeadOutcome, assignOwner, setLifecycle, completeTask, snoozeTask, addTask, addNote, logCall, sendReply, markNotificationsRead, setOrderStatus, recordCodCheck, setDeliveryStatus, markRemitted, saveProduct, adjustStock, mergeContacts, startLead, resetPracticeData, saveRecord, removeRecord, updateSettings, updateAgent, setIntegration, assignRider, moveStock, recordPayment, logRun, retryRun, sendBroadcast, addCampaignSpend, updateContactDetails, simulateIncoming, sendProductCard, updateWorkspace, submitLeadForm],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

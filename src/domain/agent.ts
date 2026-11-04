@@ -34,7 +34,7 @@ function productTokens(p: Product) {
 export function matchProduct(db: Database, text: string): Product | undefined {
   const t = norm(text);
   let best: { p: Product; hits: number } | undefined;
-  for (const p of db.products) {
+  for (const p of db.products.filter((x) => x.active !== false)) {
     const hits = productTokens(p).filter((w) => t.includes(w)).length;
     if (hits && (!best || hits > best.hits)) best = { p, hits };
   }

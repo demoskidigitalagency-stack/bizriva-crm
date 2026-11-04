@@ -22,7 +22,7 @@ function Store() {
   const [slug, setSlug] = useState(s.storeSlug);
   const [cart, setCart] = useState<string[]>([]);
   const valid = /^[a-z0-9-]{3,30}$/.test(slug);
-  const items = db.products.filter((p) => p.stock > 0);
+  const items = db.products.filter((p) => p.stock > 0 && p.active !== false);
   const photo = (id: string) => db.media.find((m) => m.productId === id && m.url)?.url;
 
   return (

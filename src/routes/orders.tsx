@@ -5,9 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EmptyState, PersonAvatar, Section, StatusBadge } from "@/components/app/primitives";
-import { OrderDialog } from "@/components/app/dialogs";
+import { OrderDialog, PickCustomer } from "@/components/app/dialogs";
 import { useActions, useDb, useWorkspace } from "@/domain/store";
 import { fullName } from "@/domain/repositories";
 import { CHANNEL_LABELS, DELIVERY_STATUS_META, ORDER_STATUS_META, PAYMENT_STATUS_META, type OrderStatus, type OrderSummary } from "@/domain/types";
@@ -121,36 +120,6 @@ function OrderPanel({ order, onClose }: { order: OrderSummary; onClose: () => vo
         </div>
       </SheetContent>
     </Sheet>
-  );
-}
-
-function PickCustomer({ open, onOpenChange, onPick }: { open: boolean; onOpenChange: (o: boolean) => void; onPick: (id: string) => void }) {
-  const db = useDb();
-  const [q, setQ] = useState("");
-  const needle = q.trim().toLowerCase();
-  const matches = db.contacts.filter((c) => !needle || `${fullName(c)} ${c.phone}`.toLowerCase().includes(needle)).slice(0, 8);
-  return (
-    <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (!o) setQ(""); }}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Who is the order for?</DialogTitle>
-          <DialogDescription>Search by name or phone.</DialogDescription>
-        </DialogHeader>
-        <Input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name or phone" aria-label="Find customer" />
-        <ul className="max-h-72 divide-y overflow-y-auto rounded-md border">
-          {matches.map((c) => (
-            <li key={c.id}>
-              <button type="button" onClick={() => onPick(c.id)} className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm hover:bg-muted/50">
-                <PersonAvatar name={fullName(c)} />
-                <span className="min-w-0 flex-1 truncate">{fullName(c)}</span>
-                <span className="text-xs text-muted-foreground">{c.phone}</span>
-              </button>
-            </li>
-          ))}
-          {matches.length === 0 && <li className="px-3 py-4 text-center text-sm text-muted-foreground">No match. Add them in Contacts first.</li>}
-        </ul>
-      </DialogContent>
-    </Dialog>
   );
 }
 

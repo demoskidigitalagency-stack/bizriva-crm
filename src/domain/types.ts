@@ -165,6 +165,9 @@ export interface Contact {
   lastPurchaseAt?: string;
   consentMarketing: boolean;
   notesCount: number;
+  /** Saved delivery details (often pulled from the chat). */
+  address?: string;
+  landmark?: string;
 }
 
 export interface Lead {
@@ -315,6 +318,11 @@ export interface Product {
   cost: number;
   stock: number;
   reorderLevel: number;
+  description?: string;
+  /** Hidden products aren't quoted by the AI agent or shown in the store. Missing means visible. */
+  active?: boolean;
+  /** Optional deposit asked before dispatch. Missing or 0 means pure cash on delivery. */
+  deposit?: number;
 }
 
 export interface Campaign {
@@ -540,7 +548,7 @@ export interface StockMovement {
 }
 
 export interface IntegrationState {
-  id: "whatsapp" | "messenger" | "instagram" | "meta_ads" | "sms" | "email" | "paystack" | "webchat";
+  id: "whatsapp" | "messenger" | "instagram" | "meta_ads" | "sms" | "email" | "paystack" | "webchat" | "couriers" | "lead_form";
   status: "not_connected" | "simulated";
   connectedAt?: string;
 }
@@ -568,4 +576,8 @@ export interface BusinessSettings {
   storeEnabled: boolean;
   storeSlug: string;
   plan: "trial" | "starter" | "growth" | "scale";
+  /** Alerts for the team (from Sandala). */
+  staffAlerts: { newMessage: boolean; dispatchRisk: boolean };
+  /** Chat display (from Sandala's chat appearance settings). */
+  chat: { bubbleTails: boolean; flagMissingDetails: boolean };
 }

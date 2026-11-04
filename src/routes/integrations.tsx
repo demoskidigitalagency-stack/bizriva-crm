@@ -1,7 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Section, StatusBadge } from "@/components/app/primitives";
-import { useActions, useDb } from "@/domain/store";
+import { useActions, useDb, useWorkspace } from "@/domain/store";
 import type { IntegrationState } from "@/domain/types";
 import { relativeTime } from "@/lib/format";
 
@@ -19,7 +22,57 @@ const INFO: Record<IntegrationState["id"], { name: string; what: string; needs: 
   email: { name: "Email", what: "Receipts and notifications by email.", needs: ["Email sending domain with SPF and DKIM"], phase: "Later" },
   paystack: { name: "Payments (Paystack or similar)", what: "Real payment links and card payments.", needs: ["Payment provider business account", "API keys stored on the server"], phase: "Later" },
   webchat: { name: "Website chat", what: "A chat bubble on your website that feeds the inbox.", needs: ["Paste one script tag on your site"], phase: "Later" },
+  couriers: { name: "Delivery partners (GIG, Fez, Kwik, Topship)", what: "Book pickups and get tracking updates from courier companies on the dispatch board.", needs: ["Business account with each courier", "API keys stored on the server", "Pickup address and package sizes"], phase: "Later" },
+  lead_form: { name: "Landing page or WordPress form", what: "Form submissions from your website arrive as new leads with a chat in the Inbox.", needs: ["Add the form link or webhook to your page or WordPress plugin", "A secret so only your site can post"], phase: "Later" },
 };
+
+function LeadFormTester() {
+  const db = useDb();
+  const ws = useWorkspace();
+  const { submitLeadForm } = useActions();
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [product, setProduct] = useState(db.products[0]?.id ?? "");
+  const [msg, setMsg] = useState("");
+  const [done, setDone] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
+  const url = `https://app.bizriva.com/api/forms/${ws.handle}`;
+  const sample = JSON.stringify({ name: "Ada Okafor", phone: "08031234567", product: "p_1", message: "Interested in 20 inch" }, null, 2);
+  return (
+    <div className="space-y-3 border-t p-4 text-sm">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Form link (practice address)</p>
+        <div className="mt-1 flex gap-2">
+          <code className="min-w-0 flex-1 truncate rounded bg-muted px-2 py-1.5 text-xs">{url}</code>
+          <Button size="sm" variant="outline" onClick={async () => { try { await navigator.clipboard.writeText(url); } catch { /* clipboard blocked */ } setCopied(true); }}>{copied ? "Copied" : "Copy link"}</Button>
+        </div>
+      </div>
+      <details>
+        <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wider text-muted-foreground">Form data format</summary>
+        <pre className="mt-1 overflow-x-auto rounded bg-muted p-2 text-xs">{sample}</pre>
+      </details>
+      <form className="grid gap-2 sm:grid-cols-2" onSubmit={(e) => {
+        e.preventDefault();
+        const id = submitLeadForm({ name, phone, productId: product, message: msg });
+        if (!id) return setError("Enter a name and a full phone number.");
+        setError(""); setDone(id); setName(""); setPhone(""); setMsg("");
+      }}>
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground sm:col-span-2">Send a test submission</p>
+        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" aria-label="Test name" />
+        <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone" aria-label="Test phone" />
+        <Select value={product} onValueChange={setProduct}>
+          <SelectTrigger aria-label="Test product"><SelectValue>{db.products.find((p) => p.id === product)?.name ?? "Product"}</SelectValue></SelectTrigger>
+          <SelectContent>{db.products.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+        </Select>
+        <Input value={msg} onChange={(e) => setMsg(e.target.value)} placeholder="Message (optional)" aria-label="Test message" />
+        <Button type="submit" size="sm" className="sm:col-span-2">Submit test form</Button>
+        {error && <p className="text-xs text-destructive sm:col-span-2" role="alert">{error}</p>}
+        {done && <p className="text-xs text-success sm:col-span-2" role="status">Lead created. <Link to="/crm/contacts/$contactId" params={{ contactId: done }} className="underline">Open it</Link> or see it in the <Link to="/inbox" className="underline">Inbox</Link>.</p>}
+      </form>
+    </div>
+  );
+}
 
 function Integrations() {
   const db = useDb();
@@ -48,6 +101,7 @@ function Integrations() {
                   <Button size="sm" variant={sim ? "outline" : "default"} className="ml-auto" onClick={() => setIntegration(s.id, sim ? "not_connected" : "simulated")}>{sim ? "Stop simulating" : "Simulate"}</Button>
                 </div>
               </div>
+              {s.id === "lead_form" && <LeadFormTester />}
             </Section>
           );
         })}
