@@ -5,7 +5,7 @@ Generated from `src/app/status.ts` and `src/app/modules.ts` by `bun run status`.
 | Track | Progress | |
 | --- | ---: | --- |
 | **Frontend — Practice Mode** (every page and button works on sample data) | **100%** | `████████████████████` |
-| **Backend — Live** (works for real: auth, database, WhatsApp, AI) | **0%** | `░░░░░░░░░░░░░░░░░░░░` |
+| **Backend — Live** (works for real: auth, database, WhatsApp, AI) | **3%** | `█░░░░░░░░░░░░░░░░░░░` |
 
 Modules: 31 of 31 practice ready · 0 partly working · 0 planned.
 
@@ -66,19 +66,20 @@ Modules: 31 of 31 practice ready · 0 partly working · 0 planned.
 
 | Phase | Share | Done | Progress |
 | --- | ---: | ---: | --- |
-| Phase 1 — Core communication | 30% | 0/9 | 0% |
+| Phase 1 — Core communication | 30% | 1/10 | 9% |
 | Phase 2 — AI and automation | 22% | 0/9 | 0% |
 | Phase 3 — Sales and commerce | 22% | 0/7 | 0% |
 | Phase 4 — More channels | 11% | 0/5 | 0% |
 | Phase 5 — Intelligence and monetisation | 15% | 0/7 | 0% |
 
-### Phase 1 — Core communication — 0%
+### Phase 1 — Core communication — 9%
 
 _Real WhatsApp messages land in a shared, saved inbox for several agents._
 
 - [ ] Backend chosen and connected (Supabase project, environment) — Chosen 2026-11-02: own Supabase project + Vercel hosting. Not yet connected.
+- [x] Database plan for every module, with row-level isolation tested on a local Postgres _(2026-11-04)_ — supabase/migrations: foundation (21 tables) + review features (8 tables). Screens now use the agreed 13 lead stages and 10 order statuses
 - [ ] Sign-up, sign-in, invitations
-- [ ] Workspaces with row-level isolation applied and tested
+- [ ] Workspaces with row-level isolation applied and tested — Tested locally 2026-11-04; applied once the Supabase project exists
 - [ ] Roles and permissions enforced on the server
 - [ ] Contacts, leads and conversations saved for real (no sample data)
 - [ ] WhatsApp Cloud API number connected — Needs Meta Business verification

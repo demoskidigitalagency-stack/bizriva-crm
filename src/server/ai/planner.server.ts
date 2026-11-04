@@ -83,8 +83,8 @@ function buildCrmSnapshot(): CrmSnapshot {
   for (const l of db.leads) stageCounts.set(l.stage, (stageCounts.get(l.stage) ?? 0) + 1);
 
   const awaitingReply = db.conversations.filter((c) => c.awaitingReply).length;
-  const pendingConfirmation = db.orders.filter((o) => o.status === "pending_confirmation").length;
-  const awaitingDispatch = db.orders.filter((o) => o.status === "awaiting_dispatch").length;
+  const pendingConfirmation = db.orders.filter((o) => o.status === "pending_verification").length;
+  const awaitingDispatch = db.orders.filter((o) => o.status === "ready_for_dispatch").length;
   const failedDeliveries = db.deliveries.filter((d) => d.status === "failed").length;
   const codOutstanding = db.payments
     .filter((p) => p.status === "cod_pending")

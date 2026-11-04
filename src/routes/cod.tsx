@@ -98,9 +98,9 @@ function CodVerification() {
   const [view, setView] = useState<"pending" | "high" | "done">("pending");
 
   const cod = db.orders.filter((o) => o.paymentMethod === "cash_on_delivery");
-  const pending = cod.filter((o) => o.status === "pending_confirmation").sort((a, b) => +new Date(a.placedAt) - +new Date(b.placedAt));
+  const pending = cod.filter((o) => o.status === "pending_verification").sort((a, b) => +new Date(a.placedAt) - +new Date(b.placedAt));
   const high = pending.filter((o) => codRisk(db, o).level === "high");
-  const done = cod.filter((o) => o.status !== "pending_confirmation").sort((a, b) => +new Date(b.placedAt) - +new Date(a.placedAt)).slice(0, 25);
+  const done = cod.filter((o) => o.status !== "pending_verification").sort((a, b) => +new Date(b.placedAt) - +new Date(a.placedAt)).slice(0, 25);
   const atRisk = pending.reduce((s, o) => s + o.total, 0);
   const shown = view === "pending" ? pending : view === "high" ? high : [];
 

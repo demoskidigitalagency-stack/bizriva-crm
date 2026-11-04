@@ -37,7 +37,7 @@ type EditableKey = keyof Editable;
  * version when the seed or types change shape — old saves are then ignored.
  */
 const PRACTICE_KEY = "bizriva.practice-db";
-const PRACTICE_VERSION = 4; // v4: order forms, deposits, complaints, calendar, reply library, setup checklist
+const PRACTICE_VERSION = 5; // v5: the agreed 13 lead stages and 10 order statuses
 
 function loadPractice(): { db: Database; workspaceId: ID } | null {
   try {
@@ -193,6 +193,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
   });
 
 
+  /** Orders move the customer's open lead along the agreed stages. */
+  const advanceLead = (d: Database, contactId: ID, stage: LeadStage): Database => {
+    const order = ["new_lead", "first_contact", "engaged", "qualified", "high_intent", "negotiating", "checkout_started", "order_created", "order_confirmed", "converted"];
+    return {
+      ...d,
+      leads: d.leads.map((l) => (l.contactId === contactId && l.stage !== "lost" && order.indexOf(l.stage) < order.indexOf(stage) ? { ...l, stage, updatedAt: new Date().toISOString(), ...(stage === "converted" ? { slaStatus: "met" as const } : {}) } : l)),
+    };
+  };
+
   const notify = (d: Database, title: string, body: string, tone: "info" | "warning" | "success" = "info"): Database => ({
     ...d,
     notifications: [{ id: newId("n"), title, body, at: new Date().toISOString(), read: false, tone }, ...d.notifications],
@@ -234,7 +243,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         reference: `BZ-${1000 + d.orders.length + 1}`,
         contactId: input.contactId,
         placedAt: new Date().toISOString(),
-        status: "pending_confirmation" as const,
+        status: "pending_verification" as const,
         itemsCount: products.reduce((s, x) => s + x.line.qty, 0),
         total,
         cogs,
@@ -253,7 +262,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             : c,
         ),
       };
-      let withLog = logActivity(next, input.contactId, `Order ${order.reference} placed`, "order", order.productNames.join(", "));
+      let withLog = logActivity(advanceLead(next, input.contactId, "order_created"), input.contactId, `Order ${order.reference} placed`, "order", order.productNames.join(", "));
       if (order.paymentMethod === "cash_on_delivery" && withLog.settings.staffAlerts.dispatchRisk) {
         const risk = codRisk(withLog, order);
         if (risk.level === "high") {
@@ -371,6 +380,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (!order || order.status === status) return d;
       const now = new Date().toISOString();
       let next: Database = { ...d, orders: d.orders.map((o) => (o.id === orderId ? { ...o, status } : o)) };
+      if (status === "confirmed") next = advanceLead(next, order.contactId, "order_confirmed");
+      if (status === "delivered") next = advanceLead(next, order.contactId, "converted");
       // Delivered COD orders become realised revenue only now (master prompt rule).
       if (status === "delivered") {
         next = {
@@ -387,15 +398,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
           };
         }
       }
-      if (status === "awaiting_dispatch" && !next.deliveries.some((x) => x.orderId === orderId)) {
+      if (status === "ready_for_dispatch" && !next.deliveries.some((x) => x.orderId === orderId)) {
         const city = d.contacts.find((c) => c.id === order.contactId)?.city ?? "";
         next = {
           ...next,
           deliveries: [{ id: newId("dl"), orderId, contactId: order.contactId, courier: "Unassigned", trackingRef: `TRK-${order.reference}`, status: "scheduled", scheduledFor: new Date(Date.now() + 86_400_000).toISOString(), attempts: 0, city }, ...next.deliveries],
         };
       }
-      if (status === "in_transit") {
+      if (status === "dispatched" || status === "in_transit") {
         next = { ...next, deliveries: next.deliveries.map((x) => (x.orderId === orderId ? { ...x, status: "in_transit" as const } : x)) };
+      }
+      if (status === "refused") {
+        next = { ...next, deliveries: next.deliveries.map((x) => (x.orderId === orderId ? { ...x, status: "failed" as const, failureReason: "Refused at the door", attempts: x.attempts + 1 } : x)) };
+      }
+      if (status === "returned") {
+        next = { ...next, deliveries: next.deliveries.map((x) => (x.orderId === orderId && x.status !== "delivered" ? { ...x, status: "returned" as const } : x)) };
       }
       return logActivity(next, order.contactId, `Order ${order.reference}: ${status.replace(/_/g, " ")}`, "order", note);
     });
@@ -412,7 +429,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         orders: d.orders.map((o) => (o.id === orderId ? { ...o, status } : o)),
         contacts: d.contacts.map((c) => (c.id === order.contactId ? { ...c, lastActivityAt: new Date().toISOString() } : c)),
       };
-      return logActivity(next, order.contactId, title, "order", note);
+      return logActivity(result === "confirmed" ? advanceLead(next, order.contactId, "order_confirmed") : next, order.contactId, title, "order", note);
     });
   }, []);
 
@@ -488,7 +505,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const startLead = useCallback((contactId: ID) => {
     setDb((d) => {
       const c = d.contacts.find((x) => x.id === contactId);
-      if (!c || d.leads.some((l) => l.contactId === contactId && l.stage !== "won")) return d;
+      if (!c || d.leads.some((l) => l.contactId === contactId && !["converted", "lost"].includes(l.stage))) return d;
       const now = new Date().toISOString();
       const next: Database = {
         ...d,
@@ -735,7 +752,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
       const reference = `BZ-${1000 + next.orders.length + 1}`;
       const order = {
-        id: result.orderId, reference, contactId, placedAt: now, status: "pending_confirmation" as const, itemsCount: pkg.qty, total: pkg.price,
+        id: result.orderId, reference, contactId, placedAt: now, status: "pending_verification" as const, itemsCount: pkg.qty, total: pkg.price,
         cogs: product.cost * pkg.qty, shippingFee: 0, paymentStatus: form.payOnDelivery ? ("cod_pending" as const) : ("unpaid" as const),
         paymentMethod: form.payOnDelivery ? ("cash_on_delivery" as const) : ("bank_transfer" as const), channel: "webchat" as const,
         productNames: [`${pkg.qty}× ${product.name}`, ...(pkg.gift ? [`Gift: ${pkg.gift}`] : [])], formId,
@@ -756,6 +773,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         const convId = `cv_${contactId}`;
         next = { ...next, conversations: [{ id: convId, contactId, channel: "webchat", subject: `Order form: ${pkg.label}`, unread: true, awaitingReply: true, assigneeId: owner, lastMessageAt: now, messages: [{ id: newId("m"), conversationId: convId, direction: "in", body: summary, at: now }] }, ...next.conversations] };
       }
+      next = advanceLead(next, contactId, "order_created");
       next = notify(next, `Order form: ${reference}`, `${name} · ${pkg.label} · ${moneyIn(next, pkg.price)} · ${adSource}`, "success");
       return logActivity(next, contactId, `Order ${reference} placed on order form`, "order", summary);
     });

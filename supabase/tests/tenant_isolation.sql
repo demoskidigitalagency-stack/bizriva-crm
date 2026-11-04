@@ -17,3 +17,15 @@ set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000b';
 select 'user B sees: ' || string_agg(name, ', ') from contacts;
 \set ON_ERROR_STOP 0
 insert into contacts(workspace_id,name) values ('10000000-0000-0000-0000-00000000000a','sneaky write into A');
+
+-- 2026-11-04 tables: order forms and payments follow the same rule.
+reset role;
+insert into products(id,workspace_id,name,price) values ('20000000-0000-0000-0000-00000000000a','10000000-0000-0000-0000-00000000000a','Wig A',1000),('20000000-0000-0000-0000-00000000000b','10000000-0000-0000-0000-00000000000b','Wig B',1000);
+insert into order_forms(workspace_id,name,product_id,headline,packages) values
+  ('10000000-0000-0000-0000-00000000000a','Form A','20000000-0000-0000-0000-00000000000a','Buy A','[{"id":"pk","label":"Buy 1","qty":1,"price":1000}]'),
+  ('10000000-0000-0000-0000-00000000000b','Form B','20000000-0000-0000-0000-00000000000b','Buy B','[{"id":"pk","label":"Buy 1","qty":1,"price":1000}]');
+set role app_user;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000a';
+select 'user A sees forms: ' || string_agg(name, ', ') from order_forms;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000b';
+select 'user B sees forms: ' || string_agg(name, ', ') from order_forms;

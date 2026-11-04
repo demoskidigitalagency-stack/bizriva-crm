@@ -39,7 +39,7 @@ export function inQuietHours(now: Date, start: string, end: string, timeZone = "
 
 function pickRule(db: Database, conv: Conversation): FollowUpRule | undefined {
   const outText = conv.messages.filter((m) => m.direction === "out").map((m) => m.body.toLowerCase()).join(" ");
-  const pendingOrder = db.orders.some((o) => o.contactId === conv.contactId && o.status === "pending_confirmation");
+  const pendingOrder = db.orders.some((o) => o.contactId === conv.contactId && o.status === "pending_verification");
   const trigger: FollowUpRule["trigger"] = pendingOrder ? "checkout_abandoned" : /₦|price|cost|naira/.test(outText) ? "no_reply_after_price" : /deliver/.test(outText) ? "delivery_concern" : "no_reply_after_details";
   return db.followUpRules.find((r) => r.trigger === trigger && r.enabled) ?? db.followUpRules.find((r) => r.trigger === "no_reply_after_details" && r.enabled);
 }

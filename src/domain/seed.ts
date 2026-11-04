@@ -243,8 +243,8 @@ export const attributions: AcquisitionAttribution[] = contacts.map((c, i) => ({
 /* -------------------------------------------------------------------- leads */
 
 const STAGE_POOL: LeadStage[] = [
-  "new_lead", "new_lead", "assigned", "contacted", "contacted", "qualified",
-  "interested", "negotiating", "order_started", "won",
+  "new_lead", "new_lead", "first_contact", "engaged", "follow_up_required", "qualified",
+  "high_intent", "negotiating", "checkout_started", "converted",
 ];
 
 export const leads: Lead[] = contacts
@@ -257,21 +257,21 @@ export const leads: Lead[] = contacts
       id: `l_${c.id}`,
       contactId: c.id,
       stage,
-      ...(stage === "contacted" && i % 7 === 0 ? { outcome: "no_response" as const } : {}),
+      ...(stage === "engaged" && i % 7 === 0 ? { outcome: "no_response" as const } : {}),
       source: c.source,
       ...(c.source.includes("ads") ? { campaign: CAMPAIGNS[i % CAMPAIGNS.length] } : {}),
       ownerId: c.ownerId,
       score: c.leadScore,
       value: int(60, 420) * 1000,
       nextFollowUpAt: overdue ? daysAgo(int(1, 6), int(1, 8)) : daysAhead(followUpOffset - 1, int(1, 9)),
-      slaStatus: overdue ? "breached" : followUpOffset === 1 ? "due_soon" : stage === "won" ? "met" : "on_track",
+      slaStatus: overdue ? "breached" : followUpOffset === 1 ? "due_soon" : stage === "converted" ? "met" : "on_track",
       createdAt: c.createdAt,
       updatedAt: c.lastActivityAt,
     } satisfies Lead;
   });
 
 export const opportunities: Opportunity[] = leads
-  .filter((l) => ["qualified", "interested", "negotiating", "order_started"].includes(l.stage))
+  .filter((l) => ["qualified", "high_intent", "negotiating", "checkout_started"].includes(l.stage))
   .map((l, i) => ({
     id: `o_${l.id}`,
     contactId: l.contactId,
@@ -279,7 +279,7 @@ export const opportunities: Opportunity[] = leads
     title: `${products[i % products.length]!.name} — ${int(1, 4)} unit deal`,
     value: l.value,
     stage: l.stage,
-    probability: l.stage === "negotiating" ? 65 : l.stage === "order_started" ? 85 : 40,
+    probability: l.stage === "negotiating" ? 65 : l.stage === "checkout_started" ? 85 : 40,
     expectedCloseAt: daysAhead(int(2, 28)),
     ownerId: l.ownerId,
     createdAt: l.createdAt,
@@ -289,7 +289,7 @@ export const opportunities: Opportunity[] = leads
 /* ------------------------------------------------------------------- orders */
 
 const ORDER_STATUS_POOL = [
-  "pending_confirmation", "confirmed", "awaiting_dispatch", "in_transit",
+  "pending_verification", "confirmed", "ready_for_dispatch", "in_transit",
   "delivered", "delivered", "delivered", "returned", "cancelled",
 ] as const;
 
@@ -332,7 +332,7 @@ contacts.forEach((c, ci) => {
     const dStatus =
       status === "delivered" ? "delivered"
         : status === "in_transit" ? "in_transit"
-          : status === "awaiting_dispatch" ? "scheduled"
+          : status === "ready_for_dispatch" ? "scheduled"
             : status === "returned" ? "returned"
               : status === "confirmed" ? "scheduled"
                 : "not_scheduled";

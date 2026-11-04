@@ -35,10 +35,10 @@ function Analytics() {
   const money = (n: number) => formatCurrency(n, ws.currency, { compact: true });
 
   const created = orders.length;
-  const confirmed = orders.filter((o) => !["pending_confirmation", "cancelled"].includes(o.status)).length;
-  const dispatched = orders.filter((o) => ["in_transit", "delivered", "returned"].includes(o.status)).length;
+  const confirmed = orders.filter((o) => !["pending_verification", "cancelled"].includes(o.status)).length;
+  const dispatched = orders.filter((o) => ["dispatched", "in_transit", "delivered", "refused", "returned"].includes(o.status)).length;
   const delivered = orders.filter((o) => o.status === "delivered");
-  const returned = orders.filter((o) => o.status === "returned").length;
+  const returned = orders.filter((o) => o.status === "returned" || o.status === "refused").length;
   const cancelled = orders.filter((o) => o.status === "cancelled").length;
   const realised = delivered.reduce((s, o) => s + o.total, 0);
   const booked = orders.filter((o) => o.status !== "cancelled").reduce((s, o) => s + o.total, 0);
@@ -63,7 +63,7 @@ function Analytics() {
   const agents = db.team.filter((t) => ["sales_rep", "manager", "owner"].includes(t.role)).map((t) => {
     const mine = db.contacts.filter((c) => c.ownerId === t.id);
     const leads = db.leads.filter((l) => l.ownerId === t.id);
-    const won = leads.filter((l) => l.stage === "won").length;
+    const won = leads.filter((l) => l.stage === "converted").length;
     const rev = orders.filter((o) => o.status === "delivered" && mine.some((c) => c.id === o.contactId)).reduce((s, o) => s + o.total, 0);
     return { t, leads: leads.length, won, rev, buyers: mine.filter((c) => ids.has(c.id)).length };
   });
@@ -110,7 +110,7 @@ function Analytics() {
       <Section title="Sales team" description="Leads owned, wins and delivered revenue from their customers">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[520px] text-sm">
-            <thead className="text-left text-xs uppercase tracking-wider text-muted-foreground"><tr><th className="px-4 py-2">Person</th><th className="px-4 py-2 text-right">Leads</th><th className="px-4 py-2 text-right">Won</th><th className="px-4 py-2 text-right">Win rate</th><th className="px-4 py-2 text-right">Delivered revenue</th></tr></thead>
+            <thead className="text-left text-xs uppercase tracking-wider text-muted-foreground"><tr><th className="px-4 py-2">Person</th><th className="px-4 py-2 text-right">Leads</th><th className="px-4 py-2 text-right">Converted</th><th className="px-4 py-2 text-right">Conversion</th><th className="px-4 py-2 text-right">Delivered revenue</th></tr></thead>
             <tbody className="divide-y">
               {agents.map((a) => (
                 <tr key={a.t.id}><td className="px-4 py-2">{a.t.name}</td><td className="num px-4 py-2 text-right">{a.leads}</td><td className="num px-4 py-2 text-right">{a.won}</td><td className="num px-4 py-2 text-right">{a.leads ? `${Math.round((a.won / a.leads) * 100)}%` : "—"}</td><td className="num px-4 py-2 text-right">{money(a.rev)}</td></tr>

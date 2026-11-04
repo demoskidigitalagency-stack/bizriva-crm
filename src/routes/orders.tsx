@@ -23,22 +23,28 @@ export const Route = createFileRoute("/orders")({
 
 const FILTERS: { id: "all" | OrderStatus; label: string }[] = [
   { id: "all", label: "All" },
-  { id: "pending_confirmation", label: "To confirm" },
+  { id: "pending_verification", label: "To confirm" },
   { id: "confirmed", label: "Confirmed" },
-  { id: "awaiting_dispatch", label: "Awaiting dispatch" },
+  { id: "processing", label: "Processing" },
+  { id: "ready_for_dispatch", label: "Ready for dispatch" },
+  { id: "dispatched", label: "Dispatched" },
   { id: "in_transit", label: "In transit" },
   { id: "delivered", label: "Delivered" },
+  { id: "refused", label: "Refused" },
   { id: "returned", label: "Returned" },
   { id: "cancelled", label: "Cancelled" },
 ];
 
-/** The next step(s) an operator can take from each status. */
+/** The next step(s) an operator can take from each status (the agreed 10 statuses). */
 const NEXT: Record<OrderStatus, { to: OrderStatus; label: string; variant?: "outline" | "destructive" }[]> = {
-  pending_confirmation: [{ to: "confirmed", label: "Mark confirmed" }, { to: "cancelled", label: "Cancel", variant: "outline" }],
-  confirmed: [{ to: "awaiting_dispatch", label: "Ready for dispatch" }, { to: "cancelled", label: "Cancel", variant: "outline" }],
-  awaiting_dispatch: [{ to: "in_transit", label: "Dispatched" }, { to: "cancelled", label: "Cancel", variant: "outline" }],
-  in_transit: [{ to: "delivered", label: "Delivered" }, { to: "returned", label: "Returned or refused", variant: "outline" }],
+  pending_verification: [{ to: "confirmed", label: "Mark confirmed" }, { to: "cancelled", label: "Cancel", variant: "outline" }],
+  confirmed: [{ to: "processing", label: "Start processing", variant: "outline" }, { to: "ready_for_dispatch", label: "Ready for dispatch" }, { to: "cancelled", label: "Cancel", variant: "outline" }],
+  processing: [{ to: "ready_for_dispatch", label: "Ready for dispatch" }, { to: "cancelled", label: "Cancel", variant: "outline" }],
+  ready_for_dispatch: [{ to: "dispatched", label: "Dispatched" }, { to: "cancelled", label: "Cancel", variant: "outline" }],
+  dispatched: [{ to: "in_transit", label: "In transit", variant: "outline" }, { to: "delivered", label: "Delivered" }, { to: "refused", label: "Refused at the door", variant: "outline" }],
+  in_transit: [{ to: "delivered", label: "Delivered" }, { to: "refused", label: "Refused at the door", variant: "outline" }, { to: "returned", label: "Returned", variant: "outline" }],
   delivered: [{ to: "returned", label: "Customer returned it", variant: "outline" }],
+  refused: [{ to: "returned", label: "Back in our stock", variant: "outline" }],
   returned: [],
   cancelled: [],
 };
@@ -167,7 +173,7 @@ function OrderPanel({ order, onClose }: { order: OrderSummary; onClose: () => vo
             </div>
           )}
 
-          {order.status === "pending_confirmation" && order.paymentMethod === "cash_on_delivery" && (
+          {order.status === "pending_verification" && order.paymentMethod === "cash_on_delivery" && (
             <p className="rounded-md bg-warning/15 p-3 text-xs">
               Cash on delivery: confirm with the customer first. <Link to="/cod" className="font-medium underline">Open COD Verification</Link>
             </p>

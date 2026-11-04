@@ -66,7 +66,7 @@ function CrmOverview() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-left text-xs uppercase tracking-wider text-muted-foreground">
-                <tr><th className="px-4 py-2">Source</th><th className="px-4 py-2 text-right">Leads</th><th className="px-4 py-2 text-right">Won</th><th className="px-4 py-2 text-right">Value</th></tr>
+                <tr><th className="px-4 py-2">Source</th><th className="px-4 py-2 text-right">Leads</th><th className="px-4 py-2 text-right">Converted</th><th className="px-4 py-2 text-right">Value</th></tr>
               </thead>
               <tbody className="divide-y">
                 {o.sources.map((s) => (

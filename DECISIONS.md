@@ -15,6 +15,6 @@ Agreed with the owner on 2026-11-02. These shape the database, so change them he
 | 10 | Old WhatsApp chats | Import WhatsApp's own **Export chat** files (.txt or .zip) into CRM → Imports → WhatsApp chats, one customer per file | For +234 numbers where coexistence may not be offered. Don't move the main number until coexistence is tested; start Bizriva on a new number. |
 | 9 | Tailor features | A future **industry pack** on the same base, not part of the core | Measurements, garment stages, fabric stock, group orders. |
 
-## Still to apply in code
+## Applied in code
 
-The screens still use the prototype's 8 lead stages and 7 order statuses. They move to the agreed lists as the first backend step, together with the database enums in `supabase/migrations/`, so the data and screens change once, together.
+Since 2026-11-04 the screens use the agreed 13 lead stages and 10 order statuses, matching the database enums in `supabase/migrations/`. Orders move the customer's lead along by themselves: an order sets *Order Created*, confirmation sets *Order Confirmed*, delivery sets *Converted*.

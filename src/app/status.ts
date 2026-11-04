@@ -53,8 +53,9 @@ export const PHASES: StatusPhase[] = [
     goal: "Real WhatsApp messages land in a shared, saved inbox for several agents.",
     items: [
       { id: "p1-backend", label: "Backend chosen and connected (Supabase project, environment)", weight: 2, done: false, note: "Chosen 2026-11-02: own Supabase project + Vercel hosting. Not yet connected." },
+      { id: "p1-schema", label: "Database plan for every module, with row-level isolation tested on a local Postgres", weight: 2, done: true, doneOn: "2026-11-04", note: "supabase/migrations: foundation (21 tables) + review features (8 tables). Screens now use the agreed 13 lead stages and 10 order statuses" },
       { id: "p1-auth", label: "Sign-up, sign-in, invitations", weight: 2, done: false },
-      { id: "p1-tenancy", label: "Workspaces with row-level isolation applied and tested", weight: 3, done: false },
+      { id: "p1-tenancy", label: "Workspaces with row-level isolation applied and tested", weight: 3, done: false, note: "Tested locally 2026-11-04; applied once the Supabase project exists" },
       { id: "p1-roles", label: "Roles and permissions enforced on the server", weight: 2, done: false },
       { id: "p1-contacts", label: "Contacts, leads and conversations saved for real (no sample data)", weight: 2, done: false },
       { id: "p1-wa-connect", label: "WhatsApp Cloud API number connected", weight: 2, done: false, note: "Needs Meta Business verification" },

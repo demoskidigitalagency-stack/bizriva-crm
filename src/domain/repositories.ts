@@ -105,7 +105,7 @@ export function queryContacts(db: Database, q: ContactQuery = {}): Paged<Contact
   const campaignOf = new Map(db.attributions.map((a) => [a.contactId, a.campaign]));
   const codState = (id: ID): "unverified" | "confirmed" | "none" => {
     const mine = db.orders.filter((o) => o.contactId === id && o.paymentMethod === "cash_on_delivery");
-    if (mine.some((o) => o.status === "pending_confirmation")) return "unverified";
+    if (mine.some((o) => o.status === "pending_verification")) return "unverified";
     return mine.length ? "confirmed" : "none";
   };
   let rows = db.contacts.filter((c) => {
@@ -205,7 +205,7 @@ export function queryLeads(db: Database, q: LeadQuery = {}): Paged<LeadRow> {
 export function leadsByStage(db: Database, owners: ID[] = []): Record<LeadStage, LeadRow[]> {
   const grouped = {} as Record<LeadStage, LeadRow[]>;
   const stages: LeadStage[] = [
-    "new_lead", "assigned", "contacted", "qualified", "interested", "negotiating", "order_started", "won",
+    "new_lead", "first_contact", "engaged", "qualified", "high_intent", "negotiating", "checkout_started", "order_created", "order_confirmed", "follow_up_required", "unresponsive", "lost", "converted",
   ];
   stages.forEach((s) => (grouped[s] = []));
   buildLeadRows(db)
@@ -309,7 +309,7 @@ export function getDashboard(db: Database, filters: DashboardFilters) {
   const newLeads = db.leads.filter(
     (l) => scopedIds.has(l.contactId) && isWithinDays(l.createdAt, rangeDays),
   );
-  const wonLeads = newLeads.filter((l) => l.stage === "won");
+  const wonLeads = newLeads.filter((l) => l.stage === "converted");
   const adSpend = db.campaigns.reduce((s, c) => s + c.spend, 0) * (rangeDays / 30);
   const codOutstanding = db.payments
     .filter((p) => p.status === "cod_pending" && scopedIds.has(p.contactId))
@@ -348,7 +348,7 @@ export function getDashboard(db: Database, filters: DashboardFilters) {
     funnel: [
       { stage: "Reached", value: Math.round(scopedContacts.length * 9.4) },
       { stage: "Captured", value: scopedContacts.length },
-      { stage: "Qualified", value: db.leads.filter((l) => scopedIds.has(l.contactId) && ["qualified", "interested", "negotiating", "order_started", "won"].includes(l.stage)).length },
+      { stage: "Qualified", value: db.leads.filter((l) => scopedIds.has(l.contactId) && ["qualified", "high_intent", "negotiating", "checkout_started", "order_created", "order_confirmed", "converted"].includes(l.stage)).length },
       { stage: "Ordered", value: inRange.length },
       { stage: "Delivered", value: delivered.length },
     ],
@@ -370,9 +370,9 @@ export function getDashboard(db: Database, filters: DashboardFilters) {
       .sort((a, b) => b.revenue - a.revenue),
     ads: db.campaigns.map((c) => ({ ...c, roas: c.spend ? c.revenue / c.spend : 0 })),
     fulfilment: {
-      pendingConfirmation: db.orders.filter((o) => o.status === "pending_confirmation").length,
-      awaitingDispatch: db.orders.filter((o) => o.status === "awaiting_dispatch").length,
-      inTransit: db.orders.filter((o) => o.status === "in_transit").length,
+      pendingConfirmation: db.orders.filter((o) => o.status === "pending_verification").length,
+      awaitingDispatch: db.orders.filter((o) => o.status === "ready_for_dispatch").length,
+      inTransit: db.orders.filter((o) => o.status === "in_transit" || o.status === "dispatched").length,
       delivered: db.orders.filter((o) => o.status === "delivered").length,
       failed: db.deliveries.filter((d) => d.status === "failed").length,
       returned: db.orders.filter((o) => o.status === "returned").length,
@@ -393,7 +393,7 @@ export type QueueKey =
   | "followups_due"
   | "followups_overdue"
   | "orders_confirm"
-  | "awaiting_dispatch"
+  | "ready_for_dispatch"
   | "failed_deliveries"
   | "cod_outstanding"
   | "overdue_remittances"
@@ -433,8 +433,8 @@ export function getTodayQueues(db: Database): Queue[] {
   const tasksOpen = db.tasks.filter((t) => t.status === "open");
   const dueToday = tasksOpen.filter((t) => isToday(t.dueAt));
   const overdue = tasksOpen.filter((t) => isPast(t.dueAt) && !isToday(t.dueAt));
-  const confirm = db.orders.filter((o) => o.status === "pending_confirmation");
-  const dispatch = db.orders.filter((o) => o.status === "awaiting_dispatch");
+  const confirm = db.orders.filter((o) => o.status === "pending_verification");
+  const dispatch = db.orders.filter((o) => o.status === "ready_for_dispatch");
   const failed = db.deliveries.filter((d) => d.status === "failed");
   const cod = db.payments.filter((p) => p.status === "cod_pending");
   const remit = db.payments.filter((p) => p.remittanceDueAt && !p.remitted);
@@ -521,7 +521,7 @@ export function getTodayQueues(db: Database): Queue[] {
       })),
     },
     {
-      key: "awaiting_dispatch",
+      key: "ready_for_dispatch",
       label: "Awaiting Dispatch",
       description: "Confirmed and waiting on the fulfilment desk",
       count: dispatch.length,
@@ -623,11 +623,11 @@ export function getTodayQueues(db: Database): Queue[] {
 
 export function getCrmOverview(db: Database) {
   const leadRows = buildLeadRows(db);
-  const open = leadRows.filter((l) => l.stage !== "won");
+  const open = leadRows.filter((l) => !["converted", "lost"].includes(l.stage));
   const pipelineValue = open.reduce((s, l) => s + l.value, 0);
-  const won = leadRows.filter((l) => l.stage === "won");
+  const won = leadRows.filter((l) => l.stage === "converted");
 
-  const stageCounts = ["new_lead", "assigned", "contacted", "qualified", "interested", "negotiating", "order_started", "won"].map(
+  const stageCounts = ["new_lead", "first_contact", "engaged", "qualified", "high_intent", "negotiating", "checkout_started", "order_created", "order_confirmed", "follow_up_required", "unresponsive", "lost", "converted"].map(
     (stage) => ({ stage, count: leadRows.filter((l) => l.stage === stage).length }),
   );
 
@@ -635,7 +635,7 @@ export function getCrmOverview(db: Database) {
   leadRows.forEach((l) => {
     const e = sourceMap.get(l.source) ?? { leads: 0, won: 0, value: 0 };
     e.leads += 1;
-    if (l.stage === "won") e.won += 1;
+    if (l.stage === "converted") e.won += 1;
     e.value += l.value;
     sourceMap.set(l.source, e);
   });
@@ -757,7 +757,7 @@ export function codRisk(db: Database, order: OrderSummary): CodRisk {
   const deliveries = db.deliveries.filter((d) => d.contactId === order.contactId);
   const refused = deliveries.filter((d) => d.status === "returned" || d.status === "failed").length;
   const openSameDay = db.orders.filter(
-    (o) => o.contactId === order.contactId && o.id !== order.id && o.status === "pending_confirmation",
+    (o) => o.contactId === order.contactId && o.id !== order.id && o.status === "pending_verification",
   ).length;
   const digits = (contact?.phone ?? "").replace(/\D/g, "");
 
@@ -799,11 +799,11 @@ export function inboxMatches(db: Database, c: Database["conversations"][number],
     case "unread": return c.unread;
     case "new": {
       const lead = db.leads.find((l) => l.contactId === c.contactId);
-      return !!lead && (lead.stage === "new_lead" || lead.stage === "assigned") && !orders().length;
+      return !!lead && (lead.stage === "new_lead" || lead.stage === "first_contact") && !orders().length;
     }
-    case "unverified": return orders().some((o) => o.status === "pending_confirmation" && o.paymentMethod === "cash_on_delivery");
-    case "dispatched": return orders().some((o) => o.status === "in_transit" || o.status === "awaiting_dispatch");
-    case "cancelled": return orders().some((o) => o.status === "cancelled" || o.status === "returned")
+    case "unverified": return orders().some((o) => o.status === "pending_verification" && o.paymentMethod === "cash_on_delivery");
+    case "dispatched": return orders().some((o) => o.status === "in_transit" || o.status === "dispatched" || o.status === "ready_for_dispatch");
+    case "cancelled": return orders().some((o) => o.status === "cancelled" || o.status === "returned" || o.status === "refused")
       || db.deliveries.some((d) => d.contactId === c.contactId && d.status === "failed");
     case "complaints": return c.complaint?.status === "open";
     case "mine": return c.assigneeId === me;

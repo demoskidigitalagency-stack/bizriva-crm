@@ -48,13 +48,18 @@ export type AcquisitionSource =
 
 export type LeadStage =
   | "new_lead"
-  | "assigned"
-  | "contacted"
+  | "first_contact"
+  | "engaged"
   | "qualified"
-  | "interested"
+  | "high_intent"
   | "negotiating"
-  | "order_started"
-  | "won";
+  | "checkout_started"
+  | "order_created"
+  | "order_confirmed"
+  | "follow_up_required"
+  | "unresponsive"
+  | "lost"
+  | "converted";
 
 export type LeadOutcome =
   | "no_response"
@@ -66,13 +71,16 @@ export type LeadOutcome =
 export type SlaStatus = "on_track" | "due_soon" | "breached" | "met";
 
 export type OrderStatus =
-  | "pending_confirmation"
+  | "pending_verification"
   | "confirmed"
-  | "awaiting_dispatch"
+  | "processing"
+  | "ready_for_dispatch"
+  | "dispatched"
   | "in_transit"
   | "delivered"
-  | "returned"
-  | "cancelled";
+  | "cancelled"
+  | "refused"
+  | "returned";
 
 export type DeliveryStatus =
   | "not_scheduled"
@@ -377,13 +385,18 @@ export type BadgeTone =
 
 export const LEAD_STAGES: { id: LeadStage; label: string }[] = [
   { id: "new_lead", label: "New Lead" },
-  { id: "assigned", label: "Assigned" },
-  { id: "contacted", label: "Contacted" },
+  { id: "first_contact", label: "First Contact" },
+  { id: "engaged", label: "Engaged" },
   { id: "qualified", label: "Qualified" },
-  { id: "interested", label: "Interested" },
+  { id: "high_intent", label: "High Purchase Intent" },
   { id: "negotiating", label: "Negotiating" },
-  { id: "order_started", label: "Order Started" },
-  { id: "won", label: "Won" },
+  { id: "checkout_started", label: "Checkout Started" },
+  { id: "order_created", label: "Order Created" },
+  { id: "order_confirmed", label: "Order Confirmed" },
+  { id: "follow_up_required", label: "Follow-up Required" },
+  { id: "unresponsive", label: "Unresponsive" },
+  { id: "lost", label: "Lost" },
+  { id: "converted", label: "Converted" },
 ];
 
 export const LEAD_OUTCOMES: { id: LeadOutcome; label: string; tone: BadgeTone }[] = [
@@ -419,13 +432,16 @@ export const CHANNEL_LABELS: Record<Channel, string> = {
 };
 
 export const ORDER_STATUS_META: Record<OrderStatus, { label: string; tone: BadgeTone }> = {
-  pending_confirmation: { label: "Pending Confirmation", tone: "warning" },
+  pending_verification: { label: "Pending Verification", tone: "warning" },
   confirmed: { label: "Confirmed", tone: "info" },
-  awaiting_dispatch: { label: "Awaiting Dispatch", tone: "brand" },
+  processing: { label: "Processing", tone: "info" },
+  ready_for_dispatch: { label: "Ready for Dispatch", tone: "brand" },
+  dispatched: { label: "Dispatched", tone: "brand" },
   in_transit: { label: "In Transit", tone: "info" },
   delivered: { label: "Delivered", tone: "success" },
-  returned: { label: "Returned", tone: "danger" },
   cancelled: { label: "Cancelled", tone: "neutral" },
+  refused: { label: "Refused", tone: "danger" },
+  returned: { label: "Returned", tone: "danger" },
 };
 
 export const DELIVERY_STATUS_META: Record<DeliveryStatus, { label: string; tone: BadgeTone }> = {
