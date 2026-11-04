@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EmptyState, Section, StatusBadge } from "@/components/app/primitives";
 import { useActions, useDb } from "@/domain/store";
-import type { MessageTemplate } from "@/domain/types";
+import type { MessageTemplate, TemplatePurpose } from "@/domain/types";
+import { cn } from "@/lib/utils";
 import { relativeTime } from "@/lib/format";
 
 export const Route = createFileRoute("/templates")({
@@ -18,11 +19,16 @@ export const Route = createFileRoute("/templates")({
 });
 
 const STATUS_TONE = { draft: "neutral", submitted: "info", approved: "success", rejected: "danger" } as const;
+const PURPOSE_LABEL: Record<TemplatePurpose, string> = {
+  enquiry: "Enquiries", order: "Orders", payment: "Payments", delivery: "Delivery", complaint: "Complaints", objection: "Objections",
+  follow_up: "Follow-up", reactivation: "Win back", referral: "Referrals and reviews", policy: "Policies",
+};
+const LANG_LABEL: Record<string, string> = { en: "English", pcm: "Pidgin" };
 const vars = (body: string) => [...new Set(body.match(/\{\{\d+\}\}/g) ?? [])];
 
 function TemplateDialog({ t, onClose }: { t: MessageTemplate | "new"; onClose: () => void }) {
   const { saveRecord } = useActions();
-  const [d, setD] = useState(t === "new" ? { name: "", category: "utility" as MessageTemplate["category"], language: "en", body: "", status: "draft" as MessageTemplate["status"] } : t);
+  const [d, setD] = useState<Omit<MessageTemplate, "id" | "updatedAt"> & { id?: string }>(t === "new" ? { name: "", category: "utility", language: "en", purpose: "enquiry", body: "", status: "draft" } : t);
   const [error, setError] = useState("");
   const save = () => {
     if (!/^[a-z0-9_]{3,60}$/.test(d.name)) return setError("Name: 3–60 lowercase letters, numbers or underscores — WhatsApp requires this.");
@@ -51,6 +57,20 @@ function TemplateDialog({ t, onClose }: { t: MessageTemplate | "new"; onClose: (
               </Select>
             </div>
           </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5"><Label>Used for</Label>
+              <Select value={d.purpose ?? "enquiry"} onValueChange={(v) => setD({ ...d, purpose: v as TemplatePurpose })}>
+                <SelectTrigger aria-label="Used for"><SelectValue>{PURPOSE_LABEL[d.purpose ?? "enquiry"]}</SelectValue></SelectTrigger>
+                <SelectContent>{(Object.keys(PURPOSE_LABEL) as TemplatePurpose[]).map((k) => <SelectItem key={k} value={k}>{PURPOSE_LABEL[k]}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5"><Label>Language</Label>
+              <Select value={d.language} onValueChange={(v) => setD({ ...d, language: v })}>
+                <SelectTrigger aria-label="Language"><SelectValue>{LANG_LABEL[d.language] ?? d.language}</SelectValue></SelectTrigger>
+                <SelectContent><SelectItem value="en">English</SelectItem><SelectItem value="pcm">Pidgin</SelectItem></SelectContent>
+              </Select>
+            </div>
+          </div>
           <div className="space-y-1.5"><Label htmlFor="tb">Message</Label><Textarea id="tb" rows={5} value={d.body} onChange={(e) => setD({ ...d, body: e.target.value })} /></div>
           <p className="text-xs text-muted-foreground">In Practice Mode you set the approval yourself. With the backend, Meta decides and this updates on its own.</p>
         </div>
@@ -65,6 +85,10 @@ function Templates() {
   const db = useDb();
   const { removeRecord } = useActions();
   const [editing, setEditing] = useState<MessageTemplate | "new" | null>(null);
+  const [purpose, setPurpose] = useState<TemplatePurpose | "all">("all");
+  const [lang, setLang] = useState<"all" | "en" | "pcm">("all");
+  const list = db.templates.filter((t) => (purpose === "all" || t.purpose === purpose) && (lang === "all" || t.language === lang));
+  const count = (p: TemplatePurpose) => db.templates.filter((t) => t.purpose === p).length;
   const inUse = (id: string) => db.followUpRules.some((r) => r.templateId === id) || db.broadcasts.some((b) => b.templateId === id && b.status !== "sent");
 
   return (
@@ -73,20 +97,35 @@ function Templates() {
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-primary">Automation</p>
           <h1 className="text-2xl font-bold">Templates</h1>
-          <p className="mt-1 text-sm text-muted-foreground">WhatsApp only lets you start a conversation, or reply after 24 hours, with an approved template. Free text is blocked outside that window.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Your reply library, in English and Pidgin. Use any reply inside the 24-hour window from the Inbox. Outside it, WhatsApp only allows approved templates.</p>
         </div>
         <Button size="sm" onClick={() => setEditing("new")}><Plus className="size-4" /> New template</Button>
       </div>
+      <div className="space-y-2" role="group" aria-label="Reply library filters">
+        <div className="flex flex-wrap gap-1.5">
+          <button type="button" onClick={() => setPurpose("all")} className={cn("rounded-full border px-3 py-1 text-xs", purpose === "all" && "border-primary bg-primary/10 text-primary")}>All ({db.templates.length})</button>
+          {(Object.keys(PURPOSE_LABEL) as TemplatePurpose[]).map((p) => (
+            <button key={p} type="button" onClick={() => setPurpose(p)} className={cn("rounded-full border px-3 py-1 text-xs", purpose === p && "border-primary bg-primary/10 text-primary")}>{PURPOSE_LABEL[p]} ({count(p)})</button>
+          ))}
+        </div>
+        <div className="flex gap-1.5 text-xs">
+          {([["all", "Any language"], ["en", "English"], ["pcm", "Pidgin"]] as const).map(([v, l]) => (
+            <button key={v} type="button" onClick={() => setLang(v)} className={cn("rounded border px-2 py-0.5", lang === v && "border-primary bg-primary/10 text-primary")}>{l}</button>
+          ))}
+        </div>
+      </div>
       <Section>
-        {db.templates.length === 0 ? <EmptyState title="No templates" /> : (
+        {list.length === 0 ? <EmptyState title="No templates" /> : (
           <ul className="divide-y">
-            {db.templates.map((t) => (
+            {list.map((t) => (
               <li key={t.id} className="flex gap-3 px-4 py-3 text-sm">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-mono text-xs font-semibold">{t.name}</p>
                     <StatusBadge tone={STATUS_TONE[t.status]}>{t.status}</StatusBadge>
                     <StatusBadge tone={t.category === "marketing" ? "purple" : "brand"}>{t.category}</StatusBadge>
+                    {t.purpose && <StatusBadge>{PURPOSE_LABEL[t.purpose]}</StatusBadge>}
+                    {t.language === "pcm" && <StatusBadge tone="warning">Pidgin</StatusBadge>}
                     {inUse(t.id) && <StatusBadge>In use</StatusBadge>}
                   </div>
                   <p className="mt-1 whitespace-pre-wrap text-muted-foreground">{t.body}</p>

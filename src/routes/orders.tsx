@@ -5,11 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EmptyState, PersonAvatar, Section, StatusBadge } from "@/components/app/primitives";
 import { OrderDialog, PickCustomer } from "@/components/app/dialogs";
 import { useActions, useDb, useWorkspace } from "@/domain/store";
 import { fullName } from "@/domain/repositories";
-import { CHANNEL_LABELS, DELIVERY_STATUS_META, ORDER_STATUS_META, PAYMENT_STATUS_META, type OrderStatus, type OrderSummary } from "@/domain/types";
+import { CHANNEL_LABELS, DELIVERY_STATUS_META, ORDER_STATUS_META, PAYMENT_STATUS_META, type OrderStatus, type OrderSummary, type PaymentMethod } from "@/domain/types";
 import { formatCurrency, formatDateTime, relativeTime } from "@/lib/format";
 
 export const Route = createFileRoute("/orders")({
@@ -40,6 +42,74 @@ const NEXT: Record<OrderStatus, { to: OrderStatus; label: string; variant?: "out
   returned: [],
   cancelled: [],
 };
+
+function Invoice({ order, onClose }: { order: OrderSummary; onClose: () => void }) {
+  const db = useDb();
+  const ws = useWorkspace();
+  const c = db.contacts.find((x) => x.id === order.contactId);
+  const money = (n: number) => formatCurrency(n, ws.currency);
+  const paid = order.amountPaid ?? (order.paymentStatus === "paid" ? order.total : 0);
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-lg print:max-w-none print:border-0 print:shadow-none">
+        <DialogHeader><DialogTitle>Invoice {order.invoiceNo}</DialogTitle><DialogDescription>Print it or save as PDF from the print window. Sending the PDF on WhatsApp comes with the backend.</DialogDescription></DialogHeader>
+        <div id="invoice" className="space-y-3 text-sm">
+          <div className="flex justify-between gap-4">
+            <div><p className="font-bold">{db.settings.businessName}</p><p className="text-xs text-muted-foreground">{db.settings.whatsappNumber}</p></div>
+            <div className="text-right text-xs"><p className="num font-semibold">{order.invoiceNo}</p><p>Order {order.reference}</p><p>{formatDateTime(order.placedAt)}</p></div>
+          </div>
+          {c && <div className="text-xs"><p className="font-semibold">Bill to</p><p>{fullName(c)} · {c.phone}</p>{c.address && <p>{c.address}{c.landmark ? ` (${c.landmark})` : ""}</p>}<p>{c.city}</p></div>}
+          <table className="w-full text-sm"><tbody className="divide-y border-y">{order.productNames.map((p) => <tr key={p}><td className="py-1.5">{p}</td></tr>)}</tbody></table>
+          <dl className="space-y-1">
+            <div className="flex justify-between"><dt>Delivery</dt><dd className="num">{money(order.shippingFee)}</dd></div>
+            <div className="flex justify-between font-semibold"><dt>Total</dt><dd className="num">{money(order.total)}</dd></div>
+            <div className="flex justify-between"><dt>Paid</dt><dd className="num">{money(paid)}</dd></div>
+            <div className="flex justify-between font-bold"><dt>Balance due</dt><dd className="num">{money(order.total - paid)}</dd></div>
+          </dl>
+          <p className="text-xs text-muted-foreground">{order.paymentMethod === "cash_on_delivery" ? "Balance payable to the rider on delivery." : "Pay by transfer or the payment link we sent."}</p>
+        </div>
+        <Button onClick={() => window.print()}>Print or save as PDF</Button>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function Payments({ order }: { order: OrderSummary }) {
+  const ws = useWorkspace();
+  const { recordDeposit, requestBalance, issueInvoice } = useActions();
+  const [amount, setAmount] = useState("");
+  const [method, setMethod] = useState<PaymentMethod>("bank_transfer");
+  const [sent, setSent] = useState(false);
+  const [showInvoice, setShowInvoice] = useState(false);
+  const money = (n: number) => formatCurrency(n, ws.currency);
+  const paid = order.amountPaid ?? (order.paymentStatus === "paid" ? order.total : 0);
+  const balance = order.total - paid;
+  const open = order.status !== "cancelled" && order.status !== "returned";
+  return (
+    <div className="space-y-2 rounded-md border p-3" aria-label="Deposit and balance" role="group">
+      <div className="flex justify-between"><span className="text-muted-foreground">Paid so far</span><span className="num font-medium">{money(paid)}</span></div>
+      <div className="flex justify-between font-semibold"><span>Balance</span><span className="num" data-testid="balance">{money(balance)}</span></div>
+      {open && balance > 0 && (
+        <>
+          <div className="flex gap-2">
+            <Input aria-label="Deposit amount" type="number" min={1} placeholder="Amount received" value={amount} onChange={(e) => setAmount(e.target.value)} />
+            <Select value={method} onValueChange={(v) => setMethod(v as PaymentMethod)}>
+              <SelectTrigger className="w-36" aria-label="Deposit method"><SelectValue>{method.replace(/_/g, " ")}</SelectValue></SelectTrigger>
+              <SelectContent><SelectItem value="bank_transfer">Bank transfer</SelectItem><SelectItem value="card">Card</SelectItem><SelectItem value="ussd">USSD</SelectItem><SelectItem value="wallet">Wallet</SelectItem></SelectContent>
+            </Select>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" disabled={!(Number(amount) > 0)} onClick={() => { recordDeposit(order.id, Number(amount), method); setAmount(""); }}>Record payment</Button>
+            <Button size="sm" variant="outline" onClick={() => { requestBalance(order.id); setSent(true); }}>Request balance in chat</Button>
+          </div>
+          {sent && <p className="text-xs text-success" role="status">Payment link sent in the customer's chat (practice — nothing really sent).</p>}
+        </>
+      )}
+      <Button size="sm" variant="ghost" className="px-0" onClick={() => { issueInvoice(order.id); setShowInvoice(true); }}>{order.invoiceNo ? `View invoice ${order.invoiceNo}` : "Create invoice"}</Button>
+      {showInvoice && order.invoiceNo && <Invoice order={order} onClose={() => setShowInvoice(false)} />}
+    </div>
+  );
+}
 
 function OrderPanel({ order, onClose }: { order: OrderSummary; onClose: () => void }) {
   const db = useDb();
@@ -83,6 +153,8 @@ function OrderPanel({ order, onClose }: { order: OrderSummary; onClose: () => vo
               <div className="flex justify-between text-xs text-muted-foreground"><dt>Margin after cost and delivery</dt><dd className="num">{money(order.total - order.cogs - order.shippingFee)}</dd></div>
             </dl>
           </div>
+
+          <Payments order={order} />
 
           {delivery && (
             <div className="rounded-md border p-3">

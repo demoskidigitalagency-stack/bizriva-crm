@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, CheckCircle2, Circle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader, Section, StatusBadge, EmptyState } from "@/components/app/primitives";
-import { useDb, useWorkspace } from "@/domain/store";
+import { useActions, useDb, useWorkspace } from "@/domain/store";
 import { getTodayQueues, type Queue } from "@/domain/repositories";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -72,6 +72,45 @@ function QueueCard({ queue }: { queue: Queue }) {
   );
 }
 
+/** A 7-day setup plan for new businesses (from the playbook review, written for Bizriva). */
+const SETUP: { id: string; day: number; title: string; detail: string; to: string }[] = [
+  { id: "business", day: 1, title: "Business details and delivery fees", detail: "Name, currency, delivery fee and free-delivery level.", to: "/settings" },
+  { id: "products", day: 2, title: "Add your products", detail: "Prices, descriptions and photos. Import a CSV if you have many.", to: "/products" },
+  { id: "policies", day: 3, title: "Write your policies and FAQs", detail: "Add the policy starters, then edit them so the AI agent answers correctly.", to: "/knowledge" },
+  { id: "replies", day: 4, title: "Set up your reply library", detail: "Check the ready replies for enquiries, payments, delivery and complaints.", to: "/templates" },
+  { id: "channels", day: 5, title: "Connect WhatsApp and invite your team", detail: "Simulate for now; connect for real with the backend.", to: "/integrations" },
+  { id: "form", day: 6, title: "Create an order form for your ads", detail: "Packages, gifts and a link for your landing page.", to: "/order-forms" },
+  { id: "share", day: 7, title: "Share your links and run a first broadcast", detail: "WhatsApp link and QR code in your bio and status.", to: "/store" },
+];
+
+function SetupChecklist() {
+  const db = useDb();
+  const { toggleSetupStep } = useActions();
+  const done = db.settings.setupDone;
+  const left = SETUP.filter((s) => !done.includes(s.id)).length;
+  if (!left) return null;
+  return (
+    <Section title="7-day setup" description={`${SETUP.length - left} of ${SETUP.length} done. One step a day gets your business fully set up in a week.`} className="mb-4">
+      <ol className="grid gap-1 p-3 md:grid-cols-2">
+        {SETUP.map((s) => {
+          const ok = done.includes(s.id);
+          return (
+            <li key={s.id} className="flex items-start gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted/50">
+              <button type="button" onClick={() => toggleSetupStep(s.id)} aria-pressed={ok} aria-label={`${ok ? "Untick" : "Tick"} day ${s.day}: ${s.title}`} className="mt-0.5 shrink-0">
+                {ok ? <CheckCircle2 className="size-4 text-success" /> : <Circle className="size-4 text-muted-foreground" />}
+              </button>
+              <span className="min-w-0">
+                <Link to={s.to as never} className={`font-medium hover:underline ${ok ? "text-muted-foreground line-through" : ""}`}>Day {s.day}: {s.title}</Link>
+                <span className="block text-xs text-muted-foreground">{s.detail}</span>
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+    </Section>
+  );
+}
+
 function Today() {
   const db = useDb();
   const ws = useWorkspace();
@@ -87,6 +126,7 @@ function Today() {
         description={`${total} items across ${queues.filter((q) => q.count > 0).length} queues for ${ws.name}. Click any row to jump straight to the customer or module.`}
         actions={<Button asChild size="sm" variant="outline"><Link to="/automation">Open automations</Link></Button>}
       />
+      <SetupChecklist />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {queues.map((q) => (
           <QueueCard key={q.key} queue={q} />

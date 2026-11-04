@@ -55,7 +55,8 @@ function EntryDialog({ entry, onClose }: { entry: KnowledgeEntry | "new"; onClos
 
 function Knowledge() {
   const db = useDb();
-  const { removeRecord } = useActions();
+  const { removeRecord, addPolicyStarters } = useActions();
+  const [added, setAdded] = useState<number | null>(null);
   const [q, setQ] = useState("");
   const [topic, setTopic] = useState<"all" | KnowledgeEntry["topic"]>("all");
   const [editing, setEditing] = useState<KnowledgeEntry | "new" | null>(null);
@@ -70,8 +71,12 @@ function Knowledge() {
           <h1 className="text-2xl font-bold">Knowledge Base</h1>
           <p className="mt-1 text-sm text-muted-foreground">The only answers the AI agent may give, besides prices from Products. <Link to="/ai-agent" className="underline">Test them in the agent</Link>.</p>
         </div>
-        <Button size="sm" onClick={() => setEditing("new")}><Plus className="size-4" /> New answer</Button>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => setAdded(addPolicyStarters())}>Add policy starters</Button>
+          <Button size="sm" onClick={() => setEditing("new")}><Plus className="size-4" /> New answer</Button>
+        </div>
       </div>
+      {added !== null && <p className="text-sm" role="status">{added ? `${added} policy starters added: returns, delivery areas, deposits, missed deliveries and privacy. Edit them to match your business.` : "Policy starters are already in your Knowledge Base."}</p>}
       <Section>
         <div className="flex flex-wrap gap-2 border-b p-3">
           <div className="relative min-w-0 flex-1 basis-56">

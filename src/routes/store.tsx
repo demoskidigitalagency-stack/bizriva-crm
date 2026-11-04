@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import QRCode from "qrcode";
 import { createFileRoute } from "@tanstack/react-router";
-import { ShoppingBag } from "lucide-react";
+import { Copy, Download, ShoppingBag } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -13,6 +14,60 @@ export const Route = createFileRoute("/store")({
   head: () => ({ meta: [{ title: "Store · Bizriva CRM" }] }),
   component: Store,
 });
+
+function ShareKit() {
+  const db = useDb();
+  const { updateSettings } = useActions();
+  const s = db.settings;
+  const [number, setNumber] = useState(s.whatsappNumber);
+  const [msg, setMsg] = useState("Hi! I saw your ad and I'd like to order.");
+  const [target, setTarget] = useState<"whatsapp" | "store" | "form">("whatsapp");
+  const [qr, setQr] = useState("");
+  const [copied, setCopied] = useState("");
+  const digits = number.replace(/\D/g, "").replace(/^0/, "234");
+  const links = {
+    whatsapp: `https://wa.me/${digits}?text=${encodeURIComponent(msg)}`,
+    store: `https://bizriva.shop/${s.storeSlug}`,
+    form: db.orderForms[0] ? `https://bizriva.shop/${s.storeSlug}/order/${db.orderForms[0].id}` : `https://bizriva.shop/${s.storeSlug}`,
+  };
+  const link = links[target];
+  useEffect(() => {
+    let live = true;
+    QRCode.toDataURL(link, { margin: 1, width: 360 }).then((url) => { if (live) setQr(url); }).catch(() => setQr(""));
+    return () => { live = false; };
+  }, [link]);
+  const copy = async (text: string, what: string) => { try { await navigator.clipboard.writeText(text); } catch { /* blocked */ } setCopied(what); };
+  return (
+    <Section title="Share kit" description="Links and a QR code for your bio, WhatsApp status, flyers and packaging.">
+      <div className="grid gap-4 p-4 md:grid-cols-[1fr_200px]">
+        <div className="min-w-0 space-y-3 text-sm">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5"><Label htmlFor="wa-num">WhatsApp number</Label>
+              <div className="flex gap-2"><Input id="wa-num" value={number} onChange={(e) => setNumber(e.target.value)} /><Button size="sm" variant="outline" disabled={number === s.whatsappNumber || digits.length < 11} onClick={() => updateSettings({ whatsappNumber: number })}>Save</Button></div>
+            </div>
+            <div className="space-y-1.5"><Label htmlFor="wa-msg">Message the chat starts with</Label><Input id="wa-msg" value={msg} onChange={(e) => setMsg(e.target.value)} /></div>
+          </div>
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="QR code for">
+            {([["whatsapp", "WhatsApp chat link"], ["store", "Store link"], ["form", "Order form link"]] as const).map(([v, l]) => (
+              <Button key={v} size="sm" variant={target === v ? "default" : "outline"} onClick={() => setTarget(v)} aria-pressed={target === v}>{l}</Button>
+            ))}
+          </div>
+          {(["whatsapp", "store", "form"] as const).map((k) => (
+            <div key={k} className="flex gap-2">
+              <code className="min-w-0 flex-1 truncate rounded bg-muted px-2 py-1.5 text-xs" aria-label={`${k} link`}>{links[k]}</code>
+              <Button size="sm" variant="outline" onClick={() => copy(links[k], k)}><Copy className="size-4" /> {copied === k ? "Copied" : "Copy"}</Button>
+            </div>
+          ))}
+          <p className="text-xs text-muted-foreground">The WhatsApp link works today. Store and form links are practice addresses until the backend publishes them.</p>
+        </div>
+        <div className="flex flex-col items-center gap-2">
+          {qr ? <img src={qr} alt={`QR code for the ${target} link`} className="size-44 rounded-md border bg-white p-1" /> : <div className="size-44 rounded-md border bg-muted" />}
+          {qr && <a href={qr} download={`${s.storeSlug}-${target}-qr.png`} className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"><Download className="size-3.5" /> Download QR</a>}
+        </div>
+      </div>
+    </Section>
+  );
+}
 
 function Store() {
   const db = useDb();
@@ -47,6 +102,8 @@ function Store() {
           </div>
         </div>
       </Section>
+
+      <ShareKit />
 
       <Section title="Preview" description={`What customers would see at bizriva.shop/${s.storeSlug}`} action={<StatusBadge tone="brand">{cart.length} in bag</StatusBadge>}>
         <div className="bg-surface p-4">

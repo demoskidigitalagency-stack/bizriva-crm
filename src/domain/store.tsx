@@ -8,8 +8,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createInitialDatabase, CURRENT_USER_ID, NOW, type Database } from "./database";
 import { codRisk } from "./repositories";
+import * as practiceSeed from "./practice-seed";
 import type {
-  AgentConfig, Broadcast, BusinessSettings, Campaign, Channel, Contact, DeliveryStatus, FollowUpRule, ID, IntegrationState, KnowledgeEntry,
+  AgentConfig, Broadcast, BusinessSettings, CalendarEvent, Campaign, Channel, OrderForm, OrderFormField, Contact, DeliveryStatus, FollowUpRule, ID, IntegrationState, KnowledgeEntry,
   LeadOutcome, LeadStage, Lifecycle, MediaAsset, MessageTemplate, OrderStatus, PaymentMethod, Product, Rider, StockMovement, Task,
   TeamMember, Workflow, WorkflowRun,
 } from "./types";
@@ -25,6 +26,8 @@ export interface Editable {
   media: MediaAsset;
   campaigns: Campaign;
   team: TeamMember;
+  orderForms: OrderForm;
+  events: CalendarEvent;
 }
 type EditableKey = keyof Editable;
 
@@ -34,7 +37,7 @@ type EditableKey = keyof Editable;
  * version when the seed or types change shape — old saves are then ignored.
  */
 const PRACTICE_KEY = "bizriva.practice-db";
-const PRACTICE_VERSION = 3; // v3: product details, staff alerts, chat options, contact address, detail messages
+const PRACTICE_VERSION = 4; // v4: order forms, deposits, complaints, calendar, reply library, setup checklist
 
 function loadPractice(): { db: Database; workspaceId: ID } | null {
   try {
@@ -115,6 +118,28 @@ interface StoreActions {
   sendProductCard: (conversationId: ID, productId: ID) => void;
   updateWorkspace: (patch: Partial<Pick<Database["workspaces"][number], "name" | "currency">>) => void;
   submitLeadForm: (input: { name: string; phone: string; productId?: ID; message?: string }) => ID | null;
+  submitOrderForm: (formId: ID, input: OrderFormInput) => ID | null;
+  trackForm: (formId: ID, kind: "view" | "start" | "duplicate", field?: OrderFormField) => void;
+  simulateFormTraffic: (formId: ID) => void;
+  recordDeposit: (orderId: ID, amount: number, method: PaymentMethod) => void;
+  requestBalance: (orderId: ID) => void;
+  issueInvoice: (orderId: ID) => string;
+  flagComplaint: (conversationId: ID, reason: string) => void;
+  resolveComplaint: (conversationId: ID, resolution: string) => void;
+  toggleSetupStep: (stepId: string) => void;
+  importProducts: (rows: Omit<Product, "id">[]) => number;
+  addPolicyStarters: () => number;
+}
+
+export interface OrderFormInput {
+  packageId: ID;
+  name: string;
+  phone: string;
+  address?: string;
+  city?: string;
+  landmark?: string;
+  note?: string;
+  adSource?: string;
 }
 
 interface StoreValue {
@@ -135,6 +160,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   useEffect(() => { workspaceIdRef.current = workspaceId; }, [workspaceId]);
   // Load the saved practice data after mount (not during render) so server and client markup match.
   const loaded = useRef(false);
+  const dbRef = useRef(db);
+  dbRef.current = db;
   useEffect(() => {
     const saved = loadPractice();
     if (saved) {
@@ -338,14 +365,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (status === "delivered") {
         next = {
           ...next,
-          orders: next.orders.map((o) => (o.id === orderId && o.paymentStatus === "cod_pending" ? { ...o, paymentStatus: "paid" as const } : o)),
+          orders: next.orders.map((o) => (o.id === orderId && o.paymentMethod === "cash_on_delivery" && (o.paymentStatus === "cod_pending" || o.paymentStatus === "part_paid") ? { ...o, paymentStatus: "paid" as const, amountPaid: o.total } : o)),
           deliveries: next.deliveries.map((x) => (x.orderId === orderId ? { ...x, status: "delivered" as const, deliveredAt: now } : x)),
           contacts: next.contacts.map((c) => (c.id === order.contactId ? { ...c, deliveredRevenue: c.deliveredRevenue + order.total, lastPurchaseAt: now } : c)),
         };
-        if (order.paymentMethod === "cash_on_delivery" && !next.payments.some((p) => p.orderId === orderId)) {
+        const cashDue = order.total - (order.amountPaid ?? 0);
+        if (order.paymentMethod === "cash_on_delivery" && cashDue > 0 && !next.payments.some((p) => p.orderId === orderId && p.method === "cash_on_delivery")) {
           next = {
             ...next,
-            payments: [{ id: newId("pay"), orderId, contactId: order.contactId, amount: order.total, method: "cash_on_delivery", status: "paid", at: now, remittanceDueAt: new Date(Date.now() + 2 * 86_400_000).toISOString(), remitted: false }, ...next.payments],
+            payments: [{ id: newId("pay"), orderId, contactId: order.contactId, amount: cashDue, method: "cash_on_delivery", status: "paid", at: now, remittanceDueAt: new Date(Date.now() + 2 * 86_400_000).toISOString(), remitted: false }, ...next.payments],
           };
         }
       }
@@ -524,9 +552,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const now = new Date().toISOString();
       const next: Database = {
         ...d,
-        orders: d.orders.map((o) => (o.id === orderId ? { ...o, paymentStatus: "paid" as const, paymentMethod: method } : o)),
-        payments: [{ id: newId("pay"), orderId, contactId: order.contactId, amount: order.total, method, status: "paid", at: now }, ...d.payments],
-        contacts: d.contacts.map((c) => (c.id === order.contactId ? { ...c, outstandingBalance: Math.max(0, c.outstandingBalance - order.total) } : c)),
+        orders: d.orders.map((o) => (o.id === orderId ? { ...o, paymentStatus: "paid" as const, paymentMethod: method, amountPaid: o.total } : o)),
+        payments: [{ id: newId("pay"), orderId, contactId: order.contactId, amount: order.total - (order.amountPaid ?? 0), method, status: "paid", at: now }, ...d.payments],
+        contacts: d.contacts.map((c) => (c.id === order.contactId ? { ...c, outstandingBalance: Math.max(0, c.outstandingBalance - (order.total - (order.amountPaid ?? 0))) } : c)),
       };
       return logActivity(next, order.contactId, `Payment recorded for ${order.reference}`, "system", method.replace(/_/g, " "));
     });
@@ -647,6 +675,210 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return contactId;
   }, []);
 
+
+  /** Find the contact's chat, or open a WhatsApp one, and post an outgoing message. */
+  const postToCustomer = (d: Database, contactId: ID, body: string): Database => {
+    const now = new Date().toISOString();
+    const conv = d.conversations.find((c) => c.contactId === contactId);
+    if (conv) {
+      return { ...d, conversations: d.conversations.map((c) => (c.id === conv.id ? { ...c, awaitingReply: false, lastMessageAt: now, messages: [...c.messages, { id: newId("m"), conversationId: c.id, direction: "out" as const, body, at: now, authorId: CURRENT_USER_ID }] } : c)) };
+    }
+    const convId = newId("cv");
+    return { ...d, conversations: [{ id: convId, contactId, channel: "whatsapp", subject: body.slice(0, 48), unread: false, awaitingReply: false, assigneeId: CURRENT_USER_ID, lastMessageAt: now, messages: [{ id: newId("m"), conversationId: convId, direction: "out", body, at: now, authorId: CURRENT_USER_ID }] }, ...d.conversations] };
+  };
+  const moneyIn = (d: Database, n: number) => {
+    const currency = d.workspaces.find((w) => w.id === workspaceIdRef.current)?.currency ?? "NGN";
+    return new Intl.NumberFormat("en-NG", { style: "currency", currency, maximumFractionDigits: 0 }).format(n);
+  };
+
+  const submitOrderForm = useCallback((formId: ID, input: OrderFormInput) => {
+    const name = input.name.trim();
+    const digits = input.phone.replace(/\D/g, "");
+    if (!name || digits.length < 10) return null;
+    const f0 = dbRef.current.orderForms.find((f) => f.id === formId);
+    if (!f0 || !f0.packages.some((p) => p.id === input.packageId)) return null;
+    const result = { orderId: newId("ord"), contactId: newId("ct") };
+    setDb((d) => {
+      const form = d.orderForms.find((f) => f.id === formId);
+      // Price comes from the saved form, never from what the browser sends.
+      const pkg = form?.packages.find((p) => p.id === input.packageId);
+      const product = form && d.products.find((p) => p.id === form.productId);
+      if (!form || !pkg || !product) return d;
+      const now = new Date().toISOString();
+      const existing = d.contacts.find((c) => c.phone.replace(/\D/g, "").slice(-10) === digits.slice(-10));
+      const contactId = existing?.id ?? result.contactId;
+      result.contactId = contactId;
+      const [firstName, ...rest] = name.split(/\s+/);
+      const owner = d.team.find((t) => t.role === "sales_rep" && t.active)?.id ?? d.team[0]!.id;
+      const city = input.city?.trim() || existing?.city || "Lagos";
+      let next: Database = d;
+      if (!existing) {
+        const contact: Contact = {
+          id: contactId, firstName: firstName!, lastName: rest.join(" ") || "—", phone: input.phone.trim(), countryCode: "NG", city, lifecycle: "lead", source: "website",
+          ownerId: owner, leadScore: 40, tags: ["order-form"], createdAt: now, lastActivityAt: now, totalOrders: 0, lifetimeValue: 0, deliveredRevenue: 0,
+          contributionProfit: 0, outstandingBalance: 0, consentMarketing: false, notesCount: 0,
+          ...(input.address?.trim() ? { address: input.address.trim() } : {}), ...(input.landmark?.trim() ? { landmark: input.landmark.trim() } : {}),
+        };
+        next = { ...next, contacts: [contact, ...next.contacts] };
+      } else if (input.address?.trim()) {
+        next = { ...next, contacts: next.contacts.map((c) => (c.id === contactId ? { ...c, address: input.address!.trim(), ...(input.landmark?.trim() ? { landmark: input.landmark.trim() } : {}) } : c)) };
+      }
+      const reference = `BZ-${1000 + next.orders.length + 1}`;
+      const order = {
+        id: result.orderId, reference, contactId, placedAt: now, status: "pending_confirmation" as const, itemsCount: pkg.qty, total: pkg.price,
+        cogs: product.cost * pkg.qty, shippingFee: 0, paymentStatus: form.payOnDelivery ? ("cod_pending" as const) : ("unpaid" as const),
+        paymentMethod: form.payOnDelivery ? ("cash_on_delivery" as const) : ("bank_transfer" as const), channel: "webchat" as const,
+        productNames: [`${pkg.qty}× ${product.name}`, ...(pkg.gift ? [`Gift: ${pkg.gift}`] : [])], formId,
+      };
+      const adSource = input.adSource?.trim() || "Direct";
+      next = {
+        ...next,
+        orders: [order, ...next.orders],
+        contacts: next.contacts.map((c) => (c.id === contactId ? { ...c, totalOrders: c.totalOrders + 1, lifetimeValue: c.lifetimeValue + pkg.price, lastActivityAt: now } : c)),
+        orderForms: next.orderForms.map((f) => (f.id === formId ? { ...f, stats: { ...f.stats, submits: f.stats.submits + 1 } } : f)),
+        formSubmissions: [{ id: newId("fs"), formId, orderId: order.id, contactId, packageId: pkg.id, total: pkg.price, region: city, adSource, at: now, emailSent: next.integrations.some((i) => i.id === "email" && i.status === "simulated"), eventSent: form.pixels.meta || form.pixels.tiktok }, ...next.formSubmissions],
+      };
+      const summary = `New order ${reference} from "${form.name}": ${pkg.label} (${pkg.qty}× ${product.name})${pkg.gift ? ` + ${pkg.gift}` : ""}, ${moneyIn(next, pkg.price)}. ${[input.address, city, input.landmark].filter((x) => x?.trim()).join(", ")}`;
+      const conv = next.conversations.find((c) => c.contactId === contactId);
+      if (conv) {
+        next = { ...next, conversations: next.conversations.map((c) => (c.id === conv.id ? { ...c, unread: true, awaitingReply: true, lastMessageAt: now, messages: [...c.messages, { id: newId("m"), conversationId: c.id, direction: "in" as const, body: summary, at: now }] } : c)) };
+      } else {
+        const convId = `cv_${contactId}`;
+        next = { ...next, conversations: [{ id: convId, contactId, channel: "webchat", subject: `Order form: ${pkg.label}`, unread: true, awaitingReply: true, assigneeId: owner, lastMessageAt: now, messages: [{ id: newId("m"), conversationId: convId, direction: "in", body: summary, at: now }] }, ...next.conversations] };
+      }
+      next = notify(next, `Order form: ${reference}`, `${name} · ${pkg.label} · ${moneyIn(next, pkg.price)} · ${adSource}`, "success");
+      return logActivity(next, contactId, `Order ${reference} placed on order form`, "order", summary);
+    });
+    return result.orderId;
+  }, []);
+
+  const trackForm = useCallback((formId: ID, kind: "view" | "start" | "duplicate", field?: OrderFormField) => {
+    setDb((d) => ({
+      ...d,
+      orderForms: d.orderForms.map((f) => {
+        if (f.id !== formId) return f;
+        const st = { ...f.stats, dropOff: { ...f.stats.dropOff } };
+        if (kind === "view") st.views++;
+        if (kind === "start") st.starts++;
+        if (kind === "duplicate") st.duplicatesBlocked++;
+        if (field) st.dropOff[field] = (st.dropOff[field] ?? 0) + 1;
+        return { ...f, stats: st };
+      }),
+    }));
+  }, []);
+
+  const simulateFormTraffic = useCallback((formId: ID) => {
+    setDb((d) => ({
+      ...d,
+      orderForms: d.orderForms.map((f) => {
+        if (f.id !== formId) return f;
+        const drop = { ...f.stats.dropOff };
+        const spread: [OrderFormField, number][] = [["phone", 3], ["address", 6], ["city", 1], ["landmark", 2]];
+        spread.forEach(([k, n]) => { if (f.fields.includes(k)) drop[k] = (drop[k] ?? 0) + n; });
+        return { ...f, stats: { ...f.stats, views: f.stats.views + 60, starts: f.stats.starts + 18, dropOff: drop } };
+      }),
+    }));
+  }, []);
+
+  const recordDeposit = useCallback((orderId: ID, amount: number, method: PaymentMethod) => {
+    setDb((d) => {
+      const order = d.orders.find((o) => o.id === orderId);
+      if (!order || amount <= 0) return d;
+      const paid = Math.min(order.total, (order.amountPaid ?? 0) + amount);
+      const status = paid >= order.total ? ("paid" as const) : ("part_paid" as const);
+      const now = new Date().toISOString();
+      const next: Database = {
+        ...d,
+        orders: d.orders.map((o) => (o.id === orderId ? { ...o, amountPaid: paid, paymentStatus: status } : o)),
+        payments: [{ id: newId("pay"), orderId, contactId: order.contactId, amount: Math.min(amount, order.total - (order.amountPaid ?? 0)), method, status: "paid", at: now }, ...d.payments],
+      };
+      return logActivity(next, order.contactId, `${status === "paid" ? "Full payment" : "Deposit"} of ${moneyIn(d, amount)} for ${order.reference}`, "order", method.replace(/_/g, " "));
+    });
+  }, []);
+
+  const requestBalance = useCallback((orderId: ID) => {
+    setDb((d) => {
+      const order = d.orders.find((o) => o.id === orderId);
+      if (!order) return d;
+      const balance = order.total - (order.amountPaid ?? 0);
+      if (balance <= 0) return d;
+      const who = d.contacts.find((c) => c.id === order.contactId);
+      const link = d.settings.paymentLinkTemplate.replace("{{order}}", order.reference);
+      const body = `Hi ${who?.firstName ?? "there"}, the balance on order ${order.reference} is ${moneyIn(d, balance)}.\nPay securely here: ${link}\nOr pay the rider on delivery.`;
+      return logActivity(postToCustomer(d, order.contactId, body), order.contactId, `Balance request sent for ${order.reference}`, "conversation", moneyIn(d, balance));
+    });
+  }, []);
+
+  const issueInvoice = useCallback((orderId: ID): string => {
+    let no = "";
+    setDb((d) => {
+      const order = d.orders.find((o) => o.id === orderId);
+      if (!order) return d;
+      if (order.invoiceNo) { no = order.invoiceNo; return d; }
+      no = `INV-${order.reference.replace(/\D/g, "")}`;
+      const next: Database = { ...d, orders: d.orders.map((o) => (o.id === orderId ? { ...o, invoiceNo: no } : o)) };
+      return logActivity(next, order.contactId, `Invoice ${no} issued`, "order");
+    });
+    return no;
+  }, []);
+
+  const flagComplaint = useCallback((conversationId: ID, reason: string) => {
+    setDb((d) => {
+      const conv = d.conversations.find((c) => c.id === conversationId);
+      if (!conv || !reason.trim()) return d;
+      const now = new Date().toISOString();
+      const support = d.team.find((t) => t.role === "support" && t.active) ?? d.team.find((t) => t.role === "manager") ?? d.team[0]!;
+      let next: Database = {
+        ...d,
+        conversations: d.conversations.map((c) => (c.id === conversationId ? { ...c, complaint: { status: "open" as const, reason: reason.trim(), openedAt: now } } : c)),
+        tasks: [{ id: newId("t"), contactId: conv.contactId, title: `Resolve complaint: ${reason.trim().slice(0, 60)}`, dueAt: new Date(Date.now() + 4 * 3_600_000).toISOString(), status: "open", priority: "high", assigneeId: support.id, type: "general", createdAt: now }, ...d.tasks],
+      };
+      next = notify(next, "Complaint raised", reason.trim().slice(0, 90), "warning");
+      return logActivity(next, conv.contactId, "Complaint raised", "conversation", reason.trim());
+    });
+  }, []);
+
+  const resolveComplaint = useCallback((conversationId: ID, resolution: string) => {
+    setDb((d) => {
+      const conv = d.conversations.find((c) => c.id === conversationId);
+      if (!conv?.complaint) return d;
+      const now = new Date().toISOString();
+      const next: Database = {
+        ...d,
+        conversations: d.conversations.map((c) => (c.id === conversationId && c.complaint ? { ...c, complaint: { ...c.complaint, status: "resolved" as const, resolvedAt: now, resolution: resolution.trim() || "Resolved" } } : c)),
+        tasks: d.tasks.map((t) => (t.contactId === conv.contactId && t.status === "open" && t.title.startsWith("Resolve complaint") ? { ...t, status: "done" as const } : t)),
+      };
+      return logActivity(next, conv.contactId, "Complaint resolved", "conversation", resolution.trim());
+    });
+  }, []);
+
+  const toggleSetupStep = useCallback((stepId: string) => {
+    setDb((d) => {
+      const done = d.settings.setupDone.includes(stepId) ? d.settings.setupDone.filter((s) => s !== stepId) : [...d.settings.setupDone, stepId];
+      return { ...d, settings: { ...d.settings, setupDone: done } };
+    });
+  }, []);
+
+  const importProducts = useCallback((rows: Omit<Product, "id">[]): number => {
+    const clean = rows.filter((r) => r.name.trim() && r.price > 0);
+    if (!clean.length) return 0;
+    setDb((d) => ({ ...d, products: [...d.products, ...clean.map((r) => ({ ...r, id: newId("p"), active: r.active ?? true }))] }));
+    return clean.length;
+  }, []);
+
+  const addPolicyStarters = useCallback((): number => {
+    let added = 0;
+    setDb((d) => {
+      const have = new Set(d.knowledge.map((k) => k.question.toLowerCase()));
+      const fresh = practiceSeed.policyStarters.filter((p) => !have.has(p.question.toLowerCase()));
+      added = fresh.length;
+      if (!fresh.length) return d;
+      const now = new Date().toISOString();
+      return { ...d, knowledge: [...d.knowledge, ...fresh.map((p) => ({ ...p, id: newId("kb"), updatedAt: now }))] };
+    });
+    return added;
+  }, []);
+
   const resetPracticeData = useCallback(() => {
     try {
       localStorage.removeItem(PRACTICE_KEY);
@@ -667,9 +899,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
         saveProduct, adjustStock, mergeContacts, startLead, resetPracticeData, saveRecord, removeRecord, updateSettings, updateAgent,
         setIntegration, assignRider, moveStock, recordPayment, logRun, retryRun, sendBroadcast, addCampaignSpend,
         updateContactDetails, simulateIncoming, sendProductCard, updateWorkspace, submitLeadForm,
+        submitOrderForm, trackForm, simulateFormTraffic, recordDeposit, requestBalance, issueInvoice, flagComplaint, resolveComplaint,
+        toggleSetupStep, importProducts, addPolicyStarters,
       },
     }),
-    [db, workspaceId, addContact, createOrder, setLeadStage, setLeadOutcome, assignOwner, setLifecycle, completeTask, snoozeTask, addTask, addNote, logCall, sendReply, markNotificationsRead, setOrderStatus, recordCodCheck, setDeliveryStatus, markRemitted, saveProduct, adjustStock, mergeContacts, startLead, resetPracticeData, saveRecord, removeRecord, updateSettings, updateAgent, setIntegration, assignRider, moveStock, recordPayment, logRun, retryRun, sendBroadcast, addCampaignSpend, updateContactDetails, simulateIncoming, sendProductCard, updateWorkspace, submitLeadForm],
+    [db, workspaceId, addContact, createOrder, setLeadStage, setLeadOutcome, assignOwner, setLifecycle, completeTask, snoozeTask, addTask, addNote, logCall, sendReply, markNotificationsRead, setOrderStatus, recordCodCheck, setDeliveryStatus, markRemitted, saveProduct, adjustStock, mergeContacts, startLead, resetPracticeData, saveRecord, removeRecord, updateSettings, updateAgent, setIntegration, assignRider, moveStock, recordPayment, logRun, retryRun, sendBroadcast, addCampaignSpend, updateContactDetails, simulateIncoming, sendProductCard, updateWorkspace, submitLeadForm, submitOrderForm, trackForm, simulateFormTraffic, recordDeposit, requestBalance, issueInvoice, flagComplaint, resolveComplaint, toggleSetupStep, importProducts, addPolicyStarters],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

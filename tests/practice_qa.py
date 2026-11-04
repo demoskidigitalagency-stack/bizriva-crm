@@ -178,7 +178,7 @@ async def main():
 
         async def t_today():
             await ready(pg, "/today")
-            items = pg.locator("main li").locator("button, a")
+            items = pg.locator("main section:not(:has-text('7-day setup')) li").locator("button, a")
             await items.first.click(); await pg.wait_for_timeout(800)
             ok("Today item opens a real page", any(x in pg.url for x in ["/crm/contacts/", "/inbox", "/orders", "/cod", "/products"]), pg.url)
         await step("today", t_today())

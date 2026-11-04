@@ -10,6 +10,9 @@ import * as seed from "./seed";
 import * as practice from "./practice-seed";
 import type {
   AgentConfig,
+  CalendarEvent,
+  FormSubmission,
+  OrderForm,
   Broadcast,
   BusinessSettings,
   FollowUpRule,
@@ -73,6 +76,9 @@ export interface Database {
   integrations: IntegrationState[];
   agent: AgentConfig;
   settings: BusinessSettings;
+  orderForms: OrderForm[];
+  formSubmissions: FormSubmission[];
+  events: CalendarEvent[];
 }
 
 /** A few sample chats get a customer message with delivery details (see practice-seed). */
@@ -88,6 +94,20 @@ function withDetailMessages(conversations: Conversation[], contacts: Contact[]):
     const msg = { id: `${first.id}_details`, conversationId: c.id, direction: "in" as const, body, at };
     return { ...c, messages: [first, msg, ...c.messages.slice(1)] };
   });
+}
+
+/** Two sample chats carry a complaint: one open, one resolved. */
+function withComplaints(conversations: Conversation[]): Conversation[] {
+  return conversations.map((c, i) => {
+    if (i === 3) return { ...c, complaint: { status: "open" as const, reason: "Received the wrong length (18 inch instead of 20 inch)", openedAt: c.lastMessageAt } };
+    if (i === 8) return { ...c, complaint: { status: "resolved" as const, reason: "Rider arrived two days late", openedAt: c.lastMessageAt, resolvedAt: c.lastMessageAt, resolution: "Apologised and refunded the delivery fee" } };
+    return c;
+  });
+}
+
+/** Part-paid sample orders get a recorded deposit so balances show. */
+function withDeposits(orders: OrderSummary[]): OrderSummary[] {
+  return orders.map((o) => (o.paymentStatus === "part_paid" ? { ...o, amountPaid: Math.round(o.total * 0.4) } : o));
 }
 
 /** In-house deliveries get a rider by city so the Riders module has real-looking work. */
@@ -111,10 +131,10 @@ export function createInitialDatabase(): Database {
     opportunities: seed.opportunities,
     activities: seed.activities,
     tasks: seed.tasks,
-    conversations: withDetailMessages(seed.conversations, seed.contacts),
+    conversations: withComplaints(withDetailMessages(seed.conversations, seed.contacts)),
     productInterests: seed.productInterests,
     segments: seed.segments,
-    orders: seed.orders,
+    orders: withDeposits(seed.orders),
     deliveries: withRiders(seed.deliveries),
     payments: seed.payments,
     products: seed.products.map((p) => ({ ...p, active: true, description: practice.productDescriptions[p.id] ?? "" })),
@@ -123,16 +143,19 @@ export function createInitialDatabase(): Database {
     revenueTrend: seed.revenueTrend,
     riders: practice.riders,
     knowledge: practice.knowledge,
-    templates: practice.templates,
+    templates: [...practice.templates, ...practice.replyLibrary],
     followUpRules: practice.followUpRules,
     broadcasts: practice.broadcasts,
-    workflows: practice.workflows,
+    workflows: [...practice.workflows, ...practice.extraWorkflows],
     workflowRuns: practice.workflowRuns,
     media: practice.media,
     stockMovements: practice.stockMovements,
     integrations: practice.integrations,
     agent: practice.agent,
     settings: practice.settings,
+    orderForms: practice.orderForms,
+    formSubmissions: practice.formSubmissions,
+    events: practice.events,
   };
 }
 

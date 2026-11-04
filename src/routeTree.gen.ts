@@ -17,6 +17,7 @@ import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as AutomationRouteImport } from './routes/automation'
 import { Route as BillingRouteImport } from './routes/billing'
 import { Route as BroadcastsRouteImport } from './routes/broadcasts'
+import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as CodRouteImport } from './routes/cod'
 import { Route as CrmRouteImport } from './routes/crm'
 import { Route as DeliveryRouteImport } from './routes/delivery'
@@ -27,11 +28,13 @@ import { Route as IntegrationsRouteImport } from './routes/integrations'
 import { Route as InventoryRouteImport } from './routes/inventory'
 import { Route as KnowledgeRouteImport } from './routes/knowledge'
 import { Route as MediaRouteImport } from './routes/media'
+import { Route as OrderFormsRouteImport } from './routes/order-forms'
 import { Route as OrdersRouteImport } from './routes/orders'
 import { Route as PaymentsRouteImport } from './routes/payments'
 import { Route as ProductsRouteImport } from './routes/products'
 import { Route as ProgressRouteImport } from './routes/progress'
 import { Route as RidersRouteImport } from './routes/riders'
+import { Route as RoadmapRouteImport } from './routes/roadmap'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as StoreRouteImport } from './routes/store'
 import { Route as TeamRouteImport } from './routes/team'
@@ -91,6 +94,11 @@ const BroadcastsRoute = BroadcastsRouteImport.update({
   path: '/broadcasts',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CalendarRoute = CalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CodRoute = CodRouteImport.update({
   id: '/cod',
   path: '/cod',
@@ -141,6 +149,11 @@ const MediaRoute = MediaRouteImport.update({
   path: '/media',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OrderFormsRoute = OrderFormsRouteImport.update({
+  id: '/order-forms',
+  path: '/order-forms',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OrdersRoute = OrdersRouteImport.update({
   id: '/orders',
   path: '/orders',
@@ -164,6 +177,11 @@ const ProgressRoute = ProgressRouteImport.update({
 const RidersRoute = RidersRouteImport.update({
   id: '/riders',
   path: '/riders',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RoadmapRoute = RoadmapRouteImport.update({
+  id: '/roadmap',
+  path: '/roadmap',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsRoute = SettingsRouteImport.update({
@@ -266,6 +284,7 @@ export interface FileRoutesByFullPath {
   '/automation': typeof AutomationRoute
   '/billing': typeof BillingRoute
   '/broadcasts': typeof BroadcastsRoute
+  '/calendar': typeof CalendarRoute
   '/cod': typeof CodRoute
   '/crm': typeof CrmRouteWithChildren
   '/delivery': typeof DeliveryRoute
@@ -276,11 +295,13 @@ export interface FileRoutesByFullPath {
   '/inventory': typeof InventoryRoute
   '/knowledge': typeof KnowledgeRoute
   '/media': typeof MediaRoute
+  '/order-forms': typeof OrderFormsRoute
   '/orders': typeof OrdersRoute
   '/payments': typeof PaymentsRoute
   '/products': typeof ProductsRoute
   '/progress': typeof ProgressRoute
   '/riders': typeof RidersRoute
+  '/roadmap': typeof RoadmapRoute
   '/settings': typeof SettingsRoute
   '/store': typeof StoreRoute
   '/team': typeof TeamRoute
@@ -309,6 +330,7 @@ export interface FileRoutesByTo {
   '/automation': typeof AutomationRoute
   '/billing': typeof BillingRoute
   '/broadcasts': typeof BroadcastsRoute
+  '/calendar': typeof CalendarRoute
   '/cod': typeof CodRoute
   '/delivery': typeof DeliveryRoute
   '/follow-ups': typeof FollowUpsRoute
@@ -318,11 +340,13 @@ export interface FileRoutesByTo {
   '/inventory': typeof InventoryRoute
   '/knowledge': typeof KnowledgeRoute
   '/media': typeof MediaRoute
+  '/order-forms': typeof OrderFormsRoute
   '/orders': typeof OrdersRoute
   '/payments': typeof PaymentsRoute
   '/products': typeof ProductsRoute
   '/progress': typeof ProgressRoute
   '/riders': typeof RidersRoute
+  '/roadmap': typeof RoadmapRoute
   '/settings': typeof SettingsRoute
   '/store': typeof StoreRoute
   '/team': typeof TeamRoute
@@ -352,6 +376,7 @@ export interface FileRoutesById {
   '/automation': typeof AutomationRoute
   '/billing': typeof BillingRoute
   '/broadcasts': typeof BroadcastsRoute
+  '/calendar': typeof CalendarRoute
   '/cod': typeof CodRoute
   '/crm': typeof CrmRouteWithChildren
   '/delivery': typeof DeliveryRoute
@@ -362,11 +387,13 @@ export interface FileRoutesById {
   '/inventory': typeof InventoryRoute
   '/knowledge': typeof KnowledgeRoute
   '/media': typeof MediaRoute
+  '/order-forms': typeof OrderFormsRoute
   '/orders': typeof OrdersRoute
   '/payments': typeof PaymentsRoute
   '/products': typeof ProductsRoute
   '/progress': typeof ProgressRoute
   '/riders': typeof RidersRoute
+  '/roadmap': typeof RoadmapRoute
   '/settings': typeof SettingsRoute
   '/store': typeof StoreRoute
   '/team': typeof TeamRoute
@@ -397,6 +424,7 @@ export interface FileRouteTypes {
     | '/automation'
     | '/billing'
     | '/broadcasts'
+    | '/calendar'
     | '/cod'
     | '/crm'
     | '/delivery'
@@ -407,11 +435,13 @@ export interface FileRouteTypes {
     | '/inventory'
     | '/knowledge'
     | '/media'
+    | '/order-forms'
     | '/orders'
     | '/payments'
     | '/products'
     | '/progress'
     | '/riders'
+    | '/roadmap'
     | '/settings'
     | '/store'
     | '/team'
@@ -440,6 +470,7 @@ export interface FileRouteTypes {
     | '/automation'
     | '/billing'
     | '/broadcasts'
+    | '/calendar'
     | '/cod'
     | '/delivery'
     | '/follow-ups'
@@ -449,11 +480,13 @@ export interface FileRouteTypes {
     | '/inventory'
     | '/knowledge'
     | '/media'
+    | '/order-forms'
     | '/orders'
     | '/payments'
     | '/products'
     | '/progress'
     | '/riders'
+    | '/roadmap'
     | '/settings'
     | '/store'
     | '/team'
@@ -482,6 +515,7 @@ export interface FileRouteTypes {
     | '/automation'
     | '/billing'
     | '/broadcasts'
+    | '/calendar'
     | '/cod'
     | '/crm'
     | '/delivery'
@@ -492,11 +526,13 @@ export interface FileRouteTypes {
     | '/inventory'
     | '/knowledge'
     | '/media'
+    | '/order-forms'
     | '/orders'
     | '/payments'
     | '/products'
     | '/progress'
     | '/riders'
+    | '/roadmap'
     | '/settings'
     | '/store'
     | '/team'
@@ -526,6 +562,7 @@ export interface RootRouteChildren {
   AutomationRoute: typeof AutomationRoute
   BillingRoute: typeof BillingRoute
   BroadcastsRoute: typeof BroadcastsRoute
+  CalendarRoute: typeof CalendarRoute
   CodRoute: typeof CodRoute
   CrmRoute: typeof CrmRouteWithChildren
   DeliveryRoute: typeof DeliveryRoute
@@ -536,11 +573,13 @@ export interface RootRouteChildren {
   InventoryRoute: typeof InventoryRoute
   KnowledgeRoute: typeof KnowledgeRoute
   MediaRoute: typeof MediaRoute
+  OrderFormsRoute: typeof OrderFormsRoute
   OrdersRoute: typeof OrdersRoute
   PaymentsRoute: typeof PaymentsRoute
   ProductsRoute: typeof ProductsRoute
   ProgressRoute: typeof ProgressRoute
   RidersRoute: typeof RidersRoute
+  RoadmapRoute: typeof RoadmapRoute
   SettingsRoute: typeof SettingsRoute
   StoreRoute: typeof StoreRoute
   TeamRoute: typeof TeamRoute
@@ -605,6 +644,13 @@ declare module '@tanstack/react-router' {
       path: '/broadcasts'
       fullPath: '/broadcasts'
       preLoaderRoute: typeof BroadcastsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/calendar': {
+      id: '/calendar'
+      path: '/calendar'
+      fullPath: '/calendar'
+      preLoaderRoute: typeof CalendarRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cod': {
@@ -677,6 +723,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MediaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/order-forms': {
+      id: '/order-forms'
+      path: '/order-forms'
+      fullPath: '/order-forms'
+      preLoaderRoute: typeof OrderFormsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/orders': {
       id: '/orders'
       path: '/orders'
@@ -710,6 +763,13 @@ declare module '@tanstack/react-router' {
       path: '/riders'
       fullPath: '/riders'
       preLoaderRoute: typeof RidersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/roadmap': {
+      id: '/roadmap'
+      path: '/roadmap'
+      fullPath: '/roadmap'
+      preLoaderRoute: typeof RoadmapRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings': {
@@ -882,6 +942,7 @@ const rootRouteChildren: RootRouteChildren = {
   AutomationRoute: AutomationRoute,
   BillingRoute: BillingRoute,
   BroadcastsRoute: BroadcastsRoute,
+  CalendarRoute: CalendarRoute,
   CodRoute: CodRoute,
   CrmRoute: CrmRouteWithChildren,
   DeliveryRoute: DeliveryRoute,
@@ -892,11 +953,13 @@ const rootRouteChildren: RootRouteChildren = {
   InventoryRoute: InventoryRoute,
   KnowledgeRoute: KnowledgeRoute,
   MediaRoute: MediaRoute,
+  OrderFormsRoute: OrderFormsRoute,
   OrdersRoute: OrdersRoute,
   PaymentsRoute: PaymentsRoute,
   ProductsRoute: ProductsRoute,
   ProgressRoute: ProgressRoute,
   RidersRoute: RidersRoute,
+  RoadmapRoute: RoadmapRoute,
   SettingsRoute: SettingsRoute,
   StoreRoute: StoreRoute,
   TeamRoute: TeamRoute,

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Minus, Pencil, Plus, Search } from "lucide-react";
+import { Minus, Pencil, Plus, Search, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -73,7 +73,75 @@ function ProductDialog({ product, open, onOpenChange }: { product?: Product | un
   );
 }
 
+/** Minimal CSV parser: quoted fields, commas inside quotes, header row. */
+function parseCsv(text: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [], cell = "", q = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]!;
+    if (q) {
+      if (ch === '"' && text[i + 1] === '"') { cell += '"'; i++; }
+      else if (ch === '"') q = false;
+      else cell += ch;
+    } else if (ch === '"' && cell === "") q = true;
+    else if (ch === ",") { row.push(cell); cell = ""; }
+    else if (ch === "\n" || ch === "\r") { if (ch === "\r" && text[i + 1] === "\n") i++; row.push(cell); if (row.some((c) => c.trim())) rows.push(row); row = []; cell = ""; }
+    else cell += ch;
+  }
+  row.push(cell);
+  if (row.some((c) => c.trim())) rows.push(row);
+  return rows;
+}
+
+const SAMPLE_CSV = "name,category,price,cost,stock,description\nBody Wave 22\",Hair Bundles,210000,120000,15,\"Double drawn, 22 inches\"\nEdge Control 100ml,Hair Care,6500,2800,60,Strong hold without flakes";
+
+function ImportProducts({ onClose }: { onClose: () => void }) {
+  const { importProducts } = useActions();
+  const [text, setText] = useState("");
+  const [result, setResult] = useState<{ ok: Omit<Product, "id">[]; bad: number } | null>(null);
+  const [done, setDone] = useState(0);
+  const parse = (raw: string) => {
+    const rows = parseCsv(raw);
+    const [head, ...body] = rows;
+    if (!head) return setResult({ ok: [], bad: 0 });
+    const idx = (k: string) => head.findIndex((h) => h.trim().toLowerCase() === k);
+    const col = { name: idx("name"), category: idx("category"), price: idx("price"), cost: idx("cost"), stock: idx("stock"), description: idx("description") };
+    const ok: Omit<Product, "id">[] = [];
+    let bad = 0;
+    body.forEach((r) => {
+      const name = (r[col.name] ?? "").trim();
+      const price = Number((r[col.price] ?? "").replace(/[^\d.]/g, ""));
+      if (!name || !(price > 0)) { bad++; return; }
+      ok.push({ name, category: (r[col.category] ?? "").trim() || "Uncategorised", price, cost: Number((r[col.cost] ?? "").replace(/[^\d.]/g, "")) || 0, stock: Number(r[col.stock] ?? 0) || 0, reorderLevel: 5, description: (r[col.description] ?? "").trim(), active: true });
+    });
+    setResult({ ok, bad });
+  };
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader><DialogTitle>Import products from CSV</DialogTitle><DialogDescription>Columns: name, category, price, cost, stock, description. Name and price are required. Export a CSV from Excel, Google Sheets, Shopify or WooCommerce.</DialogDescription></DialogHeader>
+        {done ? (
+          <p className="text-sm text-success" role="status">{done} product{done === 1 ? "" : "s"} added to the catalogue.</p>
+        ) : (
+          <div className="space-y-3 text-sm">
+            <Input type="file" accept=".csv,text/csv" aria-label="CSV file" onChange={async (e) => { const f = e.target.files?.[0]; if (f) { const t = await f.text(); setText(t); parse(t); } }} />
+            <Textarea rows={5} aria-label="CSV text" placeholder="…or paste CSV here" value={text} onChange={(e) => { setText(e.target.value); parse(e.target.value); }} />
+            <Button size="sm" variant="ghost" className="px-0" onClick={() => { setText(SAMPLE_CSV); parse(SAMPLE_CSV); }}>Use a sample</Button>
+            {result && <p className={result.ok.length ? "" : "text-destructive"}>{result.ok.length} ready to import{result.bad ? `, ${result.bad} skipped (missing name or price)` : ""}.</p>}
+            {result && result.ok.length > 0 && <ul className="max-h-32 overflow-y-auto rounded border p-2 text-xs">{result.ok.map((p) => <li key={p.name}>{p.name} · {p.category} · {p.price}</li>)}</ul>}
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>{done ? "Close" : "Cancel"}</Button>
+          {!done && <Button disabled={!result?.ok.length} onClick={() => setDone(importProducts(result!.ok))}>Import {result?.ok.length ?? 0}</Button>}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function Products() {
+  const [importing, setImporting] = useState(false);
   const db = useDb();
   const ws = useWorkspace();
   const { moveStock } = useActions();
@@ -96,7 +164,10 @@ function Products() {
           <h1 className="text-2xl font-bold">Products</h1>
           <p className="mt-1 text-sm text-muted-foreground">The catalogue every price quote comes from — staff and the AI agent alike.</p>
         </div>
-        <Button size="sm" onClick={() => setEditing("new")}><Plus className="size-4" /> New product</Button>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => setImporting(true)}><Upload className="size-4" /> Import CSV</Button>
+          <Button size="sm" onClick={() => setEditing("new")}><Plus className="size-4" /> New product</Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -147,6 +218,7 @@ function Products() {
       </Section>
 
       <ProductDialog product={editing && editing !== "new" ? editing : undefined} open={editing !== null} onOpenChange={(o) => !o && setEditing(null)} />
+      {importing && <ImportProducts onClose={() => setImporting(false)} />}
     </div>
   );
 }

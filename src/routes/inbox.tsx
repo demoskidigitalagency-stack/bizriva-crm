@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
-import { FlaskConical, Megaphone, Package, Send, Sparkles, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FlaskConical, Megaphone, MessageSquareText, Package, Send, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -63,6 +63,80 @@ function SendProduct({ conversationId }: { conversationId: string }) {
   );
 }
 
+const PURPOSES = ["enquiry", "order", "payment", "delivery", "complaint", "objection", "follow_up", "reactivation", "referral", "policy"] as const;
+
+function QuickReplies({ conversation, onPick }: { conversation: Conversation; onPick: (text: string) => void }) {
+  const db = useDb();
+  const [open, setOpen] = useState(false);
+  const [purpose, setPurpose] = useState<string>(conversation.complaint?.status === "open" ? "complaint" : "all");
+  const [lang, setLang] = useState<"all" | "en" | "pcm">("all");
+  const first = db.contacts.find((c) => c.id === conversation.contactId)?.firstName ?? "";
+  const list = db.templates.filter((t) => t.category !== "authentication" && (purpose === "all" || t.purpose === purpose) && (lang === "all" || t.language === lang));
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button size="sm" variant="outline" aria-label="Quick replies"><MessageSquareText className="size-4" /><span className="hidden sm:inline">Replies</span></Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-96 max-w-[calc(100vw-2rem)] p-2">
+        <div className="mb-2 flex flex-wrap gap-1">
+          {(["all", ...PURPOSES] as const).map((p) => (
+            <button key={p} type="button" onClick={() => setPurpose(p)} className={cn("rounded-full border px-2 py-0.5 text-xs capitalize", purpose === p && "border-primary bg-primary/10 text-primary")}>{p.replace("_", "-")}</button>
+          ))}
+        </div>
+        <div className="mb-2 flex gap-1 text-xs">
+          {([["all", "Any language"], ["en", "English"], ["pcm", "Pidgin"]] as const).map(([v, l]) => (
+            <button key={v} type="button" onClick={() => setLang(v)} className={cn("rounded border px-2 py-0.5", lang === v && "border-primary bg-primary/10 text-primary")}>{l}</button>
+          ))}
+        </div>
+        <ul className="max-h-72 space-y-1 overflow-y-auto">
+          {list.map((t) => (
+            <li key={t.id}>
+              <button type="button" className="w-full rounded px-2 py-1.5 text-left text-xs hover:bg-muted" onClick={() => { onPick(t.body.replace("{{1}}", first)); setOpen(false); }}>
+                <span className="block font-mono text-[11px] font-semibold">{t.name}{t.language === "pcm" ? " · Pidgin" : ""}</span>
+                <span className="line-clamp-2 text-muted-foreground">{t.body}</span>
+              </button>
+            </li>
+          ))}
+          {list.length === 0 && <li className="px-2 py-3 text-center text-xs text-muted-foreground">No replies for this filter</li>}
+        </ul>
+        <p className="mt-2 border-t pt-2 text-[11px] text-muted-foreground">Fill in the {"{{2}}"}, {"{{3}}"} parts before sending. Edit the library in Templates.</p>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function ComplaintBar({ conversation }: { conversation: Conversation }) {
+  const { flagComplaint, resolveComplaint } = useActions();
+  const [mode, setMode] = useState<"idle" | "flag" | "resolve">("idle");
+  const [text, setText] = useState("");
+  const c = conversation.complaint;
+  const done = () => { setMode("idle"); setText(""); };
+  if (mode !== "idle") {
+    return (
+      <form className="flex items-center gap-2 border-b bg-warning/10 px-3 py-2 text-sm" onSubmit={(e) => { e.preventDefault(); if (!text.trim()) return; if (mode === "flag") flagComplaint(conversation.id, text); else resolveComplaint(conversation.id, text); done(); }}>
+        <Input autoFocus value={text} onChange={(e) => setText(e.target.value)} className="h-8" aria-label={mode === "flag" ? "Complaint reason" : "How it was resolved"} placeholder={mode === "flag" ? "What is the complaint?" : "How was it resolved?"} />
+        <Button type="submit" size="sm" disabled={!text.trim()}>{mode === "flag" ? "Save complaint" : "Mark resolved"}</Button>
+        <Button type="button" size="icon" variant="ghost" className="size-8" aria-label="Cancel" onClick={done}><X className="size-4" /></Button>
+      </form>
+    );
+  }
+  if (c?.status === "open") {
+    return (
+      <div className="flex items-center gap-2 border-b bg-warning/10 px-3 py-2 text-sm" role="status">
+        <AlertTriangle className="size-4 shrink-0 text-warning" aria-hidden="true" />
+        <span className="min-w-0 flex-1"><span className="font-semibold">Open complaint:</span> {c.reason} <span className="text-xs text-muted-foreground">· {relativeTime(c.openedAt)}</span></span>
+        <Button size="sm" variant="outline" onClick={() => setMode("resolve")}>Resolve</Button>
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-center justify-end gap-2 border-b px-3 py-1.5 text-xs text-muted-foreground">
+      {c?.status === "resolved" && <span className="mr-auto flex items-center gap-1"><CheckCircle2 className="size-3.5 text-success" aria-hidden="true" /> Complaint resolved: {c.resolution}</span>}
+      <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setMode("flag")}>Mark as complaint</Button>
+    </div>
+  );
+}
+
 function Thread({ conversation }: { conversation: Conversation }) {
   const db = useDb();
   const { sendReply, simulateIncoming } = useActions();
@@ -77,6 +151,7 @@ function Thread({ conversation }: { conversation: Conversation }) {
   };
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      <ComplaintBar conversation={conversation} />
       <ul className="scroll-thin flex-1 space-y-2 overflow-y-auto bg-chat p-4">
         {conversation.messages.map((m) => (
           <li key={m.id} className={cn("flex", m.direction === "out" ? "justify-end" : "justify-start")}>
@@ -101,6 +176,7 @@ function Thread({ conversation }: { conversation: Conversation }) {
       )}
       <div className="flex items-center gap-2 border-t p-3">
         <SendProduct conversationId={conversation.id} />
+        <QuickReplies conversation={conversation} onPick={setText} />
         <Input
           value={text}
           onChange={(e) => setText(e.target.value)}

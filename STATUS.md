@@ -7,7 +7,7 @@ Generated from `src/app/status.ts` and `src/app/modules.ts` by `bun run status`.
 | **Frontend — Practice Mode** (every page and button works on sample data) | **100%** | `████████████████████` |
 | **Backend — Live** (works for real: auth, database, WhatsApp, AI) | **0%** | `░░░░░░░░░░░░░░░░░░░░` |
 
-Modules: 28 of 28 practice ready · 0 partly working · 0 planned.
+Modules: 31 of 31 practice ready · 0 partly working · 0 planned.
 
 ## Frontend track
 
@@ -19,10 +19,12 @@ Modules: 28 of 28 practice ready · 0 partly working · 0 planned.
 | --- | --- | --- | --- | --- | --- |
 | ✅ | Overview | Dashboard | MVP | Practice ready | Bizriva, Sandala, Prompt |
 | ✅ | Overview | Today | MVP | Practice ready | Bizriva |
+| ✅ | Overview | Calendar | MVP | Practice ready | Review 2026-11-04 |
 | ✅ | Customers | Inbox | MVP | Practice ready | Sandala, Kobolink, Prompt |
 | ✅ | Customers | CRM | MVP | Practice ready | Bizriva, Sandala, Prompt |
 | ✅ | Sales | Orders | MVP | Practice ready | Kobolink, Prompt |
 | ✅ | Sales | COD Verification | MVP | Practice ready | Sandala, Prompt |
+| ✅ | Sales | Order Forms | MVP | Practice ready | Review 2026-11-04 |
 | ✅ | Commerce | Products | MVP | Practice ready | Sandala, Kobolink, Prompt |
 | ✅ | Commerce | Media Library | MVP | Practice ready | Prompt |
 | ✅ | Commerce | Inventory | Later | Practice ready | Kobolink |
@@ -44,6 +46,7 @@ Modules: 28 of 28 practice ready · 0 partly working · 0 planned.
 | ✅ | Workspace | Settings | Foundation | Practice ready | Sandala, Kobolink, Prompt |
 | ✅ | Workspace | Billing | Later | Practice ready | Prompt |
 | ✅ | Workspace | Build Progress | Foundation | Practice ready | Kobolink, Prompt |
+| ✅ | Workspace | Coming Later | Later | Practice ready | Review 2026-11-04 |
 | ✅ | Workspace | Help | Later | Practice ready | Bizriva |
 
 ### Cross-cutting — 100% (15% of the frontend)
@@ -57,6 +60,7 @@ Modules: 28 of 28 practice ready · 0 partly working · 0 planned.
 - [x] Every link, search result and Today queue opens a real page _(2026-11-02)_
 - [x] Crosswalk decisions agreed (menus, lead stages, order statuses, roles) _(2026-11-02)_ — See DECISIONS.md — prompt's 13 lead stages and 10 order statuses, 6 roles, own Supabase + Vercel
 - [x] Click-through QA: every page on desktop and phone, light and dark, no console errors _(2026-11-02)_ — tests/practice_qa.py 46/46 and tests/practice_qa_modules.py 61/61
+- [x] Competitor and playbook review added (order forms, deposits, invoices, calendar, complaints, reply library, share kit, imports) _(2026-11-04)_ — tests/practice_qa_review.py 35/35. Backend-dependent and parked ideas are listed on Coming Later
 
 ## Backend track
 

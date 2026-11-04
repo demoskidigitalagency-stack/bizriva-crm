@@ -7,8 +7,8 @@
  */
 import { NOW } from "./seed";
 import type {
-  AgentConfig, Broadcast, BusinessSettings, FollowUpRule, IntegrationState, KnowledgeEntry, MediaAsset, MessageTemplate,
-  Rider, StockMovement, Workflow, WorkflowRun,
+  AgentConfig, Broadcast, BusinessSettings, CalendarEvent, FollowUpRule, FormSubmission, IntegrationState, KnowledgeEntry, MediaAsset,
+  MessageTemplate, OrderForm, Rider, StockMovement, Workflow, WorkflowRun,
 } from "./types";
 
 const ago = (h: number) => new Date(NOW.getTime() - h * 3_600_000).toISOString();
@@ -31,12 +31,61 @@ export const knowledge: KnowledgeEntry[] = [
 ];
 
 export const templates: MessageTemplate[] = [
-  { id: "tp_1", name: "order_confirmation", category: "utility", language: "en", body: "Hi {{1}}, your order {{2}} for {{3}} is confirmed. Total: {{4}}, paid on delivery. We'll message you when it's on the way.", status: "approved", updatedAt: ago(700) },
-  { id: "tp_2", name: "cod_confirmation_request", category: "utility", language: "en", body: "Hi {{1}}, please confirm your order {{2}} ({{3}}) for {{4}}, payable on delivery to {{5}}. Reply YES to confirm or NO to cancel.", status: "approved", updatedAt: ago(700) },
-  { id: "tp_3", name: "dispatch_notice", category: "utility", language: "en", body: "Good news {{1}} — order {{2}} is out for delivery with {{3}}. Please keep {{4}} ready.", status: "approved", updatedAt: ago(650) },
-  { id: "tp_4", name: "follow_up_interest", category: "marketing", language: "en", body: "Hi {{1}}, still thinking about the {{2}}? Reply here and we'll help you choose the right length. Reply STOP to opt out.", status: "approved", updatedAt: ago(200) },
-  { id: "tp_5", name: "abandoned_checkout", category: "marketing", language: "en", body: "Hi {{1}}, your {{2}} is still waiting. Send your delivery address and we'll confirm today. Reply STOP to opt out.", status: "submitted", updatedAt: ago(30) },
-  { id: "tp_6", name: "monthly_promo", category: "marketing", language: "en", body: "This month only: buy 3 bundles, get a free care kit. Reply ORDER to start. Reply STOP to opt out.", status: "draft", updatedAt: ago(10) },
+  { id: "tp_1", name: "order_confirmation", purpose: "order", category: "utility", language: "en", body: "Hi {{1}}, your order {{2}} for {{3}} is confirmed. Total: {{4}}, paid on delivery. We'll message you when it's on the way.", status: "approved", updatedAt: ago(700) },
+  { id: "tp_2", name: "cod_confirmation_request", purpose: "order", category: "utility", language: "en", body: "Hi {{1}}, please confirm your order {{2}} ({{3}}) for {{4}}, payable on delivery to {{5}}. Reply YES to confirm or NO to cancel.", status: "approved", updatedAt: ago(700) },
+  { id: "tp_3", name: "dispatch_notice", purpose: "delivery", category: "utility", language: "en", body: "Good news {{1}} — order {{2}} is out for delivery with {{3}}. Please keep {{4}} ready.", status: "approved", updatedAt: ago(650) },
+  { id: "tp_4", name: "follow_up_interest", purpose: "follow_up", category: "marketing", language: "en", body: "Hi {{1}}, still thinking about the {{2}}? Reply here and we'll help you choose the right length. Reply STOP to opt out.", status: "approved", updatedAt: ago(200) },
+  { id: "tp_5", name: "abandoned_checkout", purpose: "follow_up", category: "marketing", language: "en", body: "Hi {{1}}, your {{2}} is still waiting. Send your delivery address and we'll confirm today. Reply STOP to opt out.", status: "submitted", updatedAt: ago(30) },
+  { id: "tp_6", name: "monthly_promo", purpose: "reactivation", category: "marketing", language: "en", body: "This month only: buy 3 bundles, get a free care kit. Reply ORDER to start. Reply STOP to opt out.", status: "draft", updatedAt: ago(10) },
+];
+
+
+/**
+ * Reply library (added 2026-11-04). Written for Bizriva — not copied from any
+ * paid guide. "pcm" is Nigerian Pidgin. Utility replies are for use inside the
+ * 24-hour window or as approved templates; marketing ones carry an opt-out.
+ */
+const lib = (id: string, name: string, purpose: NonNullable<MessageTemplate["purpose"]>, language: "en" | "pcm", category: MessageTemplate["category"], body: string): MessageTemplate =>
+  ({ id, name, purpose, language, category, body, status: category === "marketing" ? "submitted" : "approved", updatedAt: ago(24) });
+
+export const replyLibrary: MessageTemplate[] = [
+  // Enquiries
+  lib("rl_1", "enquiry_price_and_options", "enquiry", "en", "utility", "Hi {{1}}, thanks for asking! The {{2}} is {{3}}. It comes in {{4}}. Which one would you like, and where should we deliver?"),
+  lib("rl_2", "enquiry_availability", "enquiry", "en", "utility", "Yes {{1}}, the {{2}} is available today. Want me to reserve one for you while you decide?"),
+  lib("rl_3", "enquiry_price_pidgin", "enquiry", "pcm", "utility", "{{1}}, thank you o! {{2}} na {{3}}. We get am for {{4}}. Which one you want make we send, and where we go deliver am?"),
+  lib("rl_4", "enquiry_location", "enquiry", "en", "utility", "We're in {{1}} and we deliver nationwide. Lagos orders arrive in 1–2 days, other states 2–4 days."),
+  // Orders and payment
+  lib("rl_5", "order_details_request", "order", "en", "utility", "Great choice, {{1}}! To book it, please send: your full name, phone number, delivery address and a nearby landmark."),
+  lib("rl_6", "order_details_pidgin", "order", "pcm", "utility", "Correct choice {{1}}! Abeg send your full name, phone number, address and landmark wey dey near you, make we book am."),
+  lib("rl_7", "payment_received", "payment", "en", "utility", "Payment received, {{1}} — thank you! {{2}} for order {{3}}. We'll update you as soon as it's on the way."),
+  lib("rl_8", "payment_received_pidgin", "payment", "pcm", "utility", "We don see your money {{1}}, thank you well well! {{2}} for order {{3}}. We go tell you once e don comot."),
+  lib("rl_9", "deposit_request", "payment", "en", "utility", "Hi {{1}}, to book order {{2}} we take a {{3}} deposit. The balance of {{4}} is paid on delivery. Here's the link: {{5}}"),
+  lib("rl_10", "balance_request", "payment", "en", "utility", "Hi {{1}}, your order {{2}} is ready. The balance is {{3}}. You can pay here: {{4}}, or pay the rider on delivery."),
+  // Delivery
+  lib("rl_11", "delivery_update_on_the_way", "delivery", "en", "utility", "Good news {{1}}! Order {{2}} is on its way with {{3}}. Expect a call from the rider today."),
+  lib("rl_12", "delivery_update_pidgin", "delivery", "pcm", "utility", "{{1}}, your order {{2}} don dey road! Rider {{3}} go call you today. Abeg keep your phone near you."),
+  lib("rl_13", "delivery_delay_apology", "delivery", "en", "utility", "Sorry {{1}}, order {{2}} is running late because of {{3}}. New arrival: {{4}}. Thank you for your patience."),
+  lib("rl_14", "rider_could_not_reach", "delivery", "en", "utility", "Hi {{1}}, our rider tried to reach you for order {{2}} but couldn't get through. When is a good time to deliver today or tomorrow?"),
+  // Complaints
+  lib("rl_15", "complaint_acknowledge", "complaint", "en", "utility", "I'm sorry about this, {{1}}. Thank you for telling us. Please send a photo of the item so we can sort it out quickly. You'll hear from us within {{2}} hours."),
+  lib("rl_16", "complaint_acknowledge_pidgin", "complaint", "pcm", "utility", "Sorry well well {{1}}, we hear you. Abeg snap the item send us make we fit solve am sharp sharp. We go get back to you before {{2}} hours."),
+  lib("rl_17", "complaint_resolved", "complaint", "en", "utility", "Hi {{1}}, we've {{2}}. Thank you for your patience — is everything okay now?"),
+  // Objections
+  lib("rl_18", "objection_too_expensive", "objection", "en", "utility", "I understand, {{1}}. The {{2}} costs more because {{3}}. If you'd like something lighter on budget, the {{4}} is {{5}}."),
+  lib("rl_19", "objection_trust_pay_on_delivery", "objection", "en", "utility", "No wahala, {{1}} — you can pay on delivery. You check the item when it arrives, then pay the rider."),
+  lib("rl_20", "objection_trust_pidgin", "objection", "pcm", "utility", "No shaking {{1}}, you fit pay when e reach your hand. Check am well first, then pay the rider."),
+  lib("rl_21", "objection_will_think", "objection", "en", "utility", "Of course, {{1}}. Can I check back with you tomorrow? Stock on the {{2}} is moving fast this week."),
+  // Follow-up
+  lib("rl_22", "follow_up_gentle", "follow_up", "en", "utility", "Hi {{1}}, just checking in about the {{2}}. Any questions I can answer for you?"),
+  lib("rl_23", "follow_up_pidgin", "follow_up", "pcm", "utility", "{{1}}, how far? You still want the {{2}}? Make I hold one for you?"),
+  // Reactivation and referral (marketing — consent and opt-out)
+  lib("rl_24", "reactivation_new_stock", "reactivation", "en", "marketing", "Hi {{1}}, it's been a while! New {{2}} just arrived and past customers get first pick. Reply YES to see it. Reply STOP to opt out."),
+  lib("rl_25", "reactivation_pidgin", "reactivation", "pcm", "marketing", "{{1}}, long time! New {{2}} don land and na our old customers we dey show first. Reply YES make we send am. Reply STOP if you no want message again."),
+  lib("rl_26", "referral_ask", "referral", "en", "marketing", "Thanks for buying from us, {{1}}! Know someone who'd love the {{2}}? Share code {{3}} — they get {{4}} off and so do you. Reply STOP to opt out."),
+  lib("rl_27", "review_request", "referral", "en", "utility", "Hi {{1}}, how are you finding the {{2}}? A short reply or a photo would really help us. Thank you!"),
+  // Policies
+  lib("rl_28", "policy_returns", "policy", "en", "utility", "Our returns policy: unused items in original packaging can be exchanged within {{1}} days. Please send a photo and your order number to start."),
+  lib("rl_29", "policy_delivery_areas", "policy", "en", "utility", "We deliver pay-on-delivery in {{1}}. For other states we use a courier and ask for payment before dispatch."),
 ];
 
 export const followUpRules: FollowUpRule[] = [
@@ -72,6 +121,32 @@ export const workflows: Workflow[] = [
     { id: "s2", kind: "action", label: "Send template dispatch_notice" },
     { id: "s3", kind: "trigger", label: "Order marked Delivered" },
     { id: "s4", kind: "action", label: "Ask for feedback after 1 day" },
+  ] },
+];
+
+export const extraWorkflows: Workflow[] = [
+  { id: "wf_4", name: "Win back past buyers", description: "Reconnects with customers who haven't ordered in 60 days, only if they agreed to messages.", active: false, updatedAt: ago(4), steps: [
+    { id: "s1", kind: "trigger", label: "Customer's last order is 60 days old" },
+    { id: "s2", kind: "condition", label: "If they agreed to marketing messages" },
+    { id: "s3", kind: "action", label: "Send template reactivation_new_stock" },
+    { id: "s4", kind: "wait", label: "Wait 3 days" },
+    { id: "s5", kind: "condition", label: "If no reply" },
+    { id: "s6", kind: "action", label: "Add a call task for the owner of the contact" },
+  ] },
+  { id: "wf_5", name: "Ask for a referral after delivery", description: "Thanks happy customers and gives them a code to share.", active: false, updatedAt: ago(4), steps: [
+    { id: "s1", kind: "trigger", label: "Order marked Delivered" },
+    { id: "s2", kind: "wait", label: "Wait 3 days" },
+    { id: "s3", kind: "condition", label: "If there is no open complaint" },
+    { id: "s4", kind: "action", label: "Send template review_request" },
+    { id: "s5", kind: "wait", label: "Wait 4 days" },
+    { id: "s6", kind: "action", label: "Send template referral_ask" },
+  ] },
+  { id: "wf_6", name: "Complaint handling", description: "Makes sure every complaint gets an answer and a person.", active: true, updatedAt: ago(4), steps: [
+    { id: "s1", kind: "trigger", label: "Chat marked as a complaint" },
+    { id: "s2", kind: "action", label: "Send complaint_acknowledge" },
+    { id: "s3", kind: "action", label: "Assign to support and add a task due in 4 hours" },
+    { id: "s4", kind: "trigger", label: "Complaint resolved" },
+    { id: "s5", kind: "action", label: "Send complaint_resolved and pause marketing for 14 days" },
   ] },
 ];
 
@@ -130,7 +205,40 @@ export const settings: BusinessSettings = {
   plan: "trial",
   staffAlerts: { newMessage: true, dispatchRisk: true },
   chat: { bubbleTails: true, flagMissingDetails: true },
+  whatsappNumber: "+234 803 555 0142",
+  setupDone: ["business", "products"],
 };
+
+/** Policy starters a business can add to its Knowledge Base and edit. */
+export const policyStarters: Omit<KnowledgeEntry, "id" | "updatedAt">[] = [
+  { topic: "returns", question: "Can I return or exchange an item?", answer: "Unused items in their original packaging can be exchanged within 7 days of delivery. Send a photo and your order number to start. Opened, used or customised items can't be returned.", keywords: ["return", "exchange", "refund", "change"] },
+  { topic: "delivery", question: "Which areas do you deliver to, and how do I pay?", answer: "Pay on delivery is available in Lagos, Abuja and Ibadan. Other states are sent by courier and paid before dispatch. Delivery fees are confirmed when you order.", keywords: ["deliver", "areas", "states", "courier", "outside"] },
+  { topic: "payment", question: "When do I need to pay a deposit?", answer: "Items over ₦100,000 and custom orders need a deposit to book. The balance is paid on delivery or by payment link.", keywords: ["deposit", "part payment", "balance", "book"] },
+  { topic: "terms", question: "What happens if I'm not available for delivery?", answer: "The rider will call before arriving. If we can't reach you after two attempts, we'll agree a new date. A third failed attempt may attract a delivery fee.", keywords: ["not around", "missed", "reschedule", "not available"] },
+  { topic: "terms", question: "How do you use my details?", answer: "We use your name, phone and address only to process and deliver your order and, if you agree, to send offers. Reply STOP at any time to stop offers.", keywords: ["privacy", "data", "my details", "number"] },
+];
+
+export const orderForms: OrderForm[] = [
+  { id: "of_1", name: "Bone Straight 20\" — ad landing page", productId: "p_1", headline: "Raw Vietnamese Bone Straight, 20 inches — pay on delivery", banner: "Buy 2, get a free Silk Press Care Kit", active: true, createdAt: ago(300), payOnDelivery: true,
+    packages: [
+      { id: "pk_1", label: "Buy 1", qty: 1, price: 185000 },
+      { id: "pk_2", label: "Buy 2", qty: 2, price: 350000, gift: "Free Silk Press Care Kit" },
+      { id: "pk_3", label: "Buy 3", qty: 3, price: 500000, gift: "Free care kit and satin bonnet" },
+    ],
+    fields: ["name", "phone", "address", "city", "landmark"],
+    pixels: { meta: true, tiktok: false },
+    thankYou: "Thank you! We'll call you within 2 hours to confirm your order.",
+    stats: { views: 1240, starts: 410, submits: 96, duplicatesBlocked: 14, dropOff: { phone: 61, address: 148, city: 37, landmark: 68 } },
+  },
+];
+
+export const formSubmissions: FormSubmission[] = [];
+
+export const events: CalendarEvent[] = [
+  { id: "ev_1", title: "Call back about frontal colour", kind: "callback", at: new Date(NOW.getTime() + 26 * 3_600_000).toISOString(), contactId: "c_0005" },
+  { id: "ev_2", title: "Supplier delivery — Bone Straight batch", kind: "reminder", at: new Date(NOW.getTime() + 3 * 86_400_000).toISOString() },
+  { id: "ev_3", title: "Weekly ad review", kind: "meeting", at: new Date(NOW.getTime() + 5 * 86_400_000).toISOString() },
+];
 
 /** Product descriptions for the catalogue (AI agent and store use them). */
 export const productDescriptions: Record<string, string> = {

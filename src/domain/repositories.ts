@@ -774,7 +774,7 @@ export function codRisk(db: Database, order: OrderSummary): CodRisk {
 
 /* ------------------------------------------------------- inbox views */
 
-export type InboxView = "needs_reply" | "all" | "unread" | "new" | "unverified" | "dispatched" | "cancelled" | "mine";
+export type InboxView = "needs_reply" | "all" | "unread" | "new" | "unverified" | "dispatched" | "cancelled" | "complaints" | "mine";
 
 export const INBOX_VIEWS: { id: InboxView; label: string }[] = [
   { id: "needs_reply", label: "Needs reply" },
@@ -784,6 +784,7 @@ export const INBOX_VIEWS: { id: InboxView; label: string }[] = [
   { id: "unverified", label: "Unverified orders" },
   { id: "dispatched", label: "Dispatched" },
   { id: "cancelled", label: "Cancelled or out of town" },
+  { id: "complaints", label: "Complaints" },
   { id: "mine", label: "Assigned to me" },
 ];
 
@@ -804,6 +805,7 @@ export function inboxMatches(db: Database, c: Database["conversations"][number],
     case "dispatched": return orders().some((o) => o.status === "in_transit" || o.status === "awaiting_dispatch");
     case "cancelled": return orders().some((o) => o.status === "cancelled" || o.status === "returned")
       || db.deliveries.some((d) => d.contactId === c.contactId && d.status === "failed");
+    case "complaints": return c.complaint?.status === "open";
     case "mine": return c.assigneeId === me;
     default: return true;
   }

@@ -245,6 +245,8 @@ export interface Conversation {
   assigneeId: ID;
   lastMessageAt: string;
   messages: Message[];
+  /** A complaint raised in this chat, tracked until resolved. */
+  complaint?: { status: "open" | "resolved"; reason: string; openedAt: string; resolvedAt?: string; resolution?: string };
 }
 
 export interface ProductInterest {
@@ -271,6 +273,12 @@ export interface OrderSummary {
   paymentMethod: PaymentMethod;
   channel: Channel;
   productNames: string[];
+  /** Deposits and part payments received so far. Missing means nothing paid before delivery. */
+  amountPaid?: number;
+  /** Set once an invoice has been issued. */
+  invoiceNo?: string;
+  /** Order Form that created this order, if any. */
+  formId?: ID;
 }
 
 export interface DeliverySummary {
@@ -468,11 +476,17 @@ export interface KnowledgeEntry {
   updatedAt: string;
 }
 
+export type TemplatePurpose =
+  | "enquiry" | "order" | "payment" | "delivery" | "complaint" | "objection" | "follow_up" | "reactivation" | "referral" | "policy";
+
 export interface MessageTemplate {
   id: ID;
   name: string;
   category: "utility" | "marketing" | "authentication";
+  /** "en" English, "pcm" Nigerian Pidgin. */
   language: string;
+  /** What the reply is for, so staff can find it fast. */
+  purpose?: TemplatePurpose;
   body: string;
   status: "draft" | "submitted" | "approved" | "rejected";
   updatedAt: string;
@@ -580,4 +594,64 @@ export interface BusinessSettings {
   staffAlerts: { newMessage: boolean; dispatchRisk: boolean };
   /** Chat display (from Sandala's chat appearance settings). */
   chat: { bubbleTails: boolean; flagMissingDetails: boolean };
+  /** WhatsApp number customers chat with (share kit, order forms). */
+  whatsappNumber: string;
+  /** 7-day setup checklist steps the owner has ticked. */
+  setupDone: string[];
+}
+
+/* ===================================================================
+ * Added 2026-11-04 from the competitor and playbook review.
+ * =================================================================== */
+
+export interface OrderFormPackage {
+  id: ID;
+  label: string; // "Buy 2"
+  qty: number;
+  price: number; // total price for the package
+  gift?: string;
+}
+
+export type OrderFormField = "name" | "phone" | "address" | "city" | "landmark" | "note";
+
+export interface OrderForm {
+  id: ID;
+  name: string;
+  productId: ID;
+  headline: string;
+  banner?: string;
+  packages: OrderFormPackage[];
+  fields: OrderFormField[];
+  payOnDelivery: boolean;
+  /** One purchase event per order to the ad platforms (sent by the backend). */
+  pixels: { meta: boolean; tiktok: boolean };
+  thankYou: string;
+  active: boolean;
+  createdAt: string;
+  stats: { views: number; starts: number; submits: number; duplicatesBlocked: number; dropOff: Partial<Record<OrderFormField, number>> };
+}
+
+export interface FormSubmission {
+  id: ID;
+  formId: ID;
+  orderId: ID;
+  contactId: ID;
+  packageId: ID;
+  total: number;
+  region: string;
+  adSource: string;
+  at: string;
+  /** Saved before any email is tried, so an order is never lost. */
+  emailSent: boolean;
+  eventSent: boolean;
+}
+
+export interface CalendarEvent {
+  id: ID;
+  title: string;
+  kind: "callback" | "delivery" | "meeting" | "reminder";
+  at: string;
+  contactId?: ID;
+  orderId?: ID;
+  note?: string;
 }

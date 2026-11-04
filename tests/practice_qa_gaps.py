@@ -57,7 +57,7 @@ async def main():
             await ready(pg, "/inbox")
             tabs = pg.get_by_role("tablist", name="Inbox filters").get_by_role("tab")
             labels = [re.sub(r"\s*\d+$", "", (await t.inner_text()).strip()) for t in await tabs.all()]
-            ok("1. inbox has 8 COD filters", labels == ["Needs reply", "All", "Unread", "New enquiries", "Unverified orders", "Dispatched", "Cancelled or out of town", "Assigned to me"], labels)
+            ok("1. inbox has 9 COD filters", labels == ["Needs reply", "All", "Unread", "New enquiries", "Unverified orders", "Dispatched", "Cancelled or out of town", "Complaints", "Assigned to me"], labels)
             await pg.get_by_role("tab", name=re.compile("^Unverified orders")).click(); await pg.wait_for_timeout(300)
             n = int(re.search(r"(\d+)$", (await pg.get_by_role("tab", name=re.compile("^Unverified orders")).inner_text()).strip()).group(1))
             ok("1. unverified filter lists matching chats", n > 0 and await pg.locator("main ul li button").count() >= 1, n)
