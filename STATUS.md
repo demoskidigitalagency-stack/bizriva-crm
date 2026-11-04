@@ -63,7 +63,7 @@ Modules: 28 of 28 practice ready · 0 partly working · 0 planned.
 | Phase | Share | Done | Progress |
 | --- | ---: | ---: | --- |
 | Phase 1 — Core communication | 30% | 0/9 | 0% |
-| Phase 2 — AI and automation | 22% | 0/8 | 0% |
+| Phase 2 — AI and automation | 22% | 0/9 | 0% |
 | Phase 3 — Sales and commerce | 22% | 0/7 | 0% |
 | Phase 4 — More channels | 11% | 0/5 | 0% |
 | Phase 5 — Intelligence and monetisation | 15% | 0/7 | 0% |
@@ -94,6 +94,7 @@ _Instant first replies from real catalogue data, and follow-ups that respect the
 - [ ] Template management (WhatsApp-approved)
 - [ ] Follow-up engine: 24-hour window, caps, quiet hours, stop on reply
 - [ ] Consent records, opt-out keywords, suppression list
+- [ ] AI workflow planner (from repo 3) moved off Lovable's AI service onto our own AI key, with a screen in Automation Builder — Code is in src/server/ai; it only runs with a Lovable key today
 
 ### Phase 3 — Sales and commerce — 0%
 

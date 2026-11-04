@@ -101,7 +101,7 @@ export const MODULES: ModuleDef[] = [
   { id: "broadcasts", label: "Broadcasts", path: "/broadcasts", icon: Send, group: "Automation", phase: "Later", state: "practice", sources: ["Sandala"], decision: "Agreed",
     submenus: ["Segment and template", "Schedule or send", "Consent skip count"], summary: "Segmented sends to consenting contacts." },
   { id: "builder", label: "Automation Builder", path: "/automation", icon: Workflow, group: "Automation", phase: "Later", state: "practice", sources: ["Bizriva", "Prompt"], decision: "Agreed",
-    submenus: ["Step editor: when, if, wait, do", "On/off, copy, delete", "AI workflow planner (with backend)"], summary: "Triggers, conditions, delays and actions." },
+    submenus: ["Step editor: when, if, wait, do", "On/off, copy, delete", "AI workflow planner from repo 3 (needs our own AI key — backend)"], summary: "Triggers, conditions, delays and actions." },
   { id: "history", label: "Workflow History", path: "/workflow-history", icon: History, group: "Automation", phase: "Later", state: "practice", sources: ["Sandala", "Prompt"], decision: "Agreed",
     submenus: ["Runs by status", "Retry safe failures", "Filter by workflow"], summary: "Every automated action and human intervention." },
 

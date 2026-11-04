@@ -41,11 +41,13 @@ import { Route as WorkflowHistoryRouteImport } from './routes/workflow-history'
 import { Route as CrmIndexRouteImport } from './routes/crm/index'
 import { Route as CrmCustomersRouteImport } from './routes/crm/customers'
 import { Route as CrmDuplicatesRouteImport } from './routes/crm/duplicates'
+import { Route as CrmFollowUpsRouteImport } from './routes/crm/follow-ups'
 import { Route as CrmImportsRouteImport } from './routes/crm/imports'
 import { Route as CrmLeadsRouteImport } from './routes/crm/leads'
 import { Route as CrmPipelineRouteImport } from './routes/crm/pipeline'
 import { Route as CrmSegmentsRouteImport } from './routes/crm/segments'
 import { Route as CrmTasksRouteImport } from './routes/crm/tasks'
+import { Route as CrmWorkflowsRouteImport } from './routes/crm/workflows'
 import { Route as CrmContactsIndexRouteImport } from './routes/crm/contacts/index'
 import { Route as CrmContactsContactIdRouteImport } from './routes/crm/contacts/$contactId'
 
@@ -209,6 +211,11 @@ const CrmDuplicatesRoute = CrmDuplicatesRouteImport.update({
   path: '/duplicates',
   getParentRoute: () => CrmRoute,
 } as any)
+const CrmFollowUpsRoute = CrmFollowUpsRouteImport.update({
+  id: '/follow-ups',
+  path: '/follow-ups',
+  getParentRoute: () => CrmRoute,
+} as any)
 const CrmImportsRoute = CrmImportsRouteImport.update({
   id: '/imports',
   path: '/imports',
@@ -232,6 +239,11 @@ const CrmSegmentsRoute = CrmSegmentsRouteImport.update({
 const CrmTasksRoute = CrmTasksRouteImport.update({
   id: '/tasks',
   path: '/tasks',
+  getParentRoute: () => CrmRoute,
+} as any)
+const CrmWorkflowsRoute = CrmWorkflowsRouteImport.update({
+  id: '/workflows',
+  path: '/workflows',
   getParentRoute: () => CrmRoute,
 } as any)
 const CrmContactsIndexRoute = CrmContactsIndexRouteImport.update({
@@ -277,11 +289,13 @@ export interface FileRoutesByFullPath {
   '/workflow-history': typeof WorkflowHistoryRoute
   '/crm/customers': typeof CrmCustomersRoute
   '/crm/duplicates': typeof CrmDuplicatesRoute
+  '/crm/follow-ups': typeof CrmFollowUpsRoute
   '/crm/imports': typeof CrmImportsRoute
   '/crm/leads': typeof CrmLeadsRoute
   '/crm/pipeline': typeof CrmPipelineRoute
   '/crm/segments': typeof CrmSegmentsRoute
   '/crm/tasks': typeof CrmTasksRoute
+  '/crm/workflows': typeof CrmWorkflowsRoute
   '/crm/': typeof CrmIndexRoute
   '/crm/contacts/$contactId': typeof CrmContactsContactIdRoute
   '/crm/contacts/': typeof CrmContactsIndexRoute
@@ -317,11 +331,13 @@ export interface FileRoutesByTo {
   '/workflow-history': typeof WorkflowHistoryRoute
   '/crm/customers': typeof CrmCustomersRoute
   '/crm/duplicates': typeof CrmDuplicatesRoute
+  '/crm/follow-ups': typeof CrmFollowUpsRoute
   '/crm/imports': typeof CrmImportsRoute
   '/crm/leads': typeof CrmLeadsRoute
   '/crm/pipeline': typeof CrmPipelineRoute
   '/crm/segments': typeof CrmSegmentsRoute
   '/crm/tasks': typeof CrmTasksRoute
+  '/crm/workflows': typeof CrmWorkflowsRoute
   '/crm': typeof CrmIndexRoute
   '/crm/contacts/$contactId': typeof CrmContactsContactIdRoute
   '/crm/contacts': typeof CrmContactsIndexRoute
@@ -359,11 +375,13 @@ export interface FileRoutesById {
   '/workflow-history': typeof WorkflowHistoryRoute
   '/crm/customers': typeof CrmCustomersRoute
   '/crm/duplicates': typeof CrmDuplicatesRoute
+  '/crm/follow-ups': typeof CrmFollowUpsRoute
   '/crm/imports': typeof CrmImportsRoute
   '/crm/leads': typeof CrmLeadsRoute
   '/crm/pipeline': typeof CrmPipelineRoute
   '/crm/segments': typeof CrmSegmentsRoute
   '/crm/tasks': typeof CrmTasksRoute
+  '/crm/workflows': typeof CrmWorkflowsRoute
   '/crm/': typeof CrmIndexRoute
   '/crm/contacts/$contactId': typeof CrmContactsContactIdRoute
   '/crm/contacts/': typeof CrmContactsIndexRoute
@@ -402,11 +420,13 @@ export interface FileRouteTypes {
     | '/workflow-history'
     | '/crm/customers'
     | '/crm/duplicates'
+    | '/crm/follow-ups'
     | '/crm/imports'
     | '/crm/leads'
     | '/crm/pipeline'
     | '/crm/segments'
     | '/crm/tasks'
+    | '/crm/workflows'
     | '/crm/'
     | '/crm/contacts/$contactId'
     | '/crm/contacts/'
@@ -442,11 +462,13 @@ export interface FileRouteTypes {
     | '/workflow-history'
     | '/crm/customers'
     | '/crm/duplicates'
+    | '/crm/follow-ups'
     | '/crm/imports'
     | '/crm/leads'
     | '/crm/pipeline'
     | '/crm/segments'
     | '/crm/tasks'
+    | '/crm/workflows'
     | '/crm'
     | '/crm/contacts/$contactId'
     | '/crm/contacts'
@@ -483,11 +505,13 @@ export interface FileRouteTypes {
     | '/workflow-history'
     | '/crm/customers'
     | '/crm/duplicates'
+    | '/crm/follow-ups'
     | '/crm/imports'
     | '/crm/leads'
     | '/crm/pipeline'
     | '/crm/segments'
     | '/crm/tasks'
+    | '/crm/workflows'
     | '/crm/'
     | '/crm/contacts/$contactId'
     | '/crm/contacts/'
@@ -751,6 +775,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CrmDuplicatesRouteImport
       parentRoute: typeof CrmRoute
     }
+    '/crm/follow-ups': {
+      id: '/crm/follow-ups'
+      path: '/follow-ups'
+      fullPath: '/crm/follow-ups'
+      preLoaderRoute: typeof CrmFollowUpsRouteImport
+      parentRoute: typeof CrmRoute
+    }
     '/crm/imports': {
       id: '/crm/imports'
       path: '/imports'
@@ -786,6 +817,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CrmTasksRouteImport
       parentRoute: typeof CrmRoute
     }
+    '/crm/workflows': {
+      id: '/crm/workflows'
+      path: '/workflows'
+      fullPath: '/crm/workflows'
+      preLoaderRoute: typeof CrmWorkflowsRouteImport
+      parentRoute: typeof CrmRoute
+    }
     '/crm/contacts/': {
       id: '/crm/contacts/'
       path: '/contacts'
@@ -806,11 +844,13 @@ declare module '@tanstack/react-router' {
 interface CrmRouteChildren {
   CrmCustomersRoute: typeof CrmCustomersRoute
   CrmDuplicatesRoute: typeof CrmDuplicatesRoute
+  CrmFollowUpsRoute: typeof CrmFollowUpsRoute
   CrmImportsRoute: typeof CrmImportsRoute
   CrmLeadsRoute: typeof CrmLeadsRoute
   CrmPipelineRoute: typeof CrmPipelineRoute
   CrmSegmentsRoute: typeof CrmSegmentsRoute
   CrmTasksRoute: typeof CrmTasksRoute
+  CrmWorkflowsRoute: typeof CrmWorkflowsRoute
   CrmIndexRoute: typeof CrmIndexRoute
   CrmContactsContactIdRoute: typeof CrmContactsContactIdRoute
   CrmContactsIndexRoute: typeof CrmContactsIndexRoute
@@ -819,11 +859,13 @@ interface CrmRouteChildren {
 const CrmRouteChildren: CrmRouteChildren = {
   CrmCustomersRoute: CrmCustomersRoute,
   CrmDuplicatesRoute: CrmDuplicatesRoute,
+  CrmFollowUpsRoute: CrmFollowUpsRoute,
   CrmImportsRoute: CrmImportsRoute,
   CrmLeadsRoute: CrmLeadsRoute,
   CrmPipelineRoute: CrmPipelineRoute,
   CrmSegmentsRoute: CrmSegmentsRoute,
   CrmTasksRoute: CrmTasksRoute,
+  CrmWorkflowsRoute: CrmWorkflowsRoute,
   CrmIndexRoute: CrmIndexRoute,
   CrmContactsContactIdRoute: CrmContactsContactIdRoute,
   CrmContactsIndexRoute: CrmContactsIndexRoute,

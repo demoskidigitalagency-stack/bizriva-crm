@@ -74,6 +74,7 @@ export const PHASES: StatusPhase[] = [
       { id: "p2-templates", label: "Template management (WhatsApp-approved)", weight: 1, done: false },
       { id: "p2-followups", label: "Follow-up engine: 24-hour window, caps, quiet hours, stop on reply", weight: 3, done: false },
       { id: "p2-consent", label: "Consent records, opt-out keywords, suppression list", weight: 2, done: false },
+      { id: "p2-planner", label: "AI workflow planner (from repo 3) moved off Lovable's AI service onto our own AI key, with a screen in Automation Builder", weight: 1, done: false, note: "Code is in src/server/ai; it only runs with a Lovable key today" },
     ],
   },
   {
