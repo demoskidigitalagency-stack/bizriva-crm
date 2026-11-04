@@ -4,11 +4,15 @@ import { FileUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Section, StatusBadge } from "@/components/app/primitives";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ChatImport } from "@/components/app/ChatImport";
 import { useActions, useDb } from "@/domain/store";
 import { SOURCE_LABELS, type AcquisitionSource } from "@/domain/types";
 
 export const Route = createFileRoute("/crm/imports")({
   head: () => ({ meta: [{ title: "Imports · Bizriva CRM" }] }),
+  // ?t=chats opens the WhatsApp chat importer.
+  validateSearch: (s: Record<string, unknown>): { t?: "chats" } => (s["t"] === "chats" ? { t: "chats" } : {}),
   component: Imports,
 });
 
@@ -100,12 +104,17 @@ function Imports() {
     setFileName("");
   };
 
+  const { t } = Route.useSearch();
   return (
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-bold">Imports</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Bring contacts in from a spreadsheet. Phone numbers already in your contacts are skipped, so nobody is duplicated.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Bring in contacts from a spreadsheet, or old chats from WhatsApp. Nothing is duplicated.</p>
       </div>
+      <Tabs defaultValue={t === "chats" ? "chats" : "contacts"}>
+        <TabsList><TabsTrigger value="contacts">Contacts from a spreadsheet</TabsTrigger><TabsTrigger value="chats">WhatsApp chats</TabsTrigger></TabsList>
+        <TabsContent value="chats" className="mt-4"><ChatImport /></TabsContent>
+        <TabsContent value="contacts" className="mt-4 space-y-4">
 
       {result && (
         <div className="rounded-lg border border-success/30 bg-success/10 p-4 text-sm" role="status">
@@ -172,6 +181,8 @@ function Imports() {
           </Section>
         </>
       )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

@@ -129,6 +129,16 @@ interface StoreActions {
   toggleSetupStep: (stepId: string) => void;
   importProducts: (rows: Omit<Product, "id">[]) => number;
   addPolicyStarters: () => number;
+  importChatHistory: (input: ChatImportInput) => { contactId: ID; conversationId: ID; added: number; duplicates: number } | null;
+}
+
+export interface ChatImportInput {
+  /** Existing contact, or details for a new one. */
+  contactId?: ID;
+  newContact?: { name: string; phone: string; city?: string };
+  businessSender: string;
+  messages: { at: string; sender: string; body: string }[];
+  fileName: string;
 }
 
 export interface OrderFormInput {
@@ -879,6 +889,53 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return added;
   }, []);
 
+  const importChatHistory = useCallback((input: ChatImportInput) => {
+    const d0 = dbRef.current;
+    if (!input.messages.length) return null;
+    let contactId = input.contactId;
+    if (!contactId) {
+      const name = input.newContact?.name.trim() ?? "";
+      const digits = input.newContact?.phone.replace(/\D/g, "") ?? "";
+      if (!name || digits.length < 10) return null;
+      const match = d0.contacts.find((c) => c.phone.replace(/\D/g, "").slice(-10) === digits.slice(-10));
+      contactId = match?.id ?? newId("ct");
+    }
+    const existingConv = d0.conversations.find((c) => c.contactId === contactId && c.channel === "whatsapp");
+    const conversationId = existingConv?.id ?? `cv_${contactId}`;
+    const have = new Set((existingConv?.messages ?? []).map((m) => `${m.at}|${m.body}`));
+    const fresh = input.messages.filter((m) => !have.has(`${m.at}|${m.body}`));
+    const result = { contactId: contactId!, conversationId, added: fresh.length, duplicates: input.messages.length - fresh.length };
+    const cid = contactId!;
+    setDb((d) => {
+      let next: Database = d;
+      const now = new Date().toISOString();
+      const last = input.messages[input.messages.length - 1]!.at;
+      if (!d.contacts.some((c) => c.id === cid)) {
+        const [firstName, ...rest] = input.newContact!.name.trim().split(/\s+/);
+        const owner = d.team.find((t) => t.role === "sales_rep" && t.active)?.id ?? d.team[0]!.id;
+        const contact: Contact = {
+          id: cid, firstName: firstName!, lastName: rest.join(" ") || "—", phone: input.newContact!.phone.trim(), countryCode: "NG", city: input.newContact!.city?.trim() || "Lagos",
+          lifecycle: "lead", source: "import", ownerId: owner, leadScore: 10, tags: ["imported-chat"], createdAt: input.messages[0]!.at, lastActivityAt: last,
+          totalOrders: 0, lifetimeValue: 0, deliveredRevenue: 0, contributionProfit: 0, outstandingBalance: 0, consentMarketing: false, notesCount: 0,
+        };
+        next = { ...next, contacts: [contact, ...next.contacts] };
+      }
+      const msgs = fresh.map((m) => ({ id: newId("m"), conversationId, direction: (m.sender === input.businessSender ? "out" : "in") as "in" | "out", body: m.body, at: m.at, ...(m.sender === input.businessSender ? { authorId: CURRENT_USER_ID } : {}) }));
+      const conv = next.conversations.find((c) => c.id === conversationId);
+      if (conv) {
+        const all = [...conv.messages, ...msgs].sort((a, b) => +new Date(a.at) - +new Date(b.at));
+        next = { ...next, conversations: next.conversations.map((c) => (c.id === conversationId ? { ...c, messages: all, lastMessageAt: all[all.length - 1]!.at } : c)) };
+      } else {
+        const sorted = msgs.sort((a, b) => +new Date(a.at) - +new Date(b.at));
+        const contact = next.contacts.find((c) => c.id === cid)!;
+        next = { ...next, conversations: [{ id: conversationId, contactId: cid, channel: "whatsapp", subject: `Imported chat (${input.fileName})`.slice(0, 60), unread: false, awaitingReply: false, assigneeId: contact.ownerId, lastMessageAt: sorted[sorted.length - 1]!.at, messages: sorted }, ...next.conversations] };
+      }
+      next = { ...next, contacts: next.contacts.map((c) => (c.id === cid && +new Date(c.lastActivityAt) < +new Date(last) ? { ...c, lastActivityAt: last } : c)) };
+      return logActivity(next, cid, "WhatsApp chat history imported", "conversation", `${fresh.length} messages from ${input.fileName}${result.duplicates ? `, ${result.duplicates} already here` : ""} · ${now.slice(0, 10)}`);
+    });
+    return result;
+  }, []);
+
   const resetPracticeData = useCallback(() => {
     try {
       localStorage.removeItem(PRACTICE_KEY);
@@ -900,10 +957,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
         setIntegration, assignRider, moveStock, recordPayment, logRun, retryRun, sendBroadcast, addCampaignSpend,
         updateContactDetails, simulateIncoming, sendProductCard, updateWorkspace, submitLeadForm,
         submitOrderForm, trackForm, simulateFormTraffic, recordDeposit, requestBalance, issueInvoice, flagComplaint, resolveComplaint,
-        toggleSetupStep, importProducts, addPolicyStarters,
+        toggleSetupStep, importProducts, addPolicyStarters, importChatHistory,
       },
     }),
-    [db, workspaceId, addContact, createOrder, setLeadStage, setLeadOutcome, assignOwner, setLifecycle, completeTask, snoozeTask, addTask, addNote, logCall, sendReply, markNotificationsRead, setOrderStatus, recordCodCheck, setDeliveryStatus, markRemitted, saveProduct, adjustStock, mergeContacts, startLead, resetPracticeData, saveRecord, removeRecord, updateSettings, updateAgent, setIntegration, assignRider, moveStock, recordPayment, logRun, retryRun, sendBroadcast, addCampaignSpend, updateContactDetails, simulateIncoming, sendProductCard, updateWorkspace, submitLeadForm, submitOrderForm, trackForm, simulateFormTraffic, recordDeposit, requestBalance, issueInvoice, flagComplaint, resolveComplaint, toggleSetupStep, importProducts, addPolicyStarters],
+    [db, workspaceId, addContact, createOrder, setLeadStage, setLeadOutcome, assignOwner, setLifecycle, completeTask, snoozeTask, addTask, addNote, logCall, sendReply, markNotificationsRead, setOrderStatus, recordCodCheck, setDeliveryStatus, markRemitted, saveProduct, adjustStock, mergeContacts, startLead, resetPracticeData, saveRecord, removeRecord, updateSettings, updateAgent, setIntegration, assignRider, moveStock, recordPayment, logRun, retryRun, sendBroadcast, addCampaignSpend, updateContactDetails, simulateIncoming, sendProductCard, updateWorkspace, submitLeadForm, submitOrderForm, trackForm, simulateFormTraffic, recordDeposit, requestBalance, issueInvoice, flagComplaint, resolveComplaint, toggleSetupStep, importProducts, addPolicyStarters, importChatHistory],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

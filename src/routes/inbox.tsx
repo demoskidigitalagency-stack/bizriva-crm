@@ -312,6 +312,7 @@ function Inbox() {
         eyebrow="Customers"
         title="Inbox"
         description="Every conversation is tied to the customer's single identity — no duplicate threads across channels."
+        actions={<Button asChild size="sm" variant="outline"><Link to="/crm/imports" search={{ t: "chats" }}>Import old WhatsApp chats</Link></Button>}
       />
       <div className="scroll-thin -mx-1 mb-3 flex gap-1.5 overflow-x-auto px-1 pb-1" role="tablist" aria-label="Inbox filters">
         {INBOX_VIEWS.map((v) => (

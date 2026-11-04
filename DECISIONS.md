@@ -12,6 +12,7 @@ Agreed with the owner on 2026-11-02. These shape the database, so change them he
 | 6 | Appearance | Hybrid default; Bizriva, Sandala, Kobolink selectable | |
 | 7 | Review of 4 Nov 2026 | Add everything buildable now: **Order Forms** (first), Calendar, deposits and balances, invoices, complaints, reply library in English and Pidgin, share kit with QR, product CSV import, policy starters, 7-day setup checklist, win-back, referral and complaint workflows | From WaContacts, StitchBook, FabianForms, Adflow, Xara and two WhatsApp playbooks. Our own wording; nothing copied from the paid guides. |
 | 8 | Later ideas | Kept on the **Coming Later** page (`FUTURE` in `src/app/modules.ts`): 10 that need the backend, 8 parked | Not counted in the progress score until scheduled. |
+| 10 | Old WhatsApp chats | Import WhatsApp's own **Export chat** files (.txt or .zip) into CRM → Imports → WhatsApp chats, one customer per file | For +234 numbers where coexistence may not be offered. Don't move the main number until coexistence is tested; start Bizriva on a new number. |
 | 9 | Tailor features | A future **industry pack** on the same base, not part of the core | Measurements, garment stages, fabric stock, group orders. |
 
 ## Still to apply in code

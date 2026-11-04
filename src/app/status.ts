@@ -43,7 +43,7 @@ export const FRONTEND_CHECKLIST: StatusItem[] = [
   { id: "f-links", label: "Every link, search result and Today queue opens a real page", weight: 2, done: true, doneOn: "2026-11-02" },
   { id: "f-decisions", label: "Crosswalk decisions agreed (menus, lead stages, order statuses, roles)", weight: 2, done: true, doneOn: "2026-11-02", note: "See DECISIONS.md — prompt's 13 lead stages and 10 order statuses, 6 roles, own Supabase + Vercel" },
   { id: "f-qa", label: "Click-through QA: every page on desktop and phone, light and dark, no console errors", weight: 3, done: true, doneOn: "2026-11-02", note: "tests/practice_qa.py 46/46 and tests/practice_qa_modules.py 61/61" },
-  { id: "f-review", label: "Competitor and playbook review added (order forms, deposits, invoices, calendar, complaints, reply library, share kit, imports)", weight: 2, done: true, doneOn: "2026-11-04", note: "tests/practice_qa_review.py 35/35. Backend-dependent and parked ideas are listed on Coming Later" },
+  { id: "f-review", label: "Competitor and playbook review added (order forms, deposits, invoices, calendar, complaints, reply library, share kit, imports)", weight: 2, done: true, doneOn: "2026-11-04", note: "tests/practice_qa_review.py 43/43. Backend-dependent and parked ideas are listed on Coming Later" },
 ];
 
 /** Backend track — phases 1 to 5. */

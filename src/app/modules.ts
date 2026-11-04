@@ -59,10 +59,10 @@ export const MODULES: ModuleDef[] = [
 
   // Customers
   { id: "inbox", label: "Inbox", path: "/inbox", icon: MessageSquare, group: "Customers", phase: "MVP", state: "practice", sources: ["Sandala", "Kobolink", "Prompt"], decision: "Agreed",
-    submenus: ["Complaints filter and resolve", "Quick replies from the reply library", "All", "Unread", "New enquiries", "Assigned", "Unassigned", "Priority", "Waiting on customer", "Waiting on us", "AI-handled", "Human-handled", "Closed", "Channel filter"],
+    submenus: ["Import old WhatsApp chats", "Complaints filter and resolve", "Quick replies from the reply library", "All", "Unread", "New enquiries", "Assigned", "Unassigned", "Priority", "Waiting on customer", "Waiting on us", "AI-handled", "Human-handled", "Closed", "Channel filter"],
     summary: "One shared inbox for every channel, so no conversation depends on a single phone." },
   { id: "crm", label: "CRM", path: "/crm", icon: Users, group: "Customers", phase: "MVP", state: "practice", sources: ["Bizriva", "Sandala", "Prompt"], decision: "Agreed",
-    submenus: ["Overview", "Contacts", "Customer 360", "Customers", "Leads", "Pipeline", "Tasks", "Segments (view only until backend)", "Duplicates and merge", "CSV imports"],
+    submenus: ["Overview", "Contacts", "Customer 360", "Customers", "Leads", "Pipeline", "Tasks", "Segments (view only until backend)", "Duplicates and merge", "CSV imports", "Import old WhatsApp chats (Export chat .txt or .zip)"],
     summary: "One identity per person: a Contact can become a Lead and later a Customer without duplicate records." },
 
   // Sales

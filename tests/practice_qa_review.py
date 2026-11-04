@@ -202,9 +202,32 @@ async def main():
             ok("progress still 100% for the agreed scope", await pg.get_by_text(re.compile("^100")).count() >= 1)
         await step("roadmap", t_roadmap())
 
+        async def t_chat_import():
+            await ready(pg, "/inbox")
+            await pg.get_by_role("link", name="Import old WhatsApp chats").click(); await pg.wait_for_timeout(800)
+            ok("Inbox links to the chat importer", "/crm/imports" in pg.url and await pg.get_by_text("Bring in old WhatsApp chats").count() == 1)
+            await pg.get_by_text("Or paste the chat text").click()
+            await pg.get_by_role("button", name="Try a sample chat").click(); await pg.wait_for_timeout(300)
+            ok("export is read: 7 messages, 1 photo noted", await pg.get_by_text(re.compile("^7 messages.*1 photos or files not included")).count() == 1)
+            ok("customer guessed from the file name", "Chioma Eze" in await pg.get_by_label("Customer in this chat").inner_text())
+            await pg.get_by_label("Customer phone").fill("0805 331 2094")
+            await pg.get_by_role("button", name="Import chat").click(); await pg.wait_for_timeout(300)
+            ok("chat imported", await pg.get_by_text(re.compile("^7 messages imported")).count() == 1)
+            await pg.get_by_role("button", name="Try a sample chat").click(); await pg.wait_for_timeout(300)
+            ok("re-import matches the contact", await pg.get_by_text("Matched").count() == 1)
+            await pg.get_by_role("button", name="Import chat").click(); await pg.wait_for_timeout(300)
+            ok("re-import skips duplicates", await pg.get_by_text(re.compile("^0 messages imported .*7 were already there")).count() == 1)
+            await ready(pg, "/inbox")
+            await pg.get_by_role("tab", name=re.compile("^All")).click()
+            await pg.get_by_label("Search conversations").fill("Chioma Eze"); await pg.wait_for_timeout(300)
+            await pg.locator("main ul li button", has_text="Chioma Eze").first.click(); await pg.wait_for_timeout(300)
+            ok("imported history shows in the Inbox", await pg.locator("main li", has_text="Yes, same texture").count() >= 1)
+            ok("details found in imported chat", await pg.get_by_role("complementary", name="Customer details").get_by_text(re.compile("Ogunlana Drive")).count() >= 1)
+        await step("chat import", t_chat_import())
+
         async def t_mobile():
             m = await b.new_page(viewport={"width": 390, "height": 844}); wide = []
-            for r in ["/order-forms", "/order-forms?f=of_1", "/calendar", "/roadmap", "/store", "/templates", "/today", "/inbox", "/orders"]:
+            for r in ["/order-forms", "/order-forms?f=of_1", "/calendar", "/roadmap", "/store", "/templates", "/today", "/inbox", "/orders", "/crm/imports?t=chats"]:
                 await m.goto(B + r); await m.wait_for_load_state("load"); await m.wait_for_timeout(1500)
                 sw = await m.evaluate("document.documentElement.scrollWidth")
                 if sw > 392: wide.append(f"{r}={sw}")
