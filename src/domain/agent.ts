@@ -16,7 +16,7 @@ import { formatCurrency } from "@/lib/format";
 
 export interface AgentReply {
   text: string;
-  intent: "greeting" | "price" | "photos" | "availability" | "knowledge" | "handoff" | "opt_out" | "unknown";
+  intent: "greeting" | "price" | "photos" | "availability" | "knowledge" | "handoff" | "opt_out" | "payment" | "unknown";
   sources: string[];
   handoff: boolean;
   photos: number;
@@ -82,6 +82,19 @@ export function agentReply(db: Database, message: string, opts: { adProductId?: 
   }
   if (has(t, a.handoffKeywords)) {
     return { text: "Of course — I'm passing you to a teammate now. They'll reply here shortly.", intent: "handoff", sources: ["AI agent › Handover keywords"], handoff: true, photos: 0 };
+  }
+
+  // "How do I pay?" — share the customer's own account number when payments are connected.
+  if (/\b(how (do|can) i pay|account (number|details)|send (me )?(your )?account|where (do|should) i pay|payment details|i want to pay|abeg send account)\b/i.test(message)) {
+    const ps = db.settings.payments;
+    const c = opts.contactId ? db.contacts.find((x) => x.id === opts.contactId) : undefined;
+    if (ps.status === "connected" && c?.virtualAccount) {
+      return { text: `You can transfer to your own payment account: ${c.virtualAccount.bank}, ${c.virtualAccount.number} (${c.virtualAccount.name}). It's confirmed instantly and you'll get a receipt right here. You can also pay the rider on delivery.`, intent: "payment", sources: ["Payments › customer account"], handoff: false, photos: 0 };
+    }
+    if (ps.status === "connected") {
+      return { text: "I'll send your payment details right now — a bank account just for you, confirmed the moment you transfer. You can also pay on delivery.", intent: "payment", sources: ["Payments › request payment"], handoff: true, photos: 0 };
+    }
+    return { text: "You can pay on delivery — check the item, then pay the rider. If you'd rather pay now, a teammate will send you the account details.", intent: "payment", sources: ["Settings › pay on delivery"], handoff: true, photos: 0 };
   }
 
   const product = matchProduct(db, t) ?? adProduct;

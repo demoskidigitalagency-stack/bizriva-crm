@@ -120,7 +120,7 @@ export const MODULES: ModuleDef[] = [
 
   // Money
   { id: "payments", label: "Payments", path: "/payments", icon: Wallet, group: "Money", phase: "Later", state: "practice", sources: ["Kobolink", "Prompt"], decision: "Agreed",
-    submenus: ["COD cash ledger", "Unpaid orders", "Payment links", "All payments"], summary: "Cash held versus remitted, and online payments." },
+    submenus: ["Get paid inside WhatsApp: Paystack, Flutterwave or Monnify", "An account number for every customer, confirmed instantly", "Request payment in the chat: transfer, link, pay on delivery", "Receipt into the chat and a staff alert the moment money lands", "Part payments and overpayments handled", "Transfers to match", "Settlement accounts and split rules by category", "COD ledger and hand-ins", "Unpaid orders"], summary: "Cash held versus remitted, and online payments." },
 
   // Insights
   { id: "analytics", label: "Analytics", path: "/analytics", icon: BarChart3, group: "Insights", phase: "MVP", state: "practice", sources: ["Kobolink", "Prompt"], decision: "Agreed",
@@ -200,7 +200,7 @@ export const FUTURE: FutureIdea[] = [
   { id: "fx-voice-languages", bucket: "Needs the backend", title: "Voice notes and local languages", from: "Xara", goesInto: "AI Sales Agent, Inbox", needs: "WhatsApp Cloud API media and an AI model", summary: "The AI agent understands voice notes and replies in Pidgin, Yoruba, Hausa or Igbo." },
   { id: "fx-message-to-order", bucket: "Needs the backend", title: "Message to order", from: "StitchBook", goesInto: "Inbox, Orders", needs: "AI model", summary: "Turn a message like \"2 frontals for Tola, deposit 30k\" into a draft order to confirm." },
   { id: "fx-capi", bucket: "Needs the backend", title: "Accurate ad numbers", from: "FabianForms", goesInto: "Order Forms, Ads", needs: "Meta Conversions API and TikTok Events API keys", summary: "Practice version built (Ads → Send sales back to Meta). Going live needs the dataset token; TikTok Events API follows." },
-  { id: "fx-paylinks", bucket: "Needs the backend", title: "Real payment links", from: "StitchBook, Xara", goesInto: "Orders, Payments", needs: "Paystack or Flutterwave account and webhooks", summary: "Deposit and balance links that mark the order paid by themselves." },
+  { id: "fx-paylinks", bucket: "Needs the backend", title: "Real payment links", from: "StitchBook, Xara", goesInto: "Orders, Payments", needs: "Paystack or Flutterwave account and webhooks", summary: "Practice version built (Payments → Get paid inside WhatsApp). Live needs the provider secret key in Vercel and a registered business that has gone live with the provider." },
   { id: "fx-ad-copy", bucket: "Needs the backend", title: "AI ad copy and weekly WhatsApp report", from: "Adflow", goesInto: "Ads", needs: "AI model and WhatsApp templates", summary: "Draft ad text for Nigerian buyers and send the owner a plain weekly report on WhatsApp." },
   { id: "fx-ad-launch", bucket: "Needs the backend", title: "Launch and auto-tune ads", from: "Adflow", goesInto: "Ads", needs: "Meta Marketing API app review", summary: "Creating ads is built (practice). Going live needs ads_management; automatic budget moves by delivered orders come after." },
   { id: "fx-brief-send", bucket: "Needs the backend", title: "Money Brief on WhatsApp and email", from: "Review 2026-11-05", goesInto: "Money Brief", needs: "WhatsApp Cloud API template and email sending", summary: "The brief arrives on your phone at the time you choose, every morning." },

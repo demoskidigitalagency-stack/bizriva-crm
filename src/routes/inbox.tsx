@@ -107,16 +107,36 @@ function QuickReplies({ conversation, onPick }: { conversation: Conversation; on
 }
 
 function PaymentLinkButton({ conversationId }: { conversationId: string }) {
-  const { sendPaymentLink } = useActions();
-  const [note, setNote] = useState("");
+  const db = useDb();
+  const { requestPayment, simulatePayment } = useActions();
+  const ps = db.settings.payments;
+  const [open, setOpen] = useState(false);
+  const [methods, setMethods] = useState<("transfer" | "link" | "cod")[]>((["transfer", "link", "cod"] as const).filter((m) => ps.methods[m]));
+  const [result, setResult] = useState<{ reference?: string; error?: string } | null>(null);
+  const order = result?.reference ? db.orders.find((o) => o.reference === result.reference) : undefined;
+  const label = { transfer: "Bank transfer (their own account number)", link: "Payment link (card, USSD, bank app)", cod: "Pay on delivery" } as const;
   return (
-    <Popover open={!!note} onOpenChange={(o) => !o && setNote("")}>
+    <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setResult(null); }}>
       <PopoverTrigger asChild>
-        <Button size="sm" variant="outline" aria-label="Send payment link" onClick={() => { const ref = sendPaymentLink(conversationId); setNote(ref ? `Payment link for ${ref} sent (practice — nothing really sent).` : "Nothing is owed: this customer has no unpaid order. Create an order first."); }}>
-          <CreditCard className="size-4" /><span className="hidden sm:inline">Pay link</span>
-        </Button>
+        <Button size="sm" variant="outline" aria-label="Request payment"><CreditCard className="size-4" /><span className="hidden sm:inline">Payment</span></Button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-72 p-3 text-xs" role="status">{note}</PopoverContent>
+      <PopoverContent align="start" className="w-80 space-y-2 p-3 text-xs">
+        <p className="text-sm font-semibold">Request payment</p>
+        {ps.status !== "connected" && <p className="rounded bg-warning/15 p-2">Connect Paystack, Flutterwave or Monnify on the <Link to="/payments" className="underline">Payments</Link> page to offer transfers and links. Pay on delivery works now.</p>}
+        {(["transfer", "link", "cod"] as const).map((m) => (
+          <label key={m} className="flex items-center gap-2"><input type="checkbox" checked={methods.includes(m)} onChange={() => setMethods(methods.includes(m) ? methods.filter((x) => x !== m) : [...methods, m])} aria-label={label[m]} /> {label[m]}</label>
+        ))}
+        <Button size="sm" className="w-full" onClick={() => setResult(requestPayment(conversationId, methods))}>Send in chat</Button>
+        {result?.error && <p className="text-destructive" role="alert">{result.error}</p>}
+        {result?.reference && (
+          <div className="space-y-1.5" role="status">
+            <p className="text-success">Payment details for {result.reference} sent (practice — nothing really sent).</p>
+            {ps.status === "connected" && order && order.total - (order.amountPaid ?? 0) > 0 && (
+              <Button size="sm" variant="outline" className="w-full" onClick={() => { simulatePayment({ orderId: order.id, method: "transfer", amount: order.total - (order.amountPaid ?? 0) }); setOpen(false); setResult(null); }}>Practice: customer pays by transfer</Button>
+            )}
+          </div>
+        )}
+      </PopoverContent>
     </Popover>
   );
 }

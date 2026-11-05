@@ -99,11 +99,38 @@ async def main():
         await step("agent", t_agent())
 
         async def t_paylink():
+            await ready(pg, "/payments")
+            await pg.get_by_role("button", name="Connect Paystack").click(); await pg.wait_for_timeout(300)
+            ok("Paystack connected", await pg.get_by_text("Connected (simulated)").count() >= 1)
             await ready(pg, "/inbox")
             await pg.get_by_role("tab", name=re.compile("^Unverified orders")).click(); await pg.wait_for_timeout(300)
             await pg.locator("main ul li button").first.click(); await pg.wait_for_timeout(300)
-            await pg.get_by_role("button", name="Send payment link").click(); await pg.wait_for_timeout(300)
-            ok("payment link sent into the chat", await pg.locator("main li", has_text="here's your secure payment link").count() >= 1)
+            await pg.get_by_role("button", name="Request payment").click()
+            await pg.get_by_role("button", name="Send in chat").click(); await pg.wait_for_timeout(300)
+            ok("account number sent in the chat", await pg.locator("main li", has_text="This account is just for you").count() >= 1)
+            await pg.get_by_role("button", name="Practice: customer pays by transfer").click(); await pg.wait_for_timeout(400)
+            ok("receipt lands in the chat instantly", await pg.locator("main li", has_text="Payment received — thank you!").count() >= 1)
+            await pg.get_by_role("button", name="Notifications").click(); await pg.wait_for_timeout(200)
+            ok("staff alert for money received", await pg.get_by_text(re.compile("received$")).count() >= 1)
+            await pg.keyboard.press("Escape")
+            await ready(pg, "/payments")
+            ok("live payments feed shows it", await pg.get_by_role("list", name="Live payments").get_by_text("Paid in full").count() >= 1)
+            await pg.get_by_label("Amount paid").fill("10000")
+            await pg.get_by_role("button", name="Customer pays").click(); await pg.wait_for_timeout(300)
+            ok("part payment recorded", await pg.get_by_role("list", name="Live payments").get_by_text("Part payment").count() >= 1)
+            await pg.get_by_role("button", name="Transfer arrives").click(); await pg.wait_for_timeout(300)
+            ok("unknown transfer waits to be matched", await pg.get_by_text("Transfers to match").count() == 1)
+            await pg.get_by_label("Order for ADEBAYO JOHNSON").click(); await pg.get_by_role("option").first.click()
+            await pg.get_by_role("button", name="Match", exact=True).click(); await pg.wait_for_timeout(300)
+            ok("matched transfer clears the queue", await pg.get_by_text("Transfers to match").count() == 0)
+            await pg.get_by_label("Split category").click(); await pg.get_by_role("option", name="Every sale").click()
+            await pg.get_by_label("Split percent").fill("30")
+            await pg.get_by_role("button", name="Add split").click(); await pg.wait_for_timeout(200)
+            await pg.get_by_role("button", name="Customer pays").click(); await pg.wait_for_timeout(300)
+            ok("split settles to two accounts", await pg.get_by_role("list", name="Live payments").locator("li").first.get_by_text(re.compile("Lekki branch .* Main account")).count() == 1)
+            await ready(pg, "/ai-agent")
+            await pg.get_by_label("Customer message").fill("how do i pay"); await pg.get_by_role("button", name="Send", exact=True).click(); await pg.wait_for_timeout(300)
+            ok("AI agent answers payment questions", "pay" in (await pg.locator("[aria-live=polite]").inner_text()).lower())
         await step("paylink", t_paylink())
 
         async def t_more():
@@ -114,6 +141,7 @@ async def main():
             ok("birthday greetings in the reply library", await pg.get_by_text("birthday_greeting", exact=True).count() == 1)
             await ready(pg, "/welcome")
             ok("landing page Money Brief section", await pg.locator("section#brief").get_by_text("Wake up to your Money Brief.").count() == 1)
+            ok("landing page payments section", await pg.locator("section#pay").count() == 1)
             ok("landing page memory section", await pg.get_by_text("Speak to each buyer like you know them.", exact=False).count() == 1)
             await ready(pg, "/roadmap")
             ok("later items listed", await pg.get_by_text("Money Brief on WhatsApp and email").count() == 1)
@@ -179,7 +207,7 @@ async def main():
 
         async def t_mobile():
             m = await b.new_page(viewport={"width": 390, "height": 844}); wide = []
-            for r in ["/brief", "/", "/crm/contacts/c_0003", "/ai-agent", "/inbox", "/welcome", "/connections", "/connections?c=cn_1", "/ads", "/ads/new"]:
+            for r in ["/brief", "/", "/crm/contacts/c_0003", "/ai-agent", "/inbox", "/welcome", "/connections", "/connections?c=cn_1", "/ads", "/ads/new", "/payments"]:
                 await m.goto(B + r); await m.wait_for_load_state("load"); await m.wait_for_timeout(1500)
                 sw = await m.evaluate("document.documentElement.scrollWidth")
                 if sw > 392: wide.append(f"{r}={sw}")

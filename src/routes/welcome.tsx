@@ -80,6 +80,7 @@ const FAQ = [
   { q: "Which platforms does the inbox cover?", a: "WhatsApp, Instagram, Facebook Messenger and your website chat, with TikTok messages as TikTok opens its business messaging to more countries. One list, one customer record, however they reached you." },
   { q: "I already have a WordPress site and order forms. Do I have to change them?", a: "No. Connect Elementor, Gravity Forms, WPForms, Contact Form 7, Fluent Forms, WooCommerce, Shopify, Google Forms, Typeform, Jotform or Tally in a few minutes — or anything else through Zapier or Make. Your pages stay as they are; the orders just land in Bizriva." },
   { q: "Can I create my Facebook and Instagram ads in Bizriva?", a: "Yes. Connect your Meta ad account, pick a product and a picture, choose ad text in English or Pidgin, set the states, age and budget, and preview it. The ad is created paused in your own Meta account — Meta charges your card, never us — and starts when you press Start. Bizriva also sends your delivered sales back to Meta, so it finds more people who actually pay." },
+  { q: "Can customers pay without leaving WhatsApp?", a: "Almost. WhatsApp's own in-chat payments aren't available in Nigeria yet, so Bizriva does the next best thing: each customer gets their own account number (or a payment link) right in the chat. They transfer from their bank app, and within seconds the order is marked paid and a receipt lands back in their WhatsApp — no screenshots to check." },
   { q: "Do I need the WhatsApp Business API?", a: "Yes — Bizriva connects to the official WhatsApp Cloud API, so your team shares one number safely. We guide you through Meta's business verification. You can start in Practice Mode today while that's approved." },
   { q: "What happens to my old WhatsApp chats?", a: "Export any chat from WhatsApp and import it into Bizriva. It lands in that customer's history, and duplicates are skipped. Some numbers can also keep using the WhatsApp Business app alongside Bizriva." },
   { q: "How do you count revenue on cash-on-delivery?", a: "Created, confirmed and delivered are counted separately. Cash-on-delivery only counts as revenue once it's delivered — so your numbers match your bank, not your hopes." },
@@ -151,7 +152,7 @@ function Faq() {
 
 function Welcome() {
   const [nav, setNav] = useState(false);
-  const links = [["#problem", "Why"], ["#how", "How it works"], ["#features", "Features"], ["#brief", "Money Brief"], ["#compare", "Compare"], ["#pricing", "Pricing"], ["#faq", "FAQ"]] as const;
+  const links = [["#problem", "Why"], ["#how", "How it works"], ["#features", "Features"], ["#brief", "Money Brief"], ["#pay", "Payments"], ["#compare", "Compare"], ["#pricing", "Pricing"], ["#faq", "FAQ"]] as const;
   return (
     <div className="lp">
       <style>{CSS}</style>
@@ -301,6 +302,23 @@ function Welcome() {
               <li key={x} className="lp-ticket"><Check className="size-4 shrink-0 text-[var(--green)]" /> {x}</li>
             ))}
           </ul>
+        </section>
+
+        {/* Pay in chat */}
+        <section id="pay" className="lp-band-ink">
+          <div className="lp-wrap grid gap-10 py-20 lg:grid-cols-2 lg:items-center">
+            <div>
+              <p className="lp-kicker lp-kicker-light">Get paid in the chat</p>
+              <h2 className="lp-display mt-3 text-4xl font-extrabold leading-tight sm:text-5xl">Transfer, confirmed in seconds. Receipt in their WhatsApp.</h2>
+              <p className="mt-4 text-white/75">Every customer gets their own account number through Paystack, Flutterwave or Monnify. The moment they transfer, Bizriva matches it to the order, marks it paid, sends a receipt into their chat and tells your team — no screenshots, no "abeg check your account". Card, USSD and pay-on-delivery still work, and money can split to your branches automatically.</p>
+            </div>
+            <div className="lp-brief" aria-label="Example payment in chat" style={{ transform: "rotate(1deg)" }}>
+              <p className="lp-mono text-[11px] tracking-[0.18em]">WHATSAPP · LUXE HAIR</p>
+              <p className="lp-bubble lp-out mt-3" style={{ animation: "none", opacity: 1, color: "#14201b" }}>🏦 Bank transfer — confirmed instantly<br />Wema Bank · <b>9945123308</b><br />Luxe Hair/Chiamaka O.</p>
+              <p className="lp-bubble lp-in mt-2" style={{ animation: "none", opacity: 1, color: "#14201b" }}>Done ✅</p>
+              <p className="lp-bubble lp-out mt-2" style={{ animation: "none", opacity: 1, color: "#14201b" }}>✅ <b>Payment received — thank you!</b><br />₦185,000 for order BZ-1184 · RCPT-1184-001</p>
+            </div>
+          </div>
         </section>
 
         {/* Connect */}

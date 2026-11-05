@@ -13,6 +13,8 @@ import type {
   CalendarEvent,
   Connection,
   AdDraft,
+  PaymentRequest,
+  PaymentEvent,
   CapiEvent,
   ConnectionEvent,
   FormSubmission,
@@ -87,6 +89,8 @@ export interface Database {
   connectionEvents: ConnectionEvent[];
   adDrafts: AdDraft[];
   capiEvents: CapiEvent[];
+  paymentRequests: PaymentRequest[];
+  paymentEvents: PaymentEvent[];
 }
 
 /** A few sample chats get a customer message with delivery details (see practice-seed). */
@@ -201,6 +205,8 @@ export function createInitialDatabase(): Database {
     connectionEvents: [],
     adDrafts: practice.adDrafts,
     capiEvents: [],
+    paymentRequests: [],
+    paymentEvents: [],
   };
 }
 

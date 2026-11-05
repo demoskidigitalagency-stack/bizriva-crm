@@ -213,6 +213,15 @@ export const settings: BusinessSettings = {
   setupDone: ["business", "products"],
   brief: { time: "07:30", channels: ["app"] },
   meta: { status: "not_connected", capi: { enabled: false, when: "delivered" } },
+  payments: {
+    status: "not_connected", methods: { transfer: true, link: true, cod: true }, autoReceipt: true, autoConfirm: true,
+    settlement: [
+      { id: "sa_1", label: "Main account", bank: "GTBank", accountNumber: "0123456789", accountName: "Luxe Hair Collective Ltd" },
+      { id: "sa_2", label: "Lekki branch", bank: "Moniepoint MFB", accountNumber: "8034561290", accountName: "Luxe Hair Lekki" },
+    ],
+    defaultAccountId: "sa_1",
+    splits: [],
+  },
 };
 
 /** Policy starters a business can add to its Knowledge Base and edit. */
@@ -303,3 +312,6 @@ export const adDrafts: AdDraft[] = [
     audience: { locations: ["Lagos", "Abuja (FCT)"], ageMin: 22, ageMax: 45, gender: "women", interests: ["Wigs", "Hair care"] },
     dailyBudget: 15000, days: 7, placements: ["fb_feed", "ig_feed", "stories"], status: "draft", createdAt: ago(30) },
 ];
+
+/** Banks the payment providers issue customer accounts from (practice). */
+export const providerBanks: Record<"paystack" | "flutterwave" | "monnify", string> = { paystack: "Wema Bank", flutterwave: "Sterling Bank", monnify: "Moniepoint MFB" };

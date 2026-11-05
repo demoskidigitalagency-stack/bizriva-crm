@@ -178,6 +178,8 @@ export interface Contact {
   landmark?: string;
   /** What we know about this person, learned from chats or added by staff. */
   facts?: CustomerFact[];
+  /** Their own account number for bank transfers (from the payment provider). */
+  virtualAccount?: { bank: string; number: string; name: string; provider: PaymentProviderId };
 }
 
 export type FactKind = "birthday" | "size" | "likes" | "dislikes" | "budget" | "buys_for" | "note";
@@ -632,6 +634,8 @@ export interface BusinessSettings {
   brief: { time: string; channels: ("app" | "whatsapp" | "email")[] };
   /** Meta Ads link (simulated in Practice Mode). */
   meta: MetaLink;
+  /** Getting paid inside the WhatsApp chat. */
+  payments: PaymentSetup;
 }
 
 /* ===================================================================
@@ -759,4 +763,53 @@ export interface CapiEvent {
   at: string;
   /** The dedupe key Meta uses, so the same order is never counted twice. */
   eventId: string;
+}
+
+/* Payments in the chat (2026-11-05). */
+export type PaymentProviderId = "paystack" | "flutterwave" | "monnify";
+
+export interface SettlementAccount { id: ID; label: string; bank: string; accountNumber: string; accountName: string }
+export interface SplitRule { id: ID; category: string | "all"; accountId: ID; percent: number }
+
+export interface PaymentSetup {
+  provider?: PaymentProviderId;
+  status: "not_connected" | "connected";
+  connectedAt?: string;
+  /** Which ways to pay are offered in the chat. */
+  methods: { transfer: boolean; link: boolean; cod: boolean };
+  /** Send a receipt into the chat the moment a payment lands. */
+  autoReceipt: boolean;
+  /** Paid orders skip COD verification and move to Confirmed. */
+  autoConfirm: boolean;
+  settlement: SettlementAccount[];
+  defaultAccountId?: ID;
+  splits: SplitRule[];
+}
+
+export interface PaymentRequest {
+  id: ID;
+  orderId: ID;
+  contactId: ID;
+  amount: number;
+  at: string;
+  methods: ("transfer" | "link" | "cod")[];
+  status: "sent" | "paid" | "part_paid";
+}
+
+export interface PaymentEvent {
+  id: ID;
+  at: string;
+  provider: PaymentProviderId;
+  method: "transfer" | "card" | "ussd";
+  amount: number;
+  payerName: string;
+  reference: string;
+  /** Account number it was paid into (a customer's own account, or the main one). */
+  paidInto: string;
+  contactId?: ID;
+  orderId?: ID;
+  status: "matched" | "part" | "over" | "unmatched";
+  /** Where the money settles, after split rules. */
+  settledTo: { label: string; amount: number }[];
+  receiptNo?: string;
 }

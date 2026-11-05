@@ -13,7 +13,7 @@ import { autoMap, flatten, normalise, PLATFORMS } from "./intake";
 import type {
   AgentConfig, Broadcast, BusinessSettings, CalendarEvent, Campaign, Channel, OrderForm, OrderFormField, Contact, DeliveryStatus, FollowUpRule, ID, IntegrationState, KnowledgeEntry,
   LeadOutcome, LeadStage, Lifecycle, MediaAsset, MessageTemplate, OrderStatus, PaymentMethod, Product, Rider, StockMovement, Task,
-  TeamMember, Workflow, WorkflowRun, FactKind, Connection, ConnectionEvent, AdDraft, MetaLink,
+  TeamMember, Workflow, WorkflowRun, FactKind, Connection, ConnectionEvent, AdDraft, MetaLink, PaymentProviderId, PaymentSetup, PaymentEvent,
 } from "./types";
 
 /** Collections that the generic save/remove actions may touch. */
@@ -40,7 +40,7 @@ type EditableKey = keyof Editable;
  * version when the seed or types change shape — old saves are then ignored.
  */
 const PRACTICE_KEY = "bizriva.practice-db";
-const PRACTICE_VERSION = 8; // v8: Meta Ads link, ad drafts, Conversions API events
+const PRACTICE_VERSION = 9; // v9: payments in the chat
 
 function loadPractice(): { db: Database; workspaceId: ID } | null {
   try {
@@ -146,6 +146,14 @@ interface StoreActions {
   /** Creates the ad in Meta (paused). Returns false when Meta isn't connected. */
   publishAd: (adId: ID) => boolean;
   setAdStatus: (adId: ID, status: "active" | "paused") => void;
+  connectPayments: (provider: PaymentProviderId) => void;
+  disconnectPayments: () => void;
+  updatePayments: (patch: Partial<PaymentSetup>) => void;
+  /** Sends the customer their ways to pay for their latest unpaid order. Returns the order reference, or an error. */
+  requestPayment: (conversationId: ID, methods: ("transfer" | "link" | "cod")[]) => { reference?: string; error?: string };
+  /** Practice: the provider's webhook reports money arriving. */
+  simulatePayment: (input: { orderId?: ID; amount: number; method: PaymentEvent["method"]; payerName?: string; toMain?: boolean }) => PaymentEvent | null;
+  matchPayment: (eventId: ID, orderId: ID) => void;
 }
 
 export interface ChatImportInput {
@@ -1164,6 +1172,144 @@ export function DataProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const connectPayments = useCallback((provider: PaymentProviderId) => {
+    setDb((d) => {
+      const now = new Date().toISOString();
+      const next: Database = { ...d, settings: { ...d.settings, payments: { ...d.settings.payments, provider, status: "connected", connectedAt: now } }, integrations: d.integrations.map((i) => (i.id === "paystack" ? { ...i, status: "simulated" as const, connectedAt: now } : i)) };
+      return notify(next, "Payments connected", `${provider[0]!.toUpperCase()}${provider.slice(1)} — customers can now pay inside the chat.`, "success");
+    });
+  }, []);
+
+  const disconnectPayments = useCallback(() => {
+    setDb((d) => ({ ...d, settings: { ...d.settings, payments: (({ provider: _p, connectedAt: _c, ...rest }) => ({ ...rest, status: "not_connected" as const }))(d.settings.payments) }, integrations: d.integrations.map((i) => (i.id === "paystack" ? { id: i.id, status: "not_connected" as const } : i)) }));
+  }, []);
+
+  const updatePayments = useCallback((patch: Partial<PaymentSetup>) => {
+    setDb((d) => ({ ...d, settings: { ...d.settings, payments: { ...d.settings.payments, ...patch } } }));
+  }, []);
+
+  const balanceOf = (o: { total: number; amountPaid?: number; paymentStatus: string }) => o.total - (o.amountPaid ?? (o.paymentStatus === "paid" ? o.total : 0));
+  const openOrderFor = (d: Database, contactId: ID) => d.orders
+    .filter((o) => o.contactId === contactId && !["cancelled", "returned", "refused"].includes(o.status) && balanceOf(o) > 0)
+    .sort((a, b) => +new Date(a.placedAt) - +new Date(b.placedAt))[0];
+
+  /** Give the customer their own account number (practice: made up from their phone). */
+  const ensureAccount = (d: Database, contactId: ID): Database => {
+    const ps = d.settings.payments;
+    const c = d.contacts.find((x) => x.id === contactId);
+    if (!c || c.virtualAccount || ps.status !== "connected" || !ps.provider) return d;
+    const digits = c.phone.replace(/\D/g, "").slice(-8).padStart(8, "0");
+    const va = { bank: practiceSeed.providerBanks[ps.provider], number: `99${digits}`, name: `${d.settings.businessName.split(" ").slice(0, 2).join(" ")}/${c.firstName} ${c.lastName[0] ?? ""}`.trim(), provider: ps.provider };
+    return { ...d, contacts: d.contacts.map((x) => (x.id === contactId ? { ...x, virtualAccount: va } : x)) };
+  };
+
+  const requestPayment = useCallback((conversationId: ID, methods: ("transfer" | "link" | "cod")[]) => {
+    const d0 = dbRef.current;
+    const conv = d0.conversations.find((c) => c.id === conversationId);
+    if (!conv) return { error: "Chat not found." };
+    const order = openOrderFor(d0, conv.contactId);
+    if (!order) return { error: "Nothing is owed: this customer has no unpaid order. Create an order first." };
+    const ps = d0.settings.payments;
+    const live = ps.status === "connected";
+    const use = methods.filter((m) => (m === "cod" ? order.paymentMethod === "cash_on_delivery" : live));
+    if (!use.length) return { error: live ? "Pick at least one way to pay." : "Connect a payment provider on the Payments page first." };
+    setDb((d) => {
+      let next = ensureAccount(d, conv.contactId);
+      const c = next.contacts.find((x) => x.id === conv.contactId)!;
+      const amount = balanceOf(order);
+      const lines = [`Hi ${c.firstName}, here's how to pay for order ${order.reference} (${moneyIn(next, amount)}):`];
+      if (use.includes("transfer") && c.virtualAccount) lines.push("", `🏦 *Bank transfer* — confirmed instantly`, `${c.virtualAccount.bank}`, `Account: *${c.virtualAccount.number}*`, `Name: ${c.virtualAccount.name}`, `This account is just for you — use it any time you buy from us.`);
+      if (use.includes("link")) lines.push("", `💳 *Card, USSD or bank app*`, next.settings.paymentLinkTemplate.replace("{{order}}", order.reference));
+      if (use.includes("cod")) lines.push("", `🚚 Or pay the rider when it arrives.`);
+      lines.push("", "You'll get a receipt here the moment it lands. ✅");
+      next = postToCustomer(next, conv.contactId, lines.join("\n"));
+      next = { ...next, paymentRequests: [{ id: newId("pr"), orderId: order.id, contactId: conv.contactId, amount, at: new Date().toISOString(), methods: use, status: "sent" as const }, ...next.paymentRequests] };
+      return logActivity(next, conv.contactId, `Payment requested for ${order.reference}`, "order", use.join(", "));
+    });
+    return { reference: order.reference };
+  }, []);
+
+  /** Apply a payment to an order: balance, status, receipt, alert, settlement. */
+  const applyPayment = (d: Database, ev: PaymentEvent, orderId: ID): { db: Database; ev: PaymentEvent } => {
+    const order = d.orders.find((o) => o.id === orderId);
+    if (!order) return { db: d, ev };
+    const due = balanceOf(order);
+    const paid = Math.min(order.total, (order.amountPaid ?? 0) + ev.amount);
+    const full = paid >= order.total;
+    const status: PaymentEvent["status"] = ev.amount > due ? "over" : full ? "matched" : "part";
+    const ps = d.settings.payments;
+    // Split by product category; the rest goes to the default account.
+    const product = d.products.find((p) => order.productNames.some((n) => n.includes(p.name)));
+    const accounts = ps.settlement;
+    const defaultAcc = accounts.find((a) => a.id === ps.defaultAccountId) ?? accounts[0];
+    const rules = ps.splits.filter((r) => r.category === "all" || r.category === product?.category);
+    let left = ev.amount;
+    const settledTo: PaymentEvent["settledTo"] = [];
+    rules.forEach((r) => { const acc = accounts.find((a) => a.id === r.accountId); if (!acc || left <= 0) return; const amt = Math.round((ev.amount * r.percent) / 100); settledTo.push({ label: acc.label, amount: Math.min(amt, left) }); left -= Math.min(amt, left); });
+    if (left > 0 && defaultAcc) settledTo.push({ label: defaultAcc.label, amount: left });
+    const receiptNo = `RCPT-${order.reference.replace(/\D/g, "")}-${(d.paymentEvents.length + 1).toString().padStart(3, "0")}`;
+    const out: PaymentEvent = { ...ev, orderId, contactId: order.contactId, status, settledTo, receiptNo };
+    const method = ev.method === "transfer" ? "bank_transfer" as const : ev.method === "ussd" ? "ussd" as const : "card" as const;
+    let next: Database = {
+      ...d,
+      orders: d.orders.map((o) => (o.id === orderId ? { ...o, amountPaid: paid, paymentStatus: full ? "paid" as const : "part_paid" as const, paymentMethod: full ? method : o.paymentMethod,
+        status: full && ps.autoConfirm && o.status === "pending_verification" ? "confirmed" as const : o.status } : o)),
+      payments: [{ id: newId("pay"), orderId, contactId: order.contactId, amount: Math.min(ev.amount, due), method, status: "paid", at: ev.at }, ...d.payments],
+      paymentRequests: d.paymentRequests.map((r) => (r.orderId === orderId && r.status !== "paid" ? { ...r, status: full ? "paid" as const : "part_paid" as const } : r)),
+      contacts: d.contacts.map((c) => (c.id === order.contactId ? { ...c, outstandingBalance: Math.max(0, c.outstandingBalance - Math.min(ev.amount, due)) } : c)),
+    };
+    if (full && ps.autoConfirm && order.status === "pending_verification") next = advanceLead(next, order.contactId, "order_confirmed");
+    if (ps.autoReceipt) {
+      const lines = [`✅ *Payment received — thank you!*`, `${moneyIn(next, ev.amount)} for order ${order.reference}`, `Receipt: ${receiptNo}`];
+      if (!full) lines.push(`Balance left: ${moneyIn(next, order.total - paid)}`);
+      if (status === "over") lines.push(`You paid ${moneyIn(next, ev.amount - due)} more than the balance — we'll refund or credit it. A team member will confirm.`);
+      if (full) lines.push(order.status === "pending_verification" || order.status === "confirmed" ? "We're getting it ready for dispatch now." : "");
+      next = postToCustomer(next, order.contactId, lines.filter(Boolean).join("\n"));
+    }
+    const who = next.contacts.find((c) => c.id === order.contactId);
+    next = notify(next, `${moneyIn(next, ev.amount)} received`, `${who ? `${who.firstName} ${who.lastName}` : ev.payerName} · ${order.reference} · ${status === "matched" ? "paid in full" : status === "part" ? "part payment" : "overpaid — check"}`, status === "over" ? "warning" : "success");
+    next = logActivity(next, order.contactId, `Payment of ${moneyIn(next, ev.amount)} received`, "order", `${ev.method} · ${receiptNo}`);
+    return { db: next, ev: out };
+  };
+
+  const simulatePayment = useCallback((input: { orderId?: ID; amount: number; method: PaymentEvent["method"]; payerName?: string; toMain?: boolean }) => {
+    const d0 = dbRef.current;
+    const ps = d0.settings.payments;
+    if (ps.status !== "connected" || !ps.provider || !(input.amount > 0)) return null;
+    const order = input.orderId ? d0.orders.find((o) => o.id === input.orderId) : undefined;
+    const contact = order ? d0.contacts.find((c) => c.id === order.contactId) : undefined;
+    const main = ps.settlement.find((a) => a.id === ps.defaultAccountId) ?? ps.settlement[0];
+    let result: PaymentEvent | null = null;
+    setDb((d) => {
+      let next = order && !input.toMain ? ensureAccount(d, order.contactId) : d;
+      const c = contact ? next.contacts.find((x) => x.id === contact.id) : undefined;
+      const ev: PaymentEvent = {
+        id: newId("pe"), at: new Date().toISOString(), provider: ps.provider!, method: input.method, amount: input.amount,
+        payerName: input.payerName ?? (c ? `${c.firstName} ${c.lastName}`.toUpperCase() : "UNKNOWN SENDER"), reference: `${ps.provider!.slice(0, 3).toUpperCase()}_${Math.random().toString(36).slice(2, 10)}`,
+        paidInto: input.toMain || !c?.virtualAccount ? main?.accountNumber ?? "main" : c.virtualAccount.number, status: "unmatched", settledTo: [],
+      };
+      // A transfer into the customer's own account (or a link/card payment for an order) matches by itself.
+      if (order && (!input.toMain || input.method !== "transfer")) {
+        const r = applyPayment(next, ev, order.id);
+        next = r.db; result = r.ev;
+      } else {
+        result = { ...ev, settledTo: main ? [{ label: main.label, amount: ev.amount }] : [] };
+        next = notify(next, `${moneyIn(next, ev.amount)} arrived — not matched`, `${ev.payerName} paid into ${main?.label ?? "your main account"}. Match it to an order on Payments.`, "warning");
+      }
+      return { ...next, paymentEvents: [result!, ...next.paymentEvents].slice(0, 300) };
+    });
+    return result;
+  }, []);
+
+  const matchPayment = useCallback((eventId: ID, orderId: ID) => {
+    setDb((d) => {
+      const ev = d.paymentEvents.find((e) => e.id === eventId);
+      if (!ev || ev.status !== "unmatched") return d;
+      const r = applyPayment(d, ev, orderId);
+      return { ...r.db, paymentEvents: r.db.paymentEvents.map((e) => (e.id === eventId ? r.ev : e)) };
+    });
+  }, []);
+
   const resetPracticeData = useCallback(() => {
     try {
       localStorage.removeItem(PRACTICE_KEY);
@@ -1185,10 +1331,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
         setIntegration, assignRider, moveStock, recordPayment, logRun, retryRun, sendBroadcast, addCampaignSpend,
         updateContactDetails, simulateIncoming, sendProductCard, updateWorkspace, submitLeadForm,
         submitOrderForm, trackForm, simulateFormTraffic, recordDeposit, requestBalance, issueInvoice, flagComplaint, resolveComplaint,
-        toggleSetupStep, importProducts, addPolicyStarters, importChatHistory, saveFacts, removeFact, sendPaymentLink, receiveIntake, connectMeta, disconnectMeta, syncMeta, setCapi, publishAd, setAdStatus,
+        toggleSetupStep, importProducts, addPolicyStarters, importChatHistory, saveFacts, removeFact, sendPaymentLink, receiveIntake, connectMeta, disconnectMeta, syncMeta, setCapi, publishAd, setAdStatus, connectPayments, disconnectPayments, updatePayments, requestPayment, simulatePayment, matchPayment,
       },
     }),
-    [db, workspaceId, addContact, createOrder, setLeadStage, setLeadOutcome, assignOwner, setLifecycle, completeTask, snoozeTask, addTask, addNote, logCall, sendReply, markNotificationsRead, setOrderStatus, recordCodCheck, setDeliveryStatus, markRemitted, saveProduct, adjustStock, mergeContacts, startLead, resetPracticeData, saveRecord, removeRecord, updateSettings, updateAgent, setIntegration, assignRider, moveStock, recordPayment, logRun, retryRun, sendBroadcast, addCampaignSpend, updateContactDetails, simulateIncoming, sendProductCard, updateWorkspace, submitLeadForm, submitOrderForm, trackForm, simulateFormTraffic, recordDeposit, requestBalance, issueInvoice, flagComplaint, resolveComplaint, toggleSetupStep, importProducts, addPolicyStarters, importChatHistory, saveFacts, removeFact, sendPaymentLink, receiveIntake, connectMeta, disconnectMeta, syncMeta, setCapi, publishAd, setAdStatus],
+    [db, workspaceId, addContact, createOrder, setLeadStage, setLeadOutcome, assignOwner, setLifecycle, completeTask, snoozeTask, addTask, addNote, logCall, sendReply, markNotificationsRead, setOrderStatus, recordCodCheck, setDeliveryStatus, markRemitted, saveProduct, adjustStock, mergeContacts, startLead, resetPracticeData, saveRecord, removeRecord, updateSettings, updateAgent, setIntegration, assignRider, moveStock, recordPayment, logRun, retryRun, sendBroadcast, addCampaignSpend, updateContactDetails, simulateIncoming, sendProductCard, updateWorkspace, submitLeadForm, submitOrderForm, trackForm, simulateFormTraffic, recordDeposit, requestBalance, issueInvoice, flagComplaint, resolveComplaint, toggleSetupStep, importProducts, addPolicyStarters, importChatHistory, saveFacts, removeFact, sendPaymentLink, receiveIntake, connectMeta, disconnectMeta, syncMeta, setCapi, publishAd, setAdStatus, connectPayments, disconnectPayments, updatePayments, requestPayment, simulatePayment, matchPayment],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

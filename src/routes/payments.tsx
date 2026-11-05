@@ -6,6 +6,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EmptyState, KpiCard, Section, StatusBadge } from "@/components/app/primitives";
 import { useActions, useDb, useWorkspace } from "@/domain/store";
+import { ChatPayments } from "@/components/app/ChatPayments";
 import { fullName } from "@/domain/repositories";
 import { PAYMENT_STATUS_META, type PaymentMethod } from "@/domain/types";
 import { formatCurrency, formatDate, relativeTime } from "@/lib/format";
@@ -43,8 +44,10 @@ function Payments() {
       <div>
         <p className="text-xs font-semibold uppercase tracking-wider text-primary">Money</p>
         <h1 className="text-2xl font-bold">Payments</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Cash collected on delivery versus cash handed in, plus orders still waiting to be paid.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Get paid inside the chat with instant confirmation, and keep track of cash collected on delivery.</p>
       </div>
+
+      <ChatPayments />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <KpiCard label="COD collected" value={formatCurrency(codCollected.reduce((s, p) => s + p.amount, 0), ws.currency, { compact: true })} tone="success" />
