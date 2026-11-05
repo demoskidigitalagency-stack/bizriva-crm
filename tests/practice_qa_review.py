@@ -225,9 +225,20 @@ async def main():
             ok("details found in imported chat", await pg.get_by_role("complementary", name="Customer details").get_by_text(re.compile("Ogunlana Drive")).count() >= 1)
         await step("chat import", t_chat_import())
 
+        async def t_welcome():
+            await ready(pg, "/welcome")
+            ok("landing page headline", await pg.get_by_role("heading", level=1).filter(has_text="delivered, paid").count() == 1)
+            ok("landing page has no app sidebar", await pg.get_by_role("link", name="Order Forms", exact=True).count() == 0)
+            ok("landing page sections", all([await pg.locator(f"section#{x}").count() == 1 for x in ["problem", "how", "features", "compare", "pricing", "faq"]]))
+            await pg.get_by_role("button", name="What happens to my old WhatsApp chats?").click()
+            ok("FAQ opens", await pg.get_by_text(re.compile("Export any chat from WhatsApp")).count() == 1)
+            await pg.get_by_role("link", name=re.compile("^Start free")).first.click(); await pg.wait_for_timeout(800)
+            ok("Start free goes to sign-up", "/account" in pg.url)
+        await step("welcome", t_welcome())
+
         async def t_mobile():
             m = await b.new_page(viewport={"width": 390, "height": 844}); wide = []
-            for r in ["/order-forms", "/order-forms?f=of_1", "/calendar", "/roadmap", "/store", "/templates", "/today", "/inbox", "/orders", "/crm/imports?t=chats"]:
+            for r in ["/order-forms", "/order-forms?f=of_1", "/calendar", "/roadmap", "/store", "/templates", "/today", "/inbox", "/orders", "/crm/imports?t=chats", "/welcome"]:
                 await m.goto(B + r); await m.wait_for_load_state("load"); await m.wait_for_timeout(1500)
                 sw = await m.evaluate("document.documentElement.scrollWidth")
                 if sw > 392: wide.append(f"{r}={sw}")

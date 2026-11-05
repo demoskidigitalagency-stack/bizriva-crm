@@ -41,6 +41,7 @@ import { Route as StoreRouteImport } from './routes/store'
 import { Route as TeamRouteImport } from './routes/team'
 import { Route as TemplatesRouteImport } from './routes/templates'
 import { Route as TodayRouteImport } from './routes/today'
+import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as WorkflowHistoryRouteImport } from './routes/workflow-history'
 import { Route as CrmIndexRouteImport } from './routes/crm/index'
 import { Route as CrmCustomersRouteImport } from './routes/crm/customers'
@@ -216,6 +217,11 @@ const TodayRoute = TodayRouteImport.update({
   path: '/today',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WelcomeRoute = WelcomeRouteImport.update({
+  id: '/welcome',
+  path: '/welcome',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const WorkflowHistoryRoute = WorkflowHistoryRouteImport.update({
   id: '/workflow-history',
   path: '/workflow-history',
@@ -320,6 +326,7 @@ export interface FileRoutesByFullPath {
   '/team': typeof TeamRoute
   '/templates': typeof TemplatesRoute
   '/today': typeof TodayRoute
+  '/welcome': typeof WelcomeRoute
   '/workflow-history': typeof WorkflowHistoryRoute
   '/crm/customers': typeof CrmCustomersRoute
   '/crm/duplicates': typeof CrmDuplicatesRoute
@@ -367,6 +374,7 @@ export interface FileRoutesByTo {
   '/team': typeof TeamRoute
   '/templates': typeof TemplatesRoute
   '/today': typeof TodayRoute
+  '/welcome': typeof WelcomeRoute
   '/workflow-history': typeof WorkflowHistoryRoute
   '/crm/customers': typeof CrmCustomersRoute
   '/crm/duplicates': typeof CrmDuplicatesRoute
@@ -416,6 +424,7 @@ export interface FileRoutesById {
   '/team': typeof TeamRoute
   '/templates': typeof TemplatesRoute
   '/today': typeof TodayRoute
+  '/welcome': typeof WelcomeRoute
   '/workflow-history': typeof WorkflowHistoryRoute
   '/crm/customers': typeof CrmCustomersRoute
   '/crm/duplicates': typeof CrmDuplicatesRoute
@@ -466,6 +475,7 @@ export interface FileRouteTypes {
     | '/team'
     | '/templates'
     | '/today'
+    | '/welcome'
     | '/workflow-history'
     | '/crm/customers'
     | '/crm/duplicates'
@@ -513,6 +523,7 @@ export interface FileRouteTypes {
     | '/team'
     | '/templates'
     | '/today'
+    | '/welcome'
     | '/workflow-history'
     | '/crm/customers'
     | '/crm/duplicates'
@@ -561,6 +572,7 @@ export interface FileRouteTypes {
     | '/team'
     | '/templates'
     | '/today'
+    | '/welcome'
     | '/workflow-history'
     | '/crm/customers'
     | '/crm/duplicates'
@@ -610,6 +622,7 @@ export interface RootRouteChildren {
   TeamRoute: typeof TeamRoute
   TemplatesRoute: typeof TemplatesRoute
   TodayRoute: typeof TodayRoute
+  WelcomeRoute: typeof WelcomeRoute
   WorkflowHistoryRoute: typeof WorkflowHistoryRoute
   InviteTokenRoute: typeof InviteTokenRoute
 }
@@ -840,6 +853,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TodayRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/welcome': {
+      id: '/welcome'
+      path: '/welcome'
+      fullPath: '/welcome'
+      preLoaderRoute: typeof WelcomeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/workflow-history': {
       id: '/workflow-history'
       path: '/workflow-history'
@@ -1006,6 +1026,7 @@ const rootRouteChildren: RootRouteChildren = {
   TeamRoute: TeamRoute,
   TemplatesRoute: TemplatesRoute,
   TodayRoute: TodayRoute,
+  WelcomeRoute: WelcomeRoute,
   WorkflowHistoryRoute: WorkflowHistoryRoute,
   InviteTokenRoute: InviteTokenRoute,
 }

@@ -274,14 +274,20 @@ function AccountMenu() {
         <DropdownMenuSeparator />
         {auth.configured && <DropdownMenuItem asChild><Link to="/account">{auth.session ? "Account and team invites" : "Sign in"}</Link></DropdownMenuItem>}
         <DropdownMenuItem asChild><Link to="/settings">Workspace settings</Link></DropdownMenuItem>
+        <DropdownMenuItem asChild><Link to="/welcome">Public website</Link></DropdownMenuItem>
         {auth.session && <DropdownMenuItem onSelect={() => void auth.signOut()}>Sign out</DropdownMenuItem>}
       </DropdownMenuContent>
     </DropdownMenu>
   );
 }
 
+/** Public marketing pages render without the app's sidebar and top bar. */
+const BARE = ["/welcome"];
+
 export function AppShell({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const path = useRouterState({ select: (s) => s.location.pathname });
+  if (BARE.includes(path)) return <>{children}</>;
   return (
     <div className="flex min-h-screen bg-background">
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 lg:block">
