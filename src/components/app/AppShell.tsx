@@ -16,6 +16,7 @@ import { PersonAvatar } from "./primitives";
 import { GROUPS, MODULES } from "@/app/modules";
 import { overallProgress } from "@/app/status";
 import { THEMES, useAppearance } from "@/app/appearance";
+import { ROLE_LABEL, useAuth } from "@/app/auth";
 
 function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const db = useDb();
@@ -254,6 +255,31 @@ function AppearanceMenu() {
   );
 }
 
+function AccountMenu() {
+  const auth = useAuth();
+  if (auth.configured && auth.ready && !auth.session) {
+    return <Button asChild size="sm" variant="outline" className="ml-1"><Link to="/account">Sign in</Link></Button>;
+  }
+  const name = auth.email ?? currentUser.name;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="ml-1 rounded-full" aria-label="Account menu"><PersonAvatar name={name} tone="brand" /></button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>
+          <p>{auth.session ? auth.current?.name ?? "No business yet" : currentUser.name}</p>
+          <p className="text-xs font-normal text-muted-foreground">{auth.session ? `${auth.email}${auth.current ? ` · ${ROLE_LABEL[auth.current.role]}` : ""}` : currentUser.email}</p>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {auth.configured && <DropdownMenuItem asChild><Link to="/account">{auth.session ? "Account and team invites" : "Sign in"}</Link></DropdownMenuItem>}
+        <DropdownMenuItem asChild><Link to="/settings">Workspace settings</Link></DropdownMenuItem>
+        {auth.session && <DropdownMenuItem onSelect={() => void auth.signOut()}>Sign out</DropdownMenuItem>}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   return (
@@ -277,19 +303,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <QuickCreate />
             <AppearanceMenu />
             <Notifications />
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="ml-1 rounded-full" aria-label="Account menu"><PersonAvatar name={currentUser.name} tone="brand" /></button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>
-                  <p>{currentUser.name}</p>
-                  <p className="text-xs font-normal text-muted-foreground">{currentUser.email}</p>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild><Link to="/settings">Workspace settings</Link></DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <AccountMenu />
           </div>
         </header>
         <main className="mx-auto w-full max-w-[1400px] flex-1 px-3 py-5 sm:px-5 lg:px-8">{children}</main>

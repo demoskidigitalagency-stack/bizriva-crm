@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SplatRouteImport } from './routes/$'
+import { Route as AccountRouteImport } from './routes/account'
 import { Route as AdsRouteImport } from './routes/ads'
 import { Route as AiAgentRouteImport } from './routes/ai-agent'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
@@ -51,6 +52,7 @@ import { Route as CrmPipelineRouteImport } from './routes/crm/pipeline'
 import { Route as CrmSegmentsRouteImport } from './routes/crm/segments'
 import { Route as CrmTasksRouteImport } from './routes/crm/tasks'
 import { Route as CrmWorkflowsRouteImport } from './routes/crm/workflows'
+import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as CrmContactsIndexRouteImport } from './routes/crm/contacts/index'
 import { Route as CrmContactsContactIdRouteImport } from './routes/crm/contacts/$contactId'
 
@@ -62,6 +64,11 @@ const IndexRoute = IndexRouteImport.update({
 const SplatRoute = SplatRouteImport.update({
   id: '/$',
   path: '/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccountRoute = AccountRouteImport.update({
+  id: '/account',
+  path: '/account',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdsRoute = AdsRouteImport.update({
@@ -264,6 +271,11 @@ const CrmWorkflowsRoute = CrmWorkflowsRouteImport.update({
   path: '/workflows',
   getParentRoute: () => CrmRoute,
 } as any)
+const InviteTokenRoute = InviteTokenRouteImport.update({
+  id: '/invite/$token',
+  path: '/invite/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CrmContactsIndexRoute = CrmContactsIndexRouteImport.update({
   id: '/contacts/',
   path: '/contacts/',
@@ -278,6 +290,7 @@ const CrmContactsContactIdRoute = CrmContactsContactIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
+  '/account': typeof AccountRoute
   '/ads': typeof AdsRoute
   '/ai-agent': typeof AiAgentRoute
   '/analytics': typeof AnalyticsRoute
@@ -317,6 +330,7 @@ export interface FileRoutesByFullPath {
   '/crm/segments': typeof CrmSegmentsRoute
   '/crm/tasks': typeof CrmTasksRoute
   '/crm/workflows': typeof CrmWorkflowsRoute
+  '/invite/$token': typeof InviteTokenRoute
   '/crm/': typeof CrmIndexRoute
   '/crm/contacts/$contactId': typeof CrmContactsContactIdRoute
   '/crm/contacts/': typeof CrmContactsIndexRoute
@@ -324,6 +338,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
+  '/account': typeof AccountRoute
   '/ads': typeof AdsRoute
   '/ai-agent': typeof AiAgentRoute
   '/analytics': typeof AnalyticsRoute
@@ -362,6 +377,7 @@ export interface FileRoutesByTo {
   '/crm/segments': typeof CrmSegmentsRoute
   '/crm/tasks': typeof CrmTasksRoute
   '/crm/workflows': typeof CrmWorkflowsRoute
+  '/invite/$token': typeof InviteTokenRoute
   '/crm': typeof CrmIndexRoute
   '/crm/contacts/$contactId': typeof CrmContactsContactIdRoute
   '/crm/contacts': typeof CrmContactsIndexRoute
@@ -370,6 +386,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
+  '/account': typeof AccountRoute
   '/ads': typeof AdsRoute
   '/ai-agent': typeof AiAgentRoute
   '/analytics': typeof AnalyticsRoute
@@ -409,6 +426,7 @@ export interface FileRoutesById {
   '/crm/segments': typeof CrmSegmentsRoute
   '/crm/tasks': typeof CrmTasksRoute
   '/crm/workflows': typeof CrmWorkflowsRoute
+  '/invite/$token': typeof InviteTokenRoute
   '/crm/': typeof CrmIndexRoute
   '/crm/contacts/$contactId': typeof CrmContactsContactIdRoute
   '/crm/contacts/': typeof CrmContactsIndexRoute
@@ -418,6 +436,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/$'
+    | '/account'
     | '/ads'
     | '/ai-agent'
     | '/analytics'
@@ -457,6 +476,7 @@ export interface FileRouteTypes {
     | '/crm/segments'
     | '/crm/tasks'
     | '/crm/workflows'
+    | '/invite/$token'
     | '/crm/'
     | '/crm/contacts/$contactId'
     | '/crm/contacts/'
@@ -464,6 +484,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/$'
+    | '/account'
     | '/ads'
     | '/ai-agent'
     | '/analytics'
@@ -502,6 +523,7 @@ export interface FileRouteTypes {
     | '/crm/segments'
     | '/crm/tasks'
     | '/crm/workflows'
+    | '/invite/$token'
     | '/crm'
     | '/crm/contacts/$contactId'
     | '/crm/contacts'
@@ -509,6 +531,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/$'
+    | '/account'
     | '/ads'
     | '/ai-agent'
     | '/analytics'
@@ -548,6 +571,7 @@ export interface FileRouteTypes {
     | '/crm/segments'
     | '/crm/tasks'
     | '/crm/workflows'
+    | '/invite/$token'
     | '/crm/'
     | '/crm/contacts/$contactId'
     | '/crm/contacts/'
@@ -556,6 +580,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SplatRoute: typeof SplatRoute
+  AccountRoute: typeof AccountRoute
   AdsRoute: typeof AdsRoute
   AiAgentRoute: typeof AiAgentRoute
   AnalyticsRoute: typeof AnalyticsRoute
@@ -586,6 +611,7 @@ export interface RootRouteChildren {
   TemplatesRoute: typeof TemplatesRoute
   TodayRoute: typeof TodayRoute
   WorkflowHistoryRoute: typeof WorkflowHistoryRoute
+  InviteTokenRoute: typeof InviteTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -602,6 +628,13 @@ declare module '@tanstack/react-router' {
       path: '/$'
       fullPath: '/$'
       preLoaderRoute: typeof SplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/account': {
+      id: '/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AccountRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/ads': {
@@ -884,6 +917,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CrmWorkflowsRouteImport
       parentRoute: typeof CrmRoute
     }
+    '/invite/$token': {
+      id: '/invite/$token'
+      path: '/invite/$token'
+      fullPath: '/invite/$token'
+      preLoaderRoute: typeof InviteTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/crm/contacts/': {
       id: '/crm/contacts/'
       path: '/contacts'
@@ -936,6 +976,7 @@ const CrmRouteWithChildren = CrmRoute._addFileChildren(CrmRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SplatRoute: SplatRoute,
+  AccountRoute: AccountRoute,
   AdsRoute: AdsRoute,
   AiAgentRoute: AiAgentRoute,
   AnalyticsRoute: AnalyticsRoute,
@@ -966,6 +1007,7 @@ const rootRouteChildren: RootRouteChildren = {
   TemplatesRoute: TemplatesRoute,
   TodayRoute: TodayRoute,
   WorkflowHistoryRoute: WorkflowHistoryRoute,
+  InviteTokenRoute: InviteTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

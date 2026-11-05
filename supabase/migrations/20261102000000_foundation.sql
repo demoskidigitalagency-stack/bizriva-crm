@@ -1,4 +1,4 @@
--- Bizriva CRM — foundation schema (DRAFT, not yet applied)
+-- Bizriva CRM — foundation schema (applied to Supabase project xjhzkciowmklxrtwsikm, London, 2026-11-05)
 --
 -- Every business table carries workspace_id and is protected by row-level
 -- security, so one business can never read another's data (acceptance test 14).
