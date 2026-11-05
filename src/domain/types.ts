@@ -687,3 +687,31 @@ export interface CalendarEvent {
   orderId?: ID;
   note?: string;
 }
+
+/* Website and form connections (2026-11-05). */
+export interface Connection {
+  id: ID;
+  platform: import("./intake").PlatformId;
+  name: string;
+  /** Sent by the platform in the X-Bizriva-Key header (or ?key=). */
+  secret: string;
+  /** Their field label → our field. Empty means "match by name". */
+  fieldMap: import("./intake").FieldMap;
+  /** What a submission with a product becomes. */
+  createAs: "order" | "lead";
+  active: boolean;
+  createdAt: string;
+  lastEventAt?: string;
+}
+
+export interface ConnectionEvent {
+  id: ID;
+  connectionId: ID;
+  at: string;
+  status: "created_order" | "created_lead" | "duplicate" | "failed";
+  summary: string;
+  raw: string;
+  contactId?: ID;
+  orderId?: ID;
+  externalId?: string;
+}

@@ -119,9 +119,36 @@ async def main():
             ok("later items listed", await pg.get_by_text("Money Brief on WhatsApp and email").count() == 1)
         await step("more", t_more())
 
+        async def t_connections():
+            await ready(pg, "/connections")
+            ok("sidebar has Website & Forms", await pg.get_by_role("link", name="Website & Forms", exact=True).count() == 1)
+            await pg.get_by_role("button", name="Connect a platform").click()
+            ok("13 platforms to pick from", await pg.locator("button", has_text="Sends:").count() == 13, await pg.locator("button", has_text="Sends:").count())
+            await pg.get_by_role("button", name="Gravity Forms").click(); await pg.wait_for_timeout(500)
+            ok("setup shows intake address and key", "/api/intake/" in await pg.get_by_label("Your intake address").inner_text())
+            await pg.get_by_role("tab", name="Test and match fields").click()
+            await pg.get_by_role("button", name="Send test").click(); await pg.wait_for_timeout(300)
+            ok("Gravity Forms test creates an order", await pg.get_by_role("status").filter(has_text="Order created").count() == 1)
+            await pg.get_by_role("button", name="Send test").click(); await pg.wait_for_timeout(300)
+            ok("same entry twice is skipped", await pg.get_by_role("status").filter(has_text="Duplicate skipped").count() == 1)
+            await pg.get_by_role("tab", name="Activity").click()
+            ok("activity log lists both", await pg.get_by_text("Order created").count() >= 1 and await pg.get_by_text("Duplicate skipped").count() >= 1)
+            await ready(pg, "/inbox")
+            await pg.get_by_role("tab", name=re.compile("^All")).click()
+            await pg.get_by_label("Search conversations").fill("Bayo"); await pg.wait_for_timeout(300)
+            ok("submission has a chat in the Inbox", await pg.locator("main ul li button", has_text="Bayo Ogunleye").count() >= 1)
+            await ready(pg, "/connections?c=cn_1")
+            await pg.get_by_role("tab", name="Test and match fields").click()
+            await pg.get_by_label("A submission, as Elementor Forms sends it").fill('{"fields": {"msg": {"id": "msg", "title": "Message", "value": "hi"}}}')
+            await pg.get_by_role("button", name="Send test").click(); await pg.wait_for_timeout(300)
+            ok("missing name and phone fails clearly", await pg.get_by_role("status").filter(has_text="Missing name and phone").count() == 1)
+            await ready(pg, "/welcome")
+            ok("landing lists connectable platforms", await pg.locator("section#connect").get_by_text("Gravity Forms").count() == 1)
+        await step("connections", t_connections())
+
         async def t_mobile():
             m = await b.new_page(viewport={"width": 390, "height": 844}); wide = []
-            for r in ["/brief", "/", "/crm/contacts/c_0003", "/ai-agent", "/inbox", "/welcome"]:
+            for r in ["/brief", "/", "/crm/contacts/c_0003", "/ai-agent", "/inbox", "/welcome", "/connections", "/connections?c=cn_1"]:
                 await m.goto(B + r); await m.wait_for_load_state("load"); await m.wait_for_timeout(1500)
                 sw = await m.evaluate("document.documentElement.scrollWidth")
                 if sw > 392: wide.append(f"{r}={sw}")

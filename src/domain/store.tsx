@@ -9,10 +9,11 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { createInitialDatabase, CURRENT_USER_ID, NOW, type Database } from "./database";
 import { codRisk } from "./repositories";
 import * as practiceSeed from "./practice-seed";
+import { autoMap, flatten, normalise, PLATFORMS } from "./intake";
 import type {
   AgentConfig, Broadcast, BusinessSettings, CalendarEvent, Campaign, Channel, OrderForm, OrderFormField, Contact, DeliveryStatus, FollowUpRule, ID, IntegrationState, KnowledgeEntry,
   LeadOutcome, LeadStage, Lifecycle, MediaAsset, MessageTemplate, OrderStatus, PaymentMethod, Product, Rider, StockMovement, Task,
-  TeamMember, Workflow, WorkflowRun, FactKind,
+  TeamMember, Workflow, WorkflowRun, FactKind, Connection, ConnectionEvent,
 } from "./types";
 
 /** Collections that the generic save/remove actions may touch. */
@@ -26,6 +27,7 @@ export interface Editable {
   media: MediaAsset;
   campaigns: Campaign;
   team: TeamMember;
+  connections: Connection;
   orderForms: OrderForm;
   events: CalendarEvent;
 }
@@ -37,7 +39,7 @@ type EditableKey = keyof Editable;
  * version when the seed or types change shape — old saves are then ignored.
  */
 const PRACTICE_KEY = "bizriva.practice-db";
-const PRACTICE_VERSION = 6; // v6: customer memory, money brief settings, TikTok
+const PRACTICE_VERSION = 7; // v7: website and form connections
 
 function loadPractice(): { db: Database; workspaceId: ID } | null {
   try {
@@ -134,6 +136,8 @@ interface StoreActions {
   removeFact: (contactId: ID, factId: ID) => void;
   /** Sends a payment link for the customer's latest unpaid order into this chat. Returns the order reference, or null if nothing is owed. */
   sendPaymentLink: (conversationId: ID) => string | null;
+  /** A website, form or store sends a submission. Returns what happened. */
+  receiveIntake: (connectionId: ID, raw: unknown) => ConnectionEvent | null;
 }
 
 export interface ChatImportInput {
@@ -1001,6 +1005,85 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return order.reference;
   }, []);
 
+  const receiveIntake = useCallback((connectionId: ID, raw: unknown): ConnectionEvent | null => {
+    const d0 = dbRef.current;
+    const conn = d0.connections.find((c) => c.id === connectionId);
+    if (!conn) return null;
+    const now = new Date().toISOString();
+    const rawText = JSON.stringify(raw, null, 2);
+    const base = { id: newId("ce"), connectionId, at: now, raw: rawText };
+    let event: ConnectionEvent;
+    if (!conn.active) {
+      event = { ...base, status: "failed", summary: "Connection is switched off — submission refused." };
+    } else {
+      const flat = flatten(raw, conn.platform);
+      const map = { ...autoMap(flat), ...conn.fieldMap };
+      const n = normalise(flat, map);
+      const dupe = n.externalId && d0.connectionEvents.find((e) => e.connectionId === connectionId && e.externalId === n.externalId && e.status !== "failed");
+      if (n.missing.length) {
+        event = { ...base, status: "failed", summary: `Missing ${n.missing.join(" and ")}. Check the field matching.`, ...(n.externalId ? { externalId: n.externalId } : {}) };
+      } else if (dupe) {
+        event = { ...base, status: "duplicate", summary: `Already received (their reference ${n.externalId}). Skipped.`, externalId: n.externalId!, ...(dupe.contactId ? { contactId: dupe.contactId } : {}), ...(dupe.orderId ? { orderId: dupe.orderId } : {}) };
+      } else {
+        const lc = (x: string) => x.toLowerCase().replace(/[^a-z0-9]/g, "");
+        const product = n.product ? d0.products.find((p) => lc(n.product!).includes(lc(p.name)) || lc(p.name).includes(lc(n.product!))) : undefined;
+        const digits = n.phone.replace(/\D/g, "").slice(-10);
+        const existing = d0.contacts.find((c) => c.phone.replace(/\D/g, "").slice(-10) === digits);
+        const contactId = existing?.id ?? newId("ct");
+        const asOrder = conn.createAs === "order" && !!product;
+        const orderId = asOrder ? newId("ord") : undefined;
+        const platformName = PLATFORMS.find((p) => p.id === conn.platform)?.name ?? conn.platform;
+        event = {
+          ...base, status: asOrder ? "created_order" : "created_lead", contactId, ...(orderId ? { orderId } : {}), ...(n.externalId ? { externalId: n.externalId } : {}),
+          summary: asOrder ? `Order for ${n.quantity}× ${product!.name} from ${n.name}` : `Lead: ${n.name}${n.product ? ` — asked about ${n.product}${product ? "" : " (not matched to a product)"}` : ""}`,
+        };
+        setDb((d) => {
+          const owner = d.team.find((t) => t.role === "sales_rep" && t.active)?.id ?? d.team[0]!.id;
+          const [firstName, ...rest] = n.name.split(/\s+/);
+          let next: Database = d;
+          if (!d.contacts.some((c) => c.id === contactId)) {
+            const contact: Contact = {
+              id: contactId, firstName: firstName!, lastName: rest.join(" ") || "—", phone: n.phone, countryCode: "NG", city: n.city ?? "Lagos", lifecycle: "lead", source: "website",
+              ownerId: owner, leadScore: asOrder ? 60 : 30, tags: [`from-${conn.platform}`], createdAt: now, lastActivityAt: now, totalOrders: 0, lifetimeValue: 0, deliveredRevenue: 0,
+              contributionProfit: 0, outstandingBalance: 0, consentMarketing: false, notesCount: 0,
+              ...(n.email ? { email: n.email } : {}), ...(n.address ? { address: n.address } : {}), ...(n.landmark ? { landmark: n.landmark } : {}),
+            };
+            next = { ...next, contacts: [contact, ...next.contacts] };
+          }
+          const lines = [`From ${platformName}${n.source ? ` (${n.source})` : ""}`, n.product ? `${n.quantity}× ${n.product}` : "", [n.address, n.city, n.landmark].filter(Boolean).join(", "), n.note ?? ""].filter(Boolean);
+          const body = lines.join("\n");
+          if (asOrder) {
+            const total = n.total ?? product!.price * n.quantity;
+            const reference = `BZ-${1000 + next.orders.length + 1}`;
+            next = {
+              ...next,
+              orders: [{ id: orderId!, reference, contactId, placedAt: now, status: "pending_verification", itemsCount: n.quantity, total, cogs: product!.cost * n.quantity, shippingFee: 0,
+                paymentStatus: "cod_pending", paymentMethod: "cash_on_delivery", channel: "webchat", productNames: [`${n.quantity}× ${product!.name}`] }, ...next.orders],
+              contacts: next.contacts.map((c) => (c.id === contactId ? { ...c, totalOrders: c.totalOrders + 1, lifetimeValue: c.lifetimeValue + total, lastActivityAt: now } : c)),
+            };
+            next = advanceLead(next, contactId, "order_created");
+          } else if (!next.leads.some((l) => l.contactId === contactId && !["converted", "lost"].includes(l.stage))) {
+            next = { ...next, leads: [{ id: newId("ld"), contactId, stage: "new_lead", source: "website", ownerId: owner, score: 30, value: product?.price ?? 0, slaStatus: "on_track", createdAt: now, updatedAt: now }, ...next.leads] };
+          }
+          const conv = next.conversations.find((c) => c.contactId === contactId);
+          if (conv) next = { ...next, conversations: next.conversations.map((c) => (c.id === conv.id ? { ...c, unread: true, awaitingReply: true, lastMessageAt: now, messages: [...c.messages, { id: newId("m"), conversationId: c.id, direction: "in" as const, body, at: now }] } : c)) };
+          else {
+            const convId = `cv_${contactId}`;
+            next = { ...next, conversations: [{ id: convId, contactId, channel: "webchat", subject: `${platformName}: ${n.product ?? "enquiry"}`.slice(0, 60), unread: true, awaitingReply: true, assigneeId: owner, lastMessageAt: now, messages: [{ id: newId("m"), conversationId: convId, direction: "in", body, at: now }] }, ...next.conversations] };
+          }
+          next = notify(next, asOrder ? `New order from ${platformName}` : `New lead from ${platformName}`, event.summary, asOrder ? "success" : "info");
+          return logActivity(next, contactId, asOrder ? `Order received from ${platformName}` : `Lead received from ${platformName}`, asOrder ? "order" : "lead", body);
+        });
+      }
+    }
+    setDb((d) => ({
+      ...d,
+      connectionEvents: [event, ...d.connectionEvents].slice(0, 200),
+      connections: d.connections.map((c) => (c.id === connectionId ? { ...c, lastEventAt: now } : c)),
+    }));
+    return event;
+  }, []);
+
   const resetPracticeData = useCallback(() => {
     try {
       localStorage.removeItem(PRACTICE_KEY);
@@ -1022,10 +1105,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
         setIntegration, assignRider, moveStock, recordPayment, logRun, retryRun, sendBroadcast, addCampaignSpend,
         updateContactDetails, simulateIncoming, sendProductCard, updateWorkspace, submitLeadForm,
         submitOrderForm, trackForm, simulateFormTraffic, recordDeposit, requestBalance, issueInvoice, flagComplaint, resolveComplaint,
-        toggleSetupStep, importProducts, addPolicyStarters, importChatHistory, saveFacts, removeFact, sendPaymentLink,
+        toggleSetupStep, importProducts, addPolicyStarters, importChatHistory, saveFacts, removeFact, sendPaymentLink, receiveIntake,
       },
     }),
-    [db, workspaceId, addContact, createOrder, setLeadStage, setLeadOutcome, assignOwner, setLifecycle, completeTask, snoozeTask, addTask, addNote, logCall, sendReply, markNotificationsRead, setOrderStatus, recordCodCheck, setDeliveryStatus, markRemitted, saveProduct, adjustStock, mergeContacts, startLead, resetPracticeData, saveRecord, removeRecord, updateSettings, updateAgent, setIntegration, assignRider, moveStock, recordPayment, logRun, retryRun, sendBroadcast, addCampaignSpend, updateContactDetails, simulateIncoming, sendProductCard, updateWorkspace, submitLeadForm, submitOrderForm, trackForm, simulateFormTraffic, recordDeposit, requestBalance, issueInvoice, flagComplaint, resolveComplaint, toggleSetupStep, importProducts, addPolicyStarters, importChatHistory, saveFacts, removeFact, sendPaymentLink],
+    [db, workspaceId, addContact, createOrder, setLeadStage, setLeadOutcome, assignOwner, setLifecycle, completeTask, snoozeTask, addTask, addNote, logCall, sendReply, markNotificationsRead, setOrderStatus, recordCodCheck, setDeliveryStatus, markRemitted, saveProduct, adjustStock, mergeContacts, startLead, resetPracticeData, saveRecord, removeRecord, updateSettings, updateAgent, setIntegration, assignRider, moveStock, recordPayment, logRun, retryRun, sendBroadcast, addCampaignSpend, updateContactDetails, simulateIncoming, sendProductCard, updateWorkspace, submitLeadForm, submitOrderForm, trackForm, simulateFormTraffic, recordDeposit, requestBalance, issueInvoice, flagComplaint, resolveComplaint, toggleSetupStep, importProducts, addPolicyStarters, importChatHistory, saveFacts, removeFact, sendPaymentLink, receiveIntake],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

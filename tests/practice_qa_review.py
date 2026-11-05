@@ -197,7 +197,7 @@ async def main():
 
         async def t_roadmap():
             await ready(pg, "/roadmap")
-            ok("coming later lists both buckets", await pg.get_by_text("Needs the backend (12)").count() == 1 and await pg.get_by_text("Parked for later (8)").count() == 1)
+            ok("coming later lists both buckets", await pg.get_by_text("Needs the backend (14)").count() == 1 and await pg.get_by_text("Parked for later (8)").count() == 1)
             await ready(pg, "/progress")
             ok("progress still 100% for the agreed scope", await pg.get_by_text(re.compile("^100")).count() >= 1)
         await step("roadmap", t_roadmap())

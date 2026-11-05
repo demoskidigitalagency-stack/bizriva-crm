@@ -21,6 +21,7 @@ import { Route as BriefRouteImport } from './routes/brief'
 import { Route as BroadcastsRouteImport } from './routes/broadcasts'
 import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as CodRouteImport } from './routes/cod'
+import { Route as ConnectionsRouteImport } from './routes/connections'
 import { Route as CrmRouteImport } from './routes/crm'
 import { Route as DeliveryRouteImport } from './routes/delivery'
 import { Route as FollowUpsRouteImport } from './routes/follow-ups'
@@ -116,6 +117,11 @@ const CalendarRoute = CalendarRouteImport.update({
 const CodRoute = CodRouteImport.update({
   id: '/cod',
   path: '/cod',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConnectionsRoute = ConnectionsRouteImport.update({
+  id: '/connections',
+  path: '/connections',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CrmRoute = CrmRouteImport.update({
@@ -312,6 +318,7 @@ export interface FileRoutesByFullPath {
   '/broadcasts': typeof BroadcastsRoute
   '/calendar': typeof CalendarRoute
   '/cod': typeof CodRoute
+  '/connections': typeof ConnectionsRoute
   '/crm': typeof CrmRouteWithChildren
   '/delivery': typeof DeliveryRoute
   '/follow-ups': typeof FollowUpsRoute
@@ -362,6 +369,7 @@ export interface FileRoutesByTo {
   '/broadcasts': typeof BroadcastsRoute
   '/calendar': typeof CalendarRoute
   '/cod': typeof CodRoute
+  '/connections': typeof ConnectionsRoute
   '/delivery': typeof DeliveryRoute
   '/follow-ups': typeof FollowUpsRoute
   '/help': typeof HelpRoute
@@ -412,6 +420,7 @@ export interface FileRoutesById {
   '/broadcasts': typeof BroadcastsRoute
   '/calendar': typeof CalendarRoute
   '/cod': typeof CodRoute
+  '/connections': typeof ConnectionsRoute
   '/crm': typeof CrmRouteWithChildren
   '/delivery': typeof DeliveryRoute
   '/follow-ups': typeof FollowUpsRoute
@@ -464,6 +473,7 @@ export interface FileRouteTypes {
     | '/broadcasts'
     | '/calendar'
     | '/cod'
+    | '/connections'
     | '/crm'
     | '/delivery'
     | '/follow-ups'
@@ -514,6 +524,7 @@ export interface FileRouteTypes {
     | '/broadcasts'
     | '/calendar'
     | '/cod'
+    | '/connections'
     | '/delivery'
     | '/follow-ups'
     | '/help'
@@ -563,6 +574,7 @@ export interface FileRouteTypes {
     | '/broadcasts'
     | '/calendar'
     | '/cod'
+    | '/connections'
     | '/crm'
     | '/delivery'
     | '/follow-ups'
@@ -614,6 +626,7 @@ export interface RootRouteChildren {
   BroadcastsRoute: typeof BroadcastsRoute
   CalendarRoute: typeof CalendarRoute
   CodRoute: typeof CodRoute
+  ConnectionsRoute: typeof ConnectionsRoute
   CrmRoute: typeof CrmRouteWithChildren
   DeliveryRoute: typeof DeliveryRoute
   FollowUpsRoute: typeof FollowUpsRoute
@@ -724,6 +737,13 @@ declare module '@tanstack/react-router' {
       path: '/cod'
       fullPath: '/cod'
       preLoaderRoute: typeof CodRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/connections': {
+      id: '/connections'
+      path: '/connections'
+      fullPath: '/connections'
+      preLoaderRoute: typeof ConnectionsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/crm': {
@@ -1026,6 +1046,7 @@ const rootRouteChildren: RootRouteChildren = {
   BroadcastsRoute: BroadcastsRoute,
   CalendarRoute: CalendarRoute,
   CodRoute: CodRoute,
+  ConnectionsRoute: ConnectionsRoute,
   CrmRoute: CrmRouteWithChildren,
   DeliveryRoute: DeliveryRoute,
   FollowUpsRoute: FollowUpsRoute,

@@ -11,6 +11,8 @@ import * as practice from "./practice-seed";
 import type {
   AgentConfig,
   CalendarEvent,
+  Connection,
+  ConnectionEvent,
   FormSubmission,
   OrderForm,
   Broadcast,
@@ -79,6 +81,8 @@ export interface Database {
   orderForms: OrderForm[];
   formSubmissions: FormSubmission[];
   events: CalendarEvent[];
+  connections: Connection[];
+  connectionEvents: ConnectionEvent[];
 }
 
 /** A few sample chats get a customer message with delivery details (see practice-seed). */
@@ -189,6 +193,8 @@ export function createInitialDatabase(): Database {
     orderForms: practice.orderForms,
     formSubmissions: practice.formSubmissions,
     events: practice.events,
+    connections: practice.connections,
+    connectionEvents: [],
   };
 }
 

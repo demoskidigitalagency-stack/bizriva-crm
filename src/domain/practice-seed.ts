@@ -7,7 +7,7 @@
  */
 import { NOW } from "./seed";
 import type {
-  AgentConfig, Broadcast, BusinessSettings, CalendarEvent, FollowUpRule, FormSubmission, IntegrationState, KnowledgeEntry, MediaAsset,
+  AgentConfig, Broadcast, Connection, BusinessSettings, CalendarEvent, FollowUpRule, FormSubmission, IntegrationState, KnowledgeEntry, MediaAsset,
   MessageTemplate, OrderForm, Rider, StockMovement, Workflow, WorkflowRun,
 } from "./types";
 
@@ -281,3 +281,8 @@ export const savedFacts: Record<string, { kind: "birthday" | "likes" | "size" | 
   c_0012: [{ kind: "birthday", value: "4 October", monthDay: "10-04" }, { kind: "budget", value: "About ₦200k" }, { kind: "likes", value: "22-inch length" }],
   c_0020: [{ kind: "likes", value: "Natural black colour" }, { kind: "size", value: "Size 16" }],
 };
+
+/** One connection already set up, so the hub isn't empty. */
+export const connections: Connection[] = [
+  { id: "cn_1", platform: "elementor", name: "Bone straight landing page (Elementor)", secret: "bzk_7f3a9c21e4", fieldMap: {}, createAs: "order", active: true, createdAt: ago(120) },
+];

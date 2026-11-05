@@ -24,7 +24,7 @@ export type BuildState =
 
 export type Phase = "Foundation" | "MVP" | "Later";
 
-export type Source = "Sandala" | "Kobolink" | "Bizriva" | "Prompt" | "Review 2026-11-04";
+export type Source = "Sandala" | "Kobolink" | "Bizriva" | "Prompt" | "Review 2026-11-04" | "Review 2026-11-05";
 
 export interface ModuleDef {
   id: string;
@@ -138,6 +138,9 @@ export const MODULES: ModuleDef[] = [
     submenus: ["Usage meters", "Plans (example prices)", "Invoices (with backend)"], summary: "Subscription and usage." },
   { id: "progress", label: "Build Progress", path: "/progress", icon: ListChecks, group: "Workspace", phase: "Foundation", state: "practice", sources: ["Kobolink", "Prompt"], decision: "Agreed",
     submenus: ["Overall 0–100%", "By phase", "Acceptance tests"], summary: "Where the build stands, ticked box by box." },
+  { id: "connections", label: "Website & Forms", path: "/connections", icon: Plug, group: "Workspace", phase: "MVP", state: "practice", sources: ["Review 2026-11-05"], decision: "Agreed",
+    submenus: ["WordPress: Elementor, Gravity Forms, WPForms, Contact Form 7, Fluent Forms", "Stores: WooCommerce, Shopify", "Google Forms, Typeform, Jotform, Tally", "Zapier, Make, Pabbly", "Any website (HTTP POST)", "Setup steps, intake address and secret key", "Test with a sample and match fields", "Activity log with duplicates skipped", "Orders or leads, with a chat in the Inbox"],
+    summary: "Connect the website, forms and store a business already uses. Every submission becomes a lead or a COD order to confirm." },
   { id: "roadmap", label: "Coming Later", path: "/roadmap", icon: Telescope, group: "Workspace", phase: "Later", state: "practice", sources: ["Review 2026-11-04"], decision: "Agreed",
     submenus: ["Needs the backend", "Parked for later", "Where each idea came from"],
     summary: "Ideas we agreed to keep for later, so nothing is lost. Not counted in the progress score until scheduled." },
@@ -202,6 +205,8 @@ export const FUTURE: FutureIdea[] = [
   { id: "fx-ad-launch", bucket: "Needs the backend", title: "Launch and auto-tune ads", from: "Adflow", goesInto: "Ads", needs: "Meta Marketing API app review", summary: "Create campaigns from Bizriva and move budget to ads with the most delivered orders, not just chats." },
   { id: "fx-brief-send", bucket: "Needs the backend", title: "Money Brief on WhatsApp and email", from: "Review 2026-11-05", goesInto: "Money Brief", needs: "WhatsApp Cloud API template and email sending", summary: "The brief arrives on your phone at the time you choose, every morning." },
   { id: "fx-ai-memory", bucket: "Needs the backend", title: "AI customer memory", from: "Review 2026-11-05", goesInto: "Customer 360, AI Sales Agent", needs: "AI model", summary: "An AI reads every chat (including voice notes) and suggests what to remember, beyond the patterns used today." },
+  { id: "fx-wp-plugin", bucket: "Needs the backend", title: "Bizriva WordPress plugin", from: "Review 2026-11-05", goesInto: "Website & Forms", needs: "Live intake endpoint; WordPress.org listing", summary: "One install catches every form plugin and WooCommerce order on the site — no webhook setup per form." },
+  { id: "fx-fb-leads", bucket: "Needs the backend", title: "Facebook and Instagram Lead Ads", from: "Review 2026-11-05", goesInto: "Website & Forms, Ads", needs: "Meta app review (leads_retrieval)", summary: "Instant-form leads arrive directly with their campaign, no Zapier needed." },
   { id: "fx-store-import", bucket: "Needs the backend", title: "Import from Shopify and WooCommerce", from: "WaContacts", goesInto: "Products", needs: "Store API keys", summary: "Bring a whole catalogue across with photos." },
   { id: "fx-owner-assistant", bucket: "Needs the backend", title: "Owner assistant on WhatsApp", from: "Xara", goesInto: "Analytics, Payments", needs: "WhatsApp Cloud API and an AI model", summary: "Ask \"how much cash is with riders today?\" in WhatsApp and get the answer." },
   { id: "fx-invoice-pdf", bucket: "Needs the backend", title: "Invoice and receipt PDFs by email or WhatsApp", from: "WaContacts, StitchBook", goesInto: "Orders", needs: "Server-side PDF and email sending", summary: "Send the invoice as a file instead of printing it." },

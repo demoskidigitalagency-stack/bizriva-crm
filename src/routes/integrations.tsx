@@ -84,6 +84,7 @@ function Integrations() {
         <p className="text-xs font-semibold uppercase tracking-wider text-primary">Workspace</p>
         <h1 className="text-2xl font-bold">Integrations</h1>
         <p className="mt-1 text-sm text-muted-foreground">Real connections need the backend and each provider's approval. Until then you can simulate one to test the flow — it's always labelled, and nothing is sent.</p>
+        <p className="mt-2 rounded-md border bg-muted/40 p-2 text-sm">Using WordPress forms, WooCommerce, Shopify, Google Forms or Typeform? Connect them in <Link to="/connections" className="font-medium text-primary underline">Website &amp; Forms</Link>.</p>
       </div>
       <div className="grid gap-3 md:grid-cols-2">
         {db.integrations.map((s) => {

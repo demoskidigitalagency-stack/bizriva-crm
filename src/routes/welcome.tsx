@@ -77,6 +77,7 @@ const PLANS = [
 const FAQ = [
   { q: "What is the Money Brief?", a: "A short summary waiting for you every morning: yesterday's delivered revenue against your average, cash still with riders, orders to confirm, how your ads did, birthdays, and the few things that need you today. You choose the time, and whether it comes in the app, on WhatsApp or by email." },
   { q: "Which platforms does the inbox cover?", a: "WhatsApp, Instagram, Facebook Messenger and your website chat, with TikTok messages as TikTok opens its business messaging to more countries. One list, one customer record, however they reached you." },
+  { q: "I already have a WordPress site and order forms. Do I have to change them?", a: "No. Connect Elementor, Gravity Forms, WPForms, Contact Form 7, Fluent Forms, WooCommerce, Shopify, Google Forms, Typeform, Jotform or Tally in a few minutes — or anything else through Zapier or Make. Your pages stay as they are; the orders just land in Bizriva." },
   { q: "Do I need the WhatsApp Business API?", a: "Yes — Bizriva connects to the official WhatsApp Cloud API, so your team shares one number safely. We guide you through Meta's business verification. You can start in Practice Mode today while that's approved." },
   { q: "What happens to my old WhatsApp chats?", a: "Export any chat from WhatsApp and import it into Bizriva. It lands in that customer's history, and duplicates are skipped. Some numbers can also keep using the WhatsApp Business app alongside Bizriva." },
   { q: "How do you count revenue on cash-on-delivery?", a: "Created, confirmed and delivered are counted separately. Cash-on-delivery only counts as revenue once it's delivered — so your numbers match your bank, not your hopes." },
@@ -298,6 +299,20 @@ function Welcome() {
               <li key={x} className="lp-ticket"><Check className="size-4 shrink-0 text-[var(--green)]" /> {x}</li>
             ))}
           </ul>
+        </section>
+
+        {/* Connect */}
+        <section id="connect" className="border-t border-[var(--rule)]">
+          <div className="lp-wrap py-20">
+            <p className="lp-kicker">Keep what you already use</p>
+            <h2 className="lp-display mt-3 max-w-3xl text-4xl font-extrabold leading-tight sm:text-5xl">Your website, forms and store — plugged straight in.</h2>
+            <p className="mt-4 max-w-2xl text-[var(--ink-soft)]">No need to rebuild your landing pages. Every submission from the tools below arrives in Bizriva as a lead or a COD order to confirm, with a chat in your inbox and the ad it came from. Duplicates are skipped.</p>
+            <ul className="mt-10 flex flex-wrap gap-3">
+              {["Elementor Forms", "Gravity Forms", "WPForms", "Contact Form 7", "Fluent Forms", "WooCommerce", "Shopify", "Google Forms", "Typeform", "Jotform", "Tally", "Zapier", "Make", "Any website"].map((x) => (
+                <li key={x} className="lp-chipfact lp-display text-base font-semibold">{x}</li>
+              ))}
+            </ul>
+          </div>
         </section>
 
         {/* Compare */}
