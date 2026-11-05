@@ -10,6 +10,7 @@ import { createInitialDatabase, CURRENT_USER_ID, NOW, type Database } from "./da
 import { codRisk } from "./repositories";
 import * as practiceSeed from "./practice-seed";
 import { autoMap, flatten, normalise, PLATFORMS } from "./intake";
+import { careGuideText, confirmedText, dispatchedText, receiptNo, receiptText } from "./receipt";
 import type {
   AgentConfig, Broadcast, BusinessSettings, CalendarEvent, Campaign, Channel, OrderForm, OrderFormField, Contact, DeliveryStatus, FollowUpRule, ID, IntegrationState, KnowledgeEntry,
   LeadOutcome, LeadStage, Lifecycle, MediaAsset, MessageTemplate, OrderStatus, PaymentMethod, Product, Rider, StockMovement, Task,
@@ -40,7 +41,7 @@ type EditableKey = keyof Editable;
  * version when the seed or types change shape — old saves are then ignored.
  */
 const PRACTICE_KEY = "bizriva.practice-db";
-const PRACTICE_VERSION = 9; // v9: payments in the chat
+const PRACTICE_VERSION = 10; // v10: order messages, receipts and care guides
 
 function loadPractice(): { db: Database; workspaceId: ID } | null {
   try {
@@ -154,6 +155,8 @@ interface StoreActions {
   /** Practice: the provider's webhook reports money arriving. */
   simulatePayment: (input: { orderId?: ID; amount: number; method: PaymentEvent["method"]; payerName?: string; toMain?: boolean }) => PaymentEvent | null;
   matchPayment: (eventId: ID, orderId: ID) => void;
+  /** Send the receipt and/or care guide for an order into the customer's chat. */
+  sendOrderMessage: (orderId: ID, what: "receipt" | "care") => boolean;
 }
 
 export interface ChatImportInput {
@@ -443,6 +446,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (status === "returned") {
         next = { ...next, deliveries: next.deliveries.map((x) => (x.orderId === orderId && x.status !== "delivered" ? { ...x, status: "returned" as const } : x)) };
       }
+      // Customer updates, on the channel chosen in Settings (WhatsApp lands in the chat).
+      next = customerUpdate(next, orderId, status);
       return logActivity(next, order.contactId, `Order ${order.reference}: ${status.replace(/_/g, " ")}`, "order", note);
     });
   }, []);
@@ -731,6 +736,30 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return contactId;
   }, []);
 
+
+  /** Order updates to the customer: confirmed, dispatched, delivered (receipt + how-to-use guide). */
+  const customerUpdate = (d: Database, orderId: ID, status: OrderStatus): Database => {
+    const order = d.orders.find((o) => o.id === orderId);
+    if (!order) return d;
+    const key = status === "confirmed" ? "order_confirmed" : status === "dispatched" || status === "in_transit" ? "dispatched" : status === "delivered" ? "delivered" : null;
+    if (!key) return d;
+    const channel = d.settings.notify[key];
+    if (channel === "off") return d;
+    if (key === "dispatched" && status === "in_transit" && d.activities.some((a) => a.contactId === order.contactId && a.title === `Dispatch message sent for ${order.reference}`)) return d;
+    const msgs: string[] = [];
+    if (key === "order_confirmed") msgs.push(confirmedText(d, order));
+    if (key === "dispatched") msgs.push(dispatchedText(d, order));
+    if (key === "delivered") {
+      if (d.settings.afterDelivery.receipt) msgs.push(receiptText(d, order));
+      const guide = d.settings.afterDelivery.careGuide ? careGuideText(d, order) : null;
+      if (guide) msgs.push(guide);
+    }
+    if (!msgs.length) return d;
+    let next = d;
+    if (channel === "whatsapp") msgs.forEach((m) => { next = postToCustomer(next, order.contactId, m); });
+    const title = key === "order_confirmed" ? `Confirmation sent for ${order.reference}` : key === "dispatched" ? `Dispatch message sent for ${order.reference}` : `Receipt ${receiptNo(order)}${msgs.length > 1 ? " and care guide" : ""} sent`;
+    return logActivity(next, order.contactId, title, "conversation", `by ${channel}${channel !== "whatsapp" ? " (practice — nothing sent)" : ""}`);
+  };
 
   /** Find the contact's chat, or open a WhatsApp one, and post an outgoing message. */
   const postToCustomer = (d: Database, contactId: ID, body: string): Database => {
@@ -1310,6 +1339,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const sendOrderMessage = useCallback((orderId: ID, what: "receipt" | "care"): boolean => {
+    const d0 = dbRef.current;
+    const order = d0.orders.find((o) => o.id === orderId);
+    if (!order) return false;
+    const text = what === "receipt" ? receiptText(d0, order) : careGuideText(d0, order);
+    if (!text) return false;
+    setDb((d) => logActivity(postToCustomer(d, order.contactId, text), order.contactId, what === "receipt" ? `Receipt ${receiptNo(order)} sent` : `Care guide sent for ${order.reference}`, "conversation"));
+    return true;
+  }, []);
+
   const resetPracticeData = useCallback(() => {
     try {
       localStorage.removeItem(PRACTICE_KEY);
@@ -1331,10 +1370,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
         setIntegration, assignRider, moveStock, recordPayment, logRun, retryRun, sendBroadcast, addCampaignSpend,
         updateContactDetails, simulateIncoming, sendProductCard, updateWorkspace, submitLeadForm,
         submitOrderForm, trackForm, simulateFormTraffic, recordDeposit, requestBalance, issueInvoice, flagComplaint, resolveComplaint,
-        toggleSetupStep, importProducts, addPolicyStarters, importChatHistory, saveFacts, removeFact, sendPaymentLink, receiveIntake, connectMeta, disconnectMeta, syncMeta, setCapi, publishAd, setAdStatus, connectPayments, disconnectPayments, updatePayments, requestPayment, simulatePayment, matchPayment,
+        toggleSetupStep, importProducts, addPolicyStarters, importChatHistory, saveFacts, removeFact, sendPaymentLink, receiveIntake, connectMeta, disconnectMeta, syncMeta, setCapi, publishAd, setAdStatus, connectPayments, disconnectPayments, updatePayments, requestPayment, simulatePayment, matchPayment, sendOrderMessage,
       },
     }),
-    [db, workspaceId, addContact, createOrder, setLeadStage, setLeadOutcome, assignOwner, setLifecycle, completeTask, snoozeTask, addTask, addNote, logCall, sendReply, markNotificationsRead, setOrderStatus, recordCodCheck, setDeliveryStatus, markRemitted, saveProduct, adjustStock, mergeContacts, startLead, resetPracticeData, saveRecord, removeRecord, updateSettings, updateAgent, setIntegration, assignRider, moveStock, recordPayment, logRun, retryRun, sendBroadcast, addCampaignSpend, updateContactDetails, simulateIncoming, sendProductCard, updateWorkspace, submitLeadForm, submitOrderForm, trackForm, simulateFormTraffic, recordDeposit, requestBalance, issueInvoice, flagComplaint, resolveComplaint, toggleSetupStep, importProducts, addPolicyStarters, importChatHistory, saveFacts, removeFact, sendPaymentLink, receiveIntake, connectMeta, disconnectMeta, syncMeta, setCapi, publishAd, setAdStatus, connectPayments, disconnectPayments, updatePayments, requestPayment, simulatePayment, matchPayment],
+    [db, workspaceId, addContact, createOrder, setLeadStage, setLeadOutcome, assignOwner, setLifecycle, completeTask, snoozeTask, addTask, addNote, logCall, sendReply, markNotificationsRead, setOrderStatus, recordCodCheck, setDeliveryStatus, markRemitted, saveProduct, adjustStock, mergeContacts, startLead, resetPracticeData, saveRecord, removeRecord, updateSettings, updateAgent, setIntegration, assignRider, moveStock, recordPayment, logRun, retryRun, sendBroadcast, addCampaignSpend, updateContactDetails, simulateIncoming, sendProductCard, updateWorkspace, submitLeadForm, submitOrderForm, trackForm, simulateFormTraffic, recordDeposit, requestBalance, issueInvoice, flagComplaint, resolveComplaint, toggleSetupStep, importProducts, addPolicyStarters, importChatHistory, saveFacts, removeFact, sendPaymentLink, receiveIntake, connectMeta, disconnectMeta, syncMeta, setCapi, publishAd, setAdStatus, connectPayments, disconnectPayments, updatePayments, requestPayment, simulatePayment, matchPayment, sendOrderMessage],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

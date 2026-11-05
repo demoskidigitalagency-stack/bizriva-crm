@@ -81,7 +81,7 @@ export const MODULES: ModuleDef[] = [
 
   // Commerce
   { id: "products", label: "Products", path: "/products", icon: Package, group: "Commerce", phase: "MVP", state: "practice", sources: ["Sandala", "Kobolink", "Prompt"], decision: "Agreed",
-    submenus: ["Catalogue", "Add and edit", "Stock and low-stock alerts", "Margins", "Variants and send product card (with Media Library)", "Import products from CSV"],
+    submenus: ["Catalogue", "Add and edit", "Stock and low-stock alerts", "Margins", "Variants and send product card (with Media Library)", "Import products from CSV", "How to use and care guide (sent after delivery)"],
     summary: "The catalogue the AI agent and sales staff both answer from." },
   { id: "media", label: "Media Library", path: "/media", icon: Images, group: "Commerce", phase: "MVP", state: "practice", sources: ["Prompt"], decision: "Agreed",
     submenus: ["Upload images and videos", "Link to products", "Duplicate check", "Storage usage"],

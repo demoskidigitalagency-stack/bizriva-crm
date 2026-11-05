@@ -173,6 +173,12 @@ function BusinessForm() {
           ))}
         </ul>
       </Section>
+      <Section title="After delivery" description="What the customer gets when their order is delivered (on the Delivered channel above)">
+        <ul className="divide-y">
+          <li className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm"><span>Send the receipt</span><Switch checked={d.afterDelivery.receipt} onCheckedChange={(v) => setD({ ...d, afterDelivery: { ...d.afterDelivery, receipt: v } })} aria-label="Send the receipt after delivery" /></li>
+          <li className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm"><span>Send each product's "how to use and care" guide <span className="text-xs text-muted-foreground">(written in Products)</span></span><Switch checked={d.afterDelivery.careGuide} onCheckedChange={(v) => setD({ ...d, afterDelivery: { ...d.afterDelivery, careGuide: v } })} aria-label="Send the care guide after delivery" /></li>
+        </ul>
+      </Section>
       <Section title="Team alerts" description="Shown in the bell at the top of every page">
         <ul className="divide-y">
           <li className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm"><span>New customer message</span><Switch checked={d.staffAlerts.newMessage} onCheckedChange={(v) => setD({ ...d, staffAlerts: { ...d.staffAlerts, newMessage: v } })} aria-label="New customer message alerts" /></li>

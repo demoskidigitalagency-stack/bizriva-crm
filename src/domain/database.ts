@@ -8,6 +8,7 @@
 
 import * as seed from "./seed";
 import * as practice from "./practice-seed";
+import { CARE_STARTERS } from "./receipt";
 import type {
   AgentConfig,
   CalendarEvent,
@@ -182,7 +183,7 @@ export function createInitialDatabase(): Database {
     orders: withDeposits(seed.orders),
     deliveries: withRecentDeliveries(withRiders(seed.deliveries)),
     payments: seed.payments,
-    products: seed.products.map((p) => ({ ...p, active: true, description: practice.productDescriptions[p.id] ?? "" })),
+    products: seed.products.map((p) => ({ ...p, active: true, description: practice.productDescriptions[p.id] ?? "", ...(CARE_STARTERS[p.category] ? { careGuide: CARE_STARTERS[p.category] } : {}) })),
     campaigns: seed.campaigns,
     notifications: seed.notifications,
     revenueTrend: seed.revenueTrend,

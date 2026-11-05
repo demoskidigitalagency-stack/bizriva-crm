@@ -39,7 +39,7 @@ const JOURNEY = [
   { k: "Order", v: "Order created in the chat, or from your landing-page order form." },
   { k: "Verify", v: "COD check and a risk score before any rider moves." },
   { k: "Deliver", v: "Dispatch to your rider or a courier. Track attempts and refusals." },
-  { k: "Cash in", v: "Delivered, paid, remitted. Revenue counts only when the money is real." },
+  { k: "Cash in", v: "Delivered and paid. The receipt and a how-to-use guide land in their chat; revenue counts only when the money is real." },
 ];
 
 const FEATURES = [
@@ -298,7 +298,7 @@ function Welcome() {
             <p className="mt-4 text-[var(--ink-soft)]">Bizriva reads Nigerian phone numbers and "near the Total filling station" addresses, ships with replies in Pidgin, and treats cash-on-delivery as the normal case, not an exception.</p>
           </div>
           <ul className="grid grid-cols-2 gap-3 text-sm">
-            {["29 ready replies in English and Pidgin", "7-day setup plan for new sellers", "Share kit: WhatsApp link and QR code", "Import old WhatsApp chats", "Complaints tracked to resolution", "Courier partners on the roadmap: GIG, Fez, Kwik, Topship"].map((x) => (
+            {["29 ready replies in English and Pidgin", "7-day setup plan for new sellers", "Share kit: WhatsApp link and QR code", "Import old WhatsApp chats", "Receipt and how-to-use guide after every delivery", "Complaints tracked to resolution", "Courier partners on the roadmap: GIG, Fez, Kwik, Topship"].map((x) => (
               <li key={x} className="lp-ticket"><Check className="size-4 shrink-0 text-[var(--green)]" /> {x}</li>
             ))}
           </ul>

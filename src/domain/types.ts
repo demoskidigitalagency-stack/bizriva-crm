@@ -355,6 +355,8 @@ export interface Product {
   active?: boolean;
   /** Optional deposit asked before dispatch. Missing or 0 means pure cash on delivery. */
   deposit?: number;
+  /** "How to use and care" guide sent to the customer after delivery. */
+  careGuide?: string;
 }
 
 export interface Campaign {
@@ -636,6 +638,8 @@ export interface BusinessSettings {
   meta: MetaLink;
   /** Getting paid inside the WhatsApp chat. */
   payments: PaymentSetup;
+  /** After an order is delivered: what the customer receives. */
+  afterDelivery: { receipt: boolean; careGuide: boolean };
 }
 
 /* ===================================================================

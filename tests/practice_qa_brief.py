@@ -205,6 +205,28 @@ async def main():
             ok("delivered sale sent to Meta once", await pg.get_by_text(re.compile("^1 sent")).count() == 1)
         await step("meta", t_meta())
 
+        async def t_receipts():
+            await ready(pg, "/products")
+            await pg.locator("tr", has_text="HD Lace Frontal").get_by_role("button", name="Edit").click()
+            ok("product has a care guide", "patch test" in await pg.get_by_role("dialog").get_by_label("How to use and care (sent after delivery)").input_value())
+            await pg.keyboard.press("Escape")
+            await ready(pg, "/settings")
+            ok("after-delivery switches", await pg.get_by_role("switch", name="Send the receipt after delivery").count() == 1 and await pg.get_by_role("switch", name="Send the care guide after delivery").count() == 1)
+            await ready(pg, "/orders")
+            await pg.get_by_role("tab", name=re.compile("^In transit")).click(); await pg.wait_for_timeout(200)
+            await pg.locator("tbody tr").first.click(); await pg.wait_for_timeout(300)
+            ref = (await pg.get_by_role("dialog").locator("h2").first.inner_text()).strip()
+            await pg.get_by_role("button", name="Delivered", exact=True).click(); await pg.wait_for_timeout(300)
+            await pg.get_by_role("button", name=re.compile("^Receipt RCPT-")).click(); await pg.wait_for_timeout(200)
+            ok("printable receipt", "Total" in await pg.get_by_test_id("receipt-text").inner_text())
+            await pg.keyboard.press("Escape"); await pg.keyboard.press("Escape")
+            await ready(pg, "/inbox")
+            await pg.get_by_role("tab", name=re.compile("^All")).click()
+            await pg.locator("main ul li button").first.click(); await pg.wait_for_timeout(300)
+            ok("receipt lands in the chat after delivery", await pg.locator("main li", has_text="Receipt RCPT-").count() >= 1, ref)
+            ok("how-to-use guide lands in the chat", await pg.locator("main li", has_text="How to use and care for your order").count() >= 1)
+        await step("receipts", t_receipts())
+
         async def t_mobile():
             m = await b.new_page(viewport={"width": 390, "height": 844}); wide = []
             for r in ["/brief", "/", "/crm/contacts/c_0003", "/ai-agent", "/inbox", "/welcome", "/connections", "/connections?c=cn_1", "/ads", "/ads/new", "/payments"]:

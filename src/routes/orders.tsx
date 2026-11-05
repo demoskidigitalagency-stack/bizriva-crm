@@ -13,6 +13,7 @@ import { useActions, useDb, useWorkspace } from "@/domain/store";
 import { fullName } from "@/domain/repositories";
 import { CHANNEL_LABELS, DELIVERY_STATUS_META, ORDER_STATUS_META, PAYMENT_STATUS_META, type OrderStatus, type OrderSummary, type PaymentMethod } from "@/domain/types";
 import { formatCurrency, formatDateTime, relativeTime } from "@/lib/format";
+import { productsIn, receiptNo, receiptText } from "@/domain/receipt";
 
 export const Route = createFileRoute("/orders")({
   head: () => ({ meta: [{ title: "Orders · Bizriva CRM" }] }),
@@ -113,6 +114,36 @@ function Payments({ order }: { order: OrderSummary }) {
       )}
       <Button size="sm" variant="ghost" className="px-0" onClick={() => { issueInvoice(order.id); setShowInvoice(true); }}>{order.invoiceNo ? `View invoice ${order.invoiceNo}` : "Create invoice"}</Button>
       {showInvoice && order.invoiceNo && <Invoice order={order} onClose={() => setShowInvoice(false)} />}
+      <ReceiptActions order={order} />
+    </div>
+  );
+}
+
+function ReceiptActions({ order }: { order: OrderSummary }) {
+  const db = useDb();
+  const { sendOrderMessage } = useActions();
+  const [show, setShow] = useState(false);
+  const [note, setNote] = useState("");
+  const paidUp = order.paymentStatus === "paid" || order.status === "delivered";
+  const hasGuide = productsIn(db, order).some((p) => p.careGuide?.trim());
+  if (!paidUp && !hasGuide) return null;
+  return (
+    <div className="space-y-1.5 border-t pt-2" role="group" aria-label="Receipt and care guide">
+      <div className="flex flex-wrap gap-2">
+        {paidUp && <Button size="sm" variant="outline" onClick={() => setShow(true)}>Receipt {receiptNo(order)}</Button>}
+        {paidUp && <Button size="sm" variant="outline" onClick={() => setNote(sendOrderMessage(order.id, "receipt") ? "Receipt sent in the chat." : "")}>Send receipt in chat</Button>}
+        {hasGuide && <Button size="sm" variant="outline" onClick={() => setNote(sendOrderMessage(order.id, "care") ? "How-to-use guide sent in the chat." : "")}>Send how-to-use guide</Button>}
+      </div>
+      {note && <p className="text-xs text-success" role="status">{note} (practice — nothing really sent)</p>}
+      {show && (
+        <Dialog open onOpenChange={(o) => !o && setShow(false)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader><DialogTitle>Receipt {receiptNo(order)}</DialogTitle><DialogDescription>Print it or save as PDF. The same receipt goes into the customer's chat after delivery.</DialogDescription></DialogHeader>
+            <pre className="whitespace-pre-wrap rounded-md bg-muted p-3 font-sans text-sm" data-testid="receipt-text">{receiptText(db, order).replace(/\*/g, "")}</pre>
+            <Button onClick={() => window.print()}>Print or save as PDF</Button>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

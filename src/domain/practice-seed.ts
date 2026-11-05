@@ -222,6 +222,7 @@ export const settings: BusinessSettings = {
     defaultAccountId: "sa_1",
     splits: [],
   },
+  afterDelivery: { receipt: true, careGuide: true },
 };
 
 /** Policy starters a business can add to its Knowledge Base and edit. */

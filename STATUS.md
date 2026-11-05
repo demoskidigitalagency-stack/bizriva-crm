@@ -63,6 +63,7 @@ Modules: 33 of 33 practice ready · 0 partly working · 0 planned.
 - [x] Crosswalk decisions agreed (menus, lead stages, order statuses, roles) _(2026-11-02)_ — See DECISIONS.md — prompt's 13 lead stages and 10 order statuses, 6 roles, own Supabase + Vercel
 - [x] Click-through QA: every page on desktop and phone, light and dark, no console errors _(2026-11-02)_ — tests/practice_qa.py 46/46 and tests/practice_qa_modules.py 61/61
 - [x] Money Brief, customer memory, payment links in chat, TikTok channel _(2026-11-05)_ — tests/practice_qa_brief.py 22/22; contact_facts table and brief settings applied to Supabase
+- [x] Order messages: confirmation, dispatch with rider, receipt and how-to-use guide after delivery _(2026-11-05)_ — Follows Settings → Customer notifications; care guides per product with starters
 - [x] Payments in the chat: customer account numbers, instant confirmation, receipts, matching, splits _(2026-11-05)_ — Practice with Paystack/Flutterwave/Monnify simulated; payment tables applied to Supabase
 - [x] Meta Ads: connect, create ads (paused), start/pause, advice, sales back to Meta _(2026-11-05)_ — Practice flow; meta_links, ad_drafts and capi_events applied to Supabase. Live needs the Meta app keys in Vercel
 - [x] Website & Forms: connect WordPress forms, WooCommerce, Shopify, Google Forms, Typeform, Jotform, Tally, Zapier _(2026-11-05)_ — Practice intake with field matching and duplicate skipping; connections tables applied to Supabase
