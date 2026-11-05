@@ -34,8 +34,9 @@ Core lifecycle:
 | `src/app/modules.ts` | Every menu in the unified navigation, with phase, status and source. The sidebar reads from here. |
 | `src/app/status.ts` | The 0–100 checklist and acceptance tests. Edit, then run `bun run status`. |
 | `src/app/appearance.tsx` | Appearance options: Hybrid (default), Bizriva, Sandala, Kobolink. |
-| `supabase/migrations/` | Database schema. The foundation migration is a draft, not yet applied. |
-| `supabase/tests/` | Database tests, starting with tenant isolation. |
+| `supabase/migrations/` | Database schema, roles and business rules — all applied to the live Supabase project. |
+| `supabase/tests/` | Live-database tests (run in a transaction that always rolls back). |
+| `supabase/functions/` | Edge Functions: `intake` (websites/stores/forms), `order-form` (public order page), `payments-webhook` (Paystack, Flutterwave, Monnify). |
 
 Screens currently run on sample data from `src/domain/`. Nothing is marked done in STATUS.md until it works against the real backend.
 

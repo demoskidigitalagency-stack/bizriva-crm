@@ -5,6 +5,7 @@
  * screen code.
  */
 
+import { acceptsPayment, canMove } from "./rules";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createInitialDatabase, CURRENT_USER_ID, NOW, type Database } from "./database";
 import { codRisk } from "./repositories";
@@ -404,9 +405,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const setOrderStatus = useCallback((orderId: ID, status: OrderStatus, note?: string) => {
     setDb((d) => {
       const order = d.orders.find((o) => o.id === orderId);
-      if (!order || order.status === status) return d;
+      if (!order || !canMove(order.status, status)) return d;
       const now = new Date().toISOString();
       let next: Database = { ...d, orders: d.orders.map((o) => (o.id === orderId ? { ...o, status } : o)) };
+      // A delivered order coming back is no longer revenue.
+      if (status === "returned" && order.status === "delivered") {
+        next = { ...next, contacts: next.contacts.map((c) => (c.id === order.contactId ? { ...c, deliveredRevenue: Math.max(0, c.deliveredRevenue - order.total) } : c)) };
+      }
       if (status === "confirmed") next = advanceLead(next, order.contactId, "order_confirmed");
       // Conversions API: one Purchase event per order, at the moment the business chose.
       const capi = next.settings.meta.capi;
@@ -869,7 +874,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const recordDeposit = useCallback((orderId: ID, amount: number, method: PaymentMethod) => {
     setDb((d) => {
       const order = d.orders.find((o) => o.id === orderId);
-      if (!order || amount <= 0) return d;
+      if (!order || !(amount > 0) || !acceptsPayment(order)) return d;
       const paid = Math.min(order.total, (order.amountPaid ?? 0) + amount);
       const status = paid >= order.total ? ("paid" as const) : ("part_paid" as const);
       const now = new Date().toISOString();
@@ -1261,7 +1266,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   /** Apply a payment to an order: balance, status, receipt, alert, settlement. */
   const applyPayment = (d: Database, ev: PaymentEvent, orderId: ID): { db: Database; ev: PaymentEvent } => {
     const order = d.orders.find((o) => o.id === orderId);
-    if (!order) return { db: d, ev };
+    if (!order || !acceptsPayment(order)) return { db: d, ev };
     const due = balanceOf(order);
     const paid = Math.min(order.total, (order.amountPaid ?? 0) + ev.amount);
     const full = paid >= order.total;
@@ -1333,7 +1338,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const matchPayment = useCallback((eventId: ID, orderId: ID) => {
     setDb((d) => {
       const ev = d.paymentEvents.find((e) => e.id === eventId);
-      if (!ev || ev.status !== "unmatched") return d;
+      const target = d.orders.find((o) => o.id === orderId);
+      if (!ev || ev.status !== "unmatched" || !target || !acceptsPayment(target)) return d;
       const r = applyPayment(d, ev, orderId);
       return { ...r.db, paymentEvents: r.db.paymentEvents.map((e) => (e.id === eventId ? r.ev : e)) };
     });

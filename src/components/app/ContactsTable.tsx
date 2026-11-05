@@ -1,3 +1,4 @@
+import { csvCell } from "@/domain/rules";
 import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowDownUp, Download, Plus, Search } from "lucide-react";
@@ -21,7 +22,7 @@ const SORTS: { id: ContactSortKey; label: string }[] = [
 ];
 
 function downloadCsv(filename: string, rows: string[][]) {
-  const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+  const csv = rows.map((r) => r.map(csvCell).join(",")).join("\n");
   const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
   const a = Object.assign(document.createElement("a"), { href: url, download: filename });
   a.click();

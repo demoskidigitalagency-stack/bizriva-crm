@@ -283,11 +283,12 @@ function AccountMenu() {
 
 /** Public marketing pages render without the app's sidebar and top bar. */
 const BARE = ["/welcome"];
+const isBare = (path: string) => BARE.includes(path) || path.startsWith("/f/");
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const path = useRouterState({ select: (s) => s.location.pathname });
-  if (BARE.includes(path)) return <>{children}</>;
+  if (isBare(path)) return <>{children}</>;
   return (
     <div className="flex min-h-screen bg-background">
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 lg:block">

@@ -20,13 +20,15 @@ export const Route = createFileRoute("/connections")({
   component: Connections,
 });
 
-const ORIGIN = "https://bizriva-crm.vercel.app";
-const urlFor = (c: Connection) => `${ORIGIN}/api/intake/${c.id}`;
+// Live intake runs as a Supabase Edge Function that checks the secret key first.
+const FUNCTIONS = `${import.meta.env.VITE_SUPABASE_URL ?? "https://xjhzkciowmklxrtwsikm.supabase.co"}/functions/v1`;
+const urlFor = (c: Connection) => `${FUNCTIONS}/intake/${c.id}`;
 const STATUS: Record<ConnectionEvent["status"], { label: string; tone: "success" | "info" | "neutral" | "danger" }> = {
   created_order: { label: "Order created", tone: "success" }, created_lead: { label: "Lead created", tone: "info" },
   duplicate: { label: "Duplicate skipped", tone: "neutral" }, failed: { label: "Failed", tone: "danger" },
 };
-const newSecret = () => `bzk_${Math.random().toString(16).slice(2, 12)}`;
+// 192 random bits from the browser's secure generator (not Math.random).
+const newSecret = () => `bzk_${Array.from(crypto.getRandomValues(new Uint8Array(24)), (b) => b.toString(16).padStart(2, "0")).join("")}`;
 
 function CopyBox({ label, value, multiline = false }: { label: string; value: string; multiline?: boolean }) {
   const [copied, setCopied] = useState(false);

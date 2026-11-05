@@ -5,7 +5,7 @@ Generated from `src/app/status.ts` and `src/app/modules.ts` by `bun run status`.
 | Track | Progress | |
 | --- | ---: | --- |
 | **Frontend — Practice Mode** (every page and button works on sample data) | **100%** | `████████████████████` |
-| **Backend — Live** (works for real: auth, database, WhatsApp, AI) | **12%** | `██░░░░░░░░░░░░░░░░░░` |
+| **Backend — Live** (works for real: auth, database, WhatsApp, AI) | **17%** | `███░░░░░░░░░░░░░░░░░` |
 
 Modules: 33 of 33 practice ready · 0 partly working · 0 planned.
 
@@ -73,13 +73,13 @@ Modules: 33 of 33 practice ready · 0 partly working · 0 planned.
 
 | Phase | Share | Done | Progress |
 | --- | ---: | ---: | --- |
-| Phase 1 — Core communication | 30% | 4/10 | 41% |
+| Phase 1 — Core communication | 30% | 5/10 | 50% |
 | Phase 2 — AI and automation | 22% | 0/9 | 0% |
-| Phase 3 — Sales and commerce | 22% | 0/7 | 0% |
+| Phase 3 — Sales and commerce | 22% | 1/8 | 11% |
 | Phase 4 — More channels | 11% | 0/5 | 0% |
 | Phase 5 — Intelligence and monetisation | 15% | 0/7 | 0% |
 
-### Phase 1 — Core communication — 41%
+### Phase 1 — Core communication — 50%
 
 _Real WhatsApp messages land in a shared, saved inbox for several agents._
 
@@ -87,7 +87,7 @@ _Real WhatsApp messages land in a shared, saved inbox for several agents._
 - [x] Database plan for every module, with row-level isolation tested on a local Postgres _(2026-11-04)_ — supabase/migrations: foundation (21 tables) + review features (8 tables). Screens now use the agreed 13 lead stages and 10 order statuses
 - [x] Sign-up, sign-in, invitations _(2026-11-05)_ — Account page, business setup, invite links with roles; invite rules tested on the live database
 - [x] Workspaces with row-level isolation applied and tested _(2026-11-05)_ — 31 tables applied; isolation tested on the live database; security advisor clean except the two intended sign-up functions
-- [ ] Roles and permissions enforced on the server — Done for team, invites and payments; the rest arrives with real data
+- [x] Roles and permissions enforced on the server _(2026-11-06)_ — Owners protected, owner-only owner invites, delete rights, append-only activity log, server-only money and webhook tables, same-business links. supabase/tests/loopholes_and_rules.sql 66/66 on the live database
 - [ ] Contacts, leads and conversations saved for real (no sample data)
 - [ ] WhatsApp Cloud API number connected — Needs Meta Business verification
 - [ ] Inbound webhook: signature checked, duplicates ignored
@@ -108,17 +108,18 @@ _Instant first replies from real catalogue data, and follow-ups that respect the
 - [ ] Consent records, opt-out keywords, suppression list
 - [ ] AI workflow planner (from repo 3) moved off Lovable's AI service onto our own AI key, with a screen in Automation Builder — Code is in src/server/ai; it only runs with a Lovable key today
 
-### Phase 3 — Sales and commerce — 0%
+### Phase 3 — Sales and commerce — 11%
 
 _Chats become confirmed, delivered, paid orders._
 
 - [ ] Lead pipeline with agreed stages
 - [ ] Lead scoring from real buying actions
 - [ ] Conversational checkout with order summary and explicit confirmation
-- [ ] Orders: edit, cancel, history, receipts
-- [ ] COD verification and risk flags
+- [ ] Orders: edit, cancel, history, receipts — Server rules done (status order, prices locked after dispatch, receipt numbers, history); screens switch from Practice data next
+- [x] Live intake: website/store forms, public order form, Paystack/Flutterwave/Monnify payment notifications _(2026-11-06)_ — Supabase Edge Functions intake, order-form, payments-webhook — keys checked, signatures verified, prices from the database, each event applied once; tested end to end
+- [ ] COD verification and risk flags — Server already refuses to dispatch an unverified COD order; risk flags still to come
 - [ ] Dispatch board and delivery outcomes
-- [ ] Order, dispatch and delivery notifications
+- [ ] Order, dispatch and delivery notifications — Written and queued in the chat by the server (confirmation, dispatch, receipt, care guide); sending needs the WhatsApp number
 
 ### Phase 4 — More channels — 0%
 
@@ -142,7 +143,7 @@ _Know which ad made the money; charge for the product._
 - [ ] Super Admin console
 - [ ] All 15 acceptance tests pass end to end
 
-### Acceptance tests — 0/15
+### Acceptance tests — 1/15
 
 - [ ] 1. Ad click starts a WhatsApp chat; contact and ad source recorded
 - [ ] 2. 'Hello' gets an immediate correct greeting
@@ -157,5 +158,5 @@ _Know which ad made the money; charge for the product._
 - [ ] 11. Delivered order updates revenue and conversion analytics
 - [ ] 12. Closed 24-hour window blocks free text; template used instead
 - [ ] 13. Integration failure retries without duplicate messages or orders
-- [ ] 14. One business cannot read another business's data
+- [x] 14. One business cannot read another business's data
 - [ ] 15. Opt-out stops marketing automation

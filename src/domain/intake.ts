@@ -4,8 +4,9 @@
  * Typeform, Jotform, Tally and automation tools. Each payload is flattened,
  * then matched to Bizriva fields by name (or by the business's own mapping).
  *
- * The backend runs the same normaliser in a Vercel function at
- * /api/intake/<connection id>, checking the connection's secret first.
+ * The backend runs this same file in the Supabase Edge Function
+ * supabase/functions/intake (/functions/v1/intake/<connection id>), which
+ * checks the connection's secret key before anything is stored.
  */
 
 export type PlatformId =

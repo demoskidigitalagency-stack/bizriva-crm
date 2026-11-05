@@ -61,7 +61,7 @@ export const PHASES: StatusPhase[] = [
       { id: "p1-schema", label: "Database plan for every module, with row-level isolation tested on a local Postgres", weight: 2, done: true, doneOn: "2026-11-04", note: "supabase/migrations: foundation (21 tables) + review features (8 tables). Screens now use the agreed 13 lead stages and 10 order statuses" },
       { id: "p1-auth", label: "Sign-up, sign-in, invitations", weight: 2, done: true, doneOn: "2026-11-05", note: "Account page, business setup, invite links with roles; invite rules tested on the live database" },
       { id: "p1-tenancy", label: "Workspaces with row-level isolation applied and tested", weight: 3, done: true, doneOn: "2026-11-05", note: "31 tables applied; isolation tested on the live database; security advisor clean except the two intended sign-up functions" },
-      { id: "p1-roles", label: "Roles and permissions enforced on the server", weight: 2, done: false, note: "Done for team, invites and payments; the rest arrives with real data" },
+      { id: "p1-roles", label: "Roles and permissions enforced on the server", weight: 2, done: true, doneOn: "2026-11-06", note: "Owners protected, owner-only owner invites, delete rights, append-only activity log, server-only money and webhook tables, same-business links. supabase/tests/loopholes_and_rules.sql 66/66 on the live database" },
       { id: "p1-contacts", label: "Contacts, leads and conversations saved for real (no sample data)", weight: 2, done: false },
       { id: "p1-wa-connect", label: "WhatsApp Cloud API number connected", weight: 2, done: false, note: "Needs Meta Business verification" },
       { id: "p1-webhook", label: "Inbound webhook: signature checked, duplicates ignored", weight: 3, done: false },
@@ -91,10 +91,11 @@ export const PHASES: StatusPhase[] = [
       { id: "p3-pipeline", label: "Lead pipeline with agreed stages", weight: 2, done: false },
       { id: "p3-scoring", label: "Lead scoring from real buying actions", weight: 2, done: false },
       { id: "p3-checkout", label: "Conversational checkout with order summary and explicit confirmation", weight: 3, done: false },
-      { id: "p3-orders", label: "Orders: edit, cancel, history, receipts", weight: 2, done: false },
-      { id: "p3-cod", label: "COD verification and risk flags", weight: 3, done: false },
+      { id: "p3-orders", label: "Orders: edit, cancel, history, receipts", weight: 2, done: false, note: "Server rules done (status order, prices locked after dispatch, receipt numbers, history); screens switch from Practice data next" },
+      { id: "p3-live-in", label: "Live intake: website/store forms, public order form, Paystack/Flutterwave/Monnify payment notifications", weight: 2, done: true, doneOn: "2026-11-06", note: "Supabase Edge Functions intake, order-form, payments-webhook — keys checked, signatures verified, prices from the database, each event applied once; tested end to end" },
+      { id: "p3-cod", label: "COD verification and risk flags", weight: 3, done: false, note: "Server already refuses to dispatch an unverified COD order; risk flags still to come" },
       { id: "p3-delivery", label: "Dispatch board and delivery outcomes", weight: 2, done: false },
-      { id: "p3-notify", label: "Order, dispatch and delivery notifications", weight: 2, done: false },
+      { id: "p3-notify", label: "Order, dispatch and delivery notifications", weight: 2, done: false, note: "Written and queued in the chat by the server (confirmation, dispatch, receipt, care guide); sending needs the WhatsApp number" },
     ],
   },
   {
@@ -138,7 +139,7 @@ export const ACCEPTANCE_TESTS: { n: number; label: string; passed: boolean }[] =
   { n: 11, label: "Delivered order updates revenue and conversion analytics", passed: false },
   { n: 12, label: "Closed 24-hour window blocks free text; template used instead", passed: false },
   { n: 13, label: "Integration failure retries without duplicate messages or orders", passed: false },
-  { n: 14, label: "One business cannot read another business's data", passed: false },
+  { n: 14, label: "One business cannot read another business's data", passed: true },
   { n: 15, label: "Opt-out stops marketing automation", passed: false },
 ];
 

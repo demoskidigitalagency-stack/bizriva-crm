@@ -153,7 +153,7 @@ async def main():
             await pg.get_by_role("button", name="Connect a platform").click()
             ok("13 platforms to pick from", await pg.locator("button", has_text="Sends:").count() == 13, await pg.locator("button", has_text="Sends:").count())
             await pg.get_by_role("button", name="Gravity Forms").click(); await pg.wait_for_timeout(500)
-            ok("setup shows intake address and key", "/api/intake/" in await pg.get_by_label("Your intake address").inner_text())
+            ok("setup shows intake address and key", "/functions/v1/intake/" in await pg.get_by_label("Your intake address").inner_text())
             await pg.get_by_role("tab", name="Test and match fields").click()
             await pg.get_by_role("button", name="Send test").click(); await pg.wait_for_timeout(300)
             ok("Gravity Forms test creates an order", await pg.get_by_role("status").filter(has_text="Order created").count() == 1)

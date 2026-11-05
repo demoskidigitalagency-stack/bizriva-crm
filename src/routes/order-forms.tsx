@@ -1,3 +1,4 @@
+import { csvCell } from "@/domain/rules";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Copy, Download, Gift, Plus, Trash2 } from "lucide-react";
@@ -246,7 +247,7 @@ function Submissions({ form }: { form: OrderForm }) {
       const p = form.packages.find((x) => x.id === s.packageId);
       return [s.at, o?.reference ?? "", c ? fullName(c) : "", c?.phone ?? "", p?.label ?? "", String(s.total), s.region, s.adSource, o ? ORDER_STATUS_META[o.status].label : "", s.emailSent ? "yes" : "no", s.eventSent ? "yes" : "no"];
     });
-    const csv = [head, ...rows].map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(",")).join("\n");
+    const csv = [head, ...rows].map((r) => r.map(csvCell).join(",")).join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
     const a = document.createElement("a"); a.href = url; a.download = `${form.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-orders.csv`; a.click();
     URL.revokeObjectURL(url);
@@ -289,8 +290,8 @@ function Submissions({ form }: { form: OrderForm }) {
 function Embed({ form }: { form: OrderForm }) {
   const db = useDb();
   const [copied, setCopied] = useState("");
-  const link = `https://bizriva.shop/${db.settings.storeSlug}/order/${form.id}`;
-  const snippet = `<script src="https://app.bizriva.com/embed.js" data-form="${form.id}" async></script>`;
+  const link = `https://bizriva-crm.vercel.app/f/${form.id}`;
+  const snippet = `<iframe src="${link}" title="Order ${form.name.replace(/"/g, "")}" style="width:100%;max-width:480px;height:760px;border:0" loading="lazy"></iframe>`;
   const copy = async (text: string, what: string) => { try { await navigator.clipboard.writeText(text); } catch { /* blocked */ } setCopied(what); };
   return (
     <div className="space-y-4 p-4 text-sm">

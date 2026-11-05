@@ -48,7 +48,7 @@ export function ChatPayments() {
               </button>
             ))}
           </div>
-          <p className="text-xs text-muted-foreground">Practice Mode simulates the connection. Live, you paste your secret key into Vercel (for example PAYSTACK_SECRET_KEY) and Bizriva listens to the provider's payment notifications. Customer account numbers need a registered business that has gone live with the provider. WhatsApp's own in-chat payments aren't available in Nigeria yet — this is the fastest way that works today.</p>
+          <p className="text-xs text-muted-foreground">Practice Mode simulates the connection. Live, the owner adds the provider's secret key once (it's stored encrypted in Supabase Vault, never in the browser) and pastes Bizriva's notification address into the provider's dashboard. Every notification is signature-checked and applied once. Customer account numbers need a registered business that has gone live with the provider. WhatsApp's own in-chat payments aren't available in Nigeria yet — this is the fastest way that works today.</p>
         </div>
       </Section>
     );
@@ -69,6 +69,11 @@ export function ChatPayments() {
             <label className="flex items-center justify-between gap-3">Send a receipt into the chat<Switch checked={ps.autoReceipt} onCheckedChange={(v) => updatePayments({ autoReceipt: v })} aria-label="Send a receipt into the chat" /></label>
             <label className="flex items-center justify-between gap-3">Paid orders skip COD checks and move to Confirmed<Switch checked={ps.autoConfirm} onCheckedChange={(v) => updatePayments({ autoConfirm: v })} aria-label="Paid orders skip COD checks" /></label>
             <Button size="sm" variant="ghost" className="px-0" onClick={disconnectPayments}>Disconnect</Button>
+          </div>
+          <div className="min-w-0 space-y-1 md:col-span-2">
+            <p className="font-medium">Notification address for {PROVIDERS.find((p) => p.id === ps.provider)?.name}</p>
+            <p className="text-xs text-muted-foreground">{ps.provider === "paystack" ? "Paystack → Settings → API Keys & Webhooks → Webhook URL." : ps.provider === "flutterwave" ? "Flutterwave → Settings → Webhooks: paste the address and set a secret hash." : "Monnify → Developer → Webhook URLs → Transaction completion."} Notifications without a valid signature are refused.</p>
+            <code aria-label="Payment notification address" className="block break-all rounded-md bg-muted px-2 py-1.5 text-xs">{`${import.meta.env.VITE_SUPABASE_URL ?? "https://xjhzkciowmklxrtwsikm.supabase.co"}/functions/v1/payments-webhook/${ps.provider}/${ws.id}`}</code>
           </div>
         </div>
       </Section>
