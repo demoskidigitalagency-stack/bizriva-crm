@@ -21,7 +21,7 @@ export const Route = createFileRoute("/templates")({
 const STATUS_TONE = { draft: "neutral", submitted: "info", approved: "success", rejected: "danger" } as const;
 const PURPOSE_LABEL: Record<TemplatePurpose, string> = {
   enquiry: "Enquiries", order: "Orders", payment: "Payments", delivery: "Delivery", complaint: "Complaints", objection: "Objections",
-  follow_up: "Follow-up", reactivation: "Win back", referral: "Referrals and reviews", policy: "Policies",
+  follow_up: "Follow-up", reactivation: "Win back", referral: "Referrals and reviews", policy: "Policies", birthday: "Birthdays",
 };
 const LANG_LABEL: Record<string, string> = { en: "English", pcm: "Pidgin" };
 const vars = (body: string) => [...new Set(body.match(/\{\{\d+\}\}/g) ?? [])];

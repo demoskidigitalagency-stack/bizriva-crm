@@ -17,6 +17,7 @@ import { Route as AiAgentRouteImport } from './routes/ai-agent'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as AutomationRouteImport } from './routes/automation'
 import { Route as BillingRouteImport } from './routes/billing'
+import { Route as BriefRouteImport } from './routes/brief'
 import { Route as BroadcastsRouteImport } from './routes/broadcasts'
 import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as CodRouteImport } from './routes/cod'
@@ -95,6 +96,11 @@ const AutomationRoute = AutomationRouteImport.update({
 const BillingRoute = BillingRouteImport.update({
   id: '/billing',
   path: '/billing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BriefRoute = BriefRouteImport.update({
+  id: '/brief',
+  path: '/brief',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BroadcastsRoute = BroadcastsRouteImport.update({
@@ -302,6 +308,7 @@ export interface FileRoutesByFullPath {
   '/analytics': typeof AnalyticsRoute
   '/automation': typeof AutomationRoute
   '/billing': typeof BillingRoute
+  '/brief': typeof BriefRoute
   '/broadcasts': typeof BroadcastsRoute
   '/calendar': typeof CalendarRoute
   '/cod': typeof CodRoute
@@ -351,6 +358,7 @@ export interface FileRoutesByTo {
   '/analytics': typeof AnalyticsRoute
   '/automation': typeof AutomationRoute
   '/billing': typeof BillingRoute
+  '/brief': typeof BriefRoute
   '/broadcasts': typeof BroadcastsRoute
   '/calendar': typeof CalendarRoute
   '/cod': typeof CodRoute
@@ -400,6 +408,7 @@ export interface FileRoutesById {
   '/analytics': typeof AnalyticsRoute
   '/automation': typeof AutomationRoute
   '/billing': typeof BillingRoute
+  '/brief': typeof BriefRoute
   '/broadcasts': typeof BroadcastsRoute
   '/calendar': typeof CalendarRoute
   '/cod': typeof CodRoute
@@ -451,6 +460,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/automation'
     | '/billing'
+    | '/brief'
     | '/broadcasts'
     | '/calendar'
     | '/cod'
@@ -500,6 +510,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/automation'
     | '/billing'
+    | '/brief'
     | '/broadcasts'
     | '/calendar'
     | '/cod'
@@ -548,6 +559,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/automation'
     | '/billing'
+    | '/brief'
     | '/broadcasts'
     | '/calendar'
     | '/cod'
@@ -598,6 +610,7 @@ export interface RootRouteChildren {
   AnalyticsRoute: typeof AnalyticsRoute
   AutomationRoute: typeof AutomationRoute
   BillingRoute: typeof BillingRoute
+  BriefRoute: typeof BriefRoute
   BroadcastsRoute: typeof BroadcastsRoute
   CalendarRoute: typeof CalendarRoute
   CodRoute: typeof CodRoute
@@ -683,6 +696,13 @@ declare module '@tanstack/react-router' {
       path: '/billing'
       fullPath: '/billing'
       preLoaderRoute: typeof BillingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/brief': {
+      id: '/brief'
+      path: '/brief'
+      fullPath: '/brief'
+      preLoaderRoute: typeof BriefRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/broadcasts': {
@@ -1002,6 +1022,7 @@ const rootRouteChildren: RootRouteChildren = {
   AnalyticsRoute: AnalyticsRoute,
   AutomationRoute: AutomationRoute,
   BillingRoute: BillingRoute,
+  BriefRoute: BriefRoute,
   BroadcastsRoute: BroadcastsRoute,
   CalendarRoute: CalendarRoute,
   CodRoute: CodRoute,

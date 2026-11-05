@@ -43,8 +43,8 @@ const JOURNEY = [
 ];
 
 const FEATURES = [
-  { t: "One WhatsApp inbox for the team", d: "Every chat in one place, with \"Needs reply\" first. Filters for new enquiries, unverified orders, dispatched, complaints and \"assigned to me\"." },
-  { t: "AI sales agent that doesn't make things up", d: "Answers only from your products and knowledge base. Hands over to a person when it isn't sure." },
+  { t: "Every platform, one inbox", d: "WhatsApp, Instagram, Messenger, TikTok and website chats in one list for the whole team, with \"Needs reply\" first." },
+  { t: "AI sales agent that doesn't make things up", d: "Replies, sells and sends payment links — only from your products and knowledge base. Hands over to a person when it isn't sure." },
   { t: "COD verification", d: "A confirmation queue with risk scores from history, city and order value. High-risk orders alert you before dispatch." },
   { t: "Order forms that never lose an order", d: "Buy 1 / 2 / 3 packages, free gifts, a live total. Saved the moment it's placed, with the ad source and region." },
   { t: "Delivery, riders and cash", d: "Dispatch board, rider phone view, failed attempts with reasons, and how much cash each rider is holding." },
@@ -75,6 +75,8 @@ const PLANS = [
 ];
 
 const FAQ = [
+  { q: "What is the Money Brief?", a: "A short summary waiting for you every morning: yesterday's delivered revenue against your average, cash still with riders, orders to confirm, how your ads did, birthdays, and the few things that need you today. You choose the time, and whether it comes in the app, on WhatsApp or by email." },
+  { q: "Which platforms does the inbox cover?", a: "WhatsApp, Instagram, Facebook Messenger and your website chat, with TikTok messages as TikTok opens its business messaging to more countries. One list, one customer record, however they reached you." },
   { q: "Do I need the WhatsApp Business API?", a: "Yes — Bizriva connects to the official WhatsApp Cloud API, so your team shares one number safely. We guide you through Meta's business verification. You can start in Practice Mode today while that's approved." },
   { q: "What happens to my old WhatsApp chats?", a: "Export any chat from WhatsApp and import it into Bizriva. It lands in that customer's history, and duplicates are skipped. Some numbers can also keep using the WhatsApp Business app alongside Bizriva." },
   { q: "How do you count revenue on cash-on-delivery?", a: "Created, confirmed and delivered are counted separately. Cash-on-delivery only counts as revenue once it's delivered — so your numbers match your bank, not your hopes." },
@@ -146,7 +148,7 @@ function Faq() {
 
 function Welcome() {
   const [nav, setNav] = useState(false);
-  const links = [["#problem", "Why"], ["#how", "How it works"], ["#features", "Features"], ["#compare", "Compare"], ["#pricing", "Pricing"], ["#faq", "FAQ"]] as const;
+  const links = [["#problem", "Why"], ["#how", "How it works"], ["#features", "Features"], ["#brief", "Money Brief"], ["#compare", "Compare"], ["#pricing", "Pricing"], ["#faq", "FAQ"]] as const;
   return (
     <div className="lp">
       <style>{CSS}</style>
@@ -183,7 +185,7 @@ function Welcome() {
                 Turn ad chats into <span className="lp-highlight">delivered, paid</span> orders.
               </h1>
               <p className="mt-6 max-w-xl text-lg text-[var(--ink-soft)]">
-                Bizriva is the sales desk behind your WhatsApp: one inbox for the team, an AI agent that answers in English and Pidgin, COD checks before dispatch, riders and cash — and ad results counted only when the money lands.
+                Bizriva is an AI sales desk that never sleeps: WhatsApp, Instagram, Messenger and TikTok chats in one inbox, an agent that replies, sells and sends payment links in English or Pidgin, COD checks before dispatch — and a Money Brief every morning that counts only the money that landed.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link to="/account" className="lp-btn lp-btn-dark">Start free — no card <ArrowRight className="size-4" /></Link>
@@ -248,6 +250,38 @@ function Welcome() {
                   <Link to="/" className="lp-btn lp-btn-danfo self-start">Open the demo <ArrowRight className="size-4" /></Link>
                 </li>
               </ul>
+            </div>
+          </div>
+        </section>
+
+        {/* Brief + memory */}
+        <section id="brief" className="lp-wrap grid gap-12 py-20 lg:grid-cols-2">
+          <div className="min-w-0">
+            <p className="lp-kicker">Every morning, 7:30</p>
+            <h2 className="lp-display mt-3 text-4xl font-extrabold leading-tight sm:text-5xl">Wake up to your Money Brief.</h2>
+            <p className="mt-4 text-[var(--ink-soft)]">Before you open a single chat: what you delivered yesterday, how much cash your riders are holding, which orders to call first, which ad is earning — and a short list of what needs you today. In the app, on WhatsApp or by email.</p>
+            <div className="lp-brief mt-8" aria-label="Example Money Brief">
+              <p className="lp-mono text-[11px] tracking-[0.18em] text-[var(--ink-soft)]">☀️ MONEY BRIEF · TUESDAY</p>
+              <p className="mt-2 font-semibold">Yesterday you delivered ₦1,619,000 across 4 orders, up on your daily average. ₦3.78m is still with riders.</p>
+              <ul className="lp-mono mt-3 space-y-1 text-[12px]">
+                <li>🏍️ Cash with riders · ₦3,783,000</li>
+                <li>📞 To confirm · 34 orders · 7 high-risk</li>
+                <li>📣 Ads · 2.9× return on delivered sales</li>
+                <li>🎂 Birthdays · Chiamaka today</li>
+              </ul>
+              <p className="mt-3 text-sm font-semibold">Today: call the 7 high-risk orders first.</p>
+            </div>
+          </div>
+          <div className="min-w-0">
+            <p className="lp-kicker">Remembers every customer</p>
+            <h2 className="lp-display mt-3 text-4xl font-extrabold leading-tight sm:text-5xl">Speak to each buyer like you know them. Because you do.</h2>
+            <p className="mt-4 text-[var(--ink-soft)]">Bizriva picks up what customers tell you in chat — birthday, size, favourite colour, budget, who they buy for — and your team confirms it in one tap. The AI agent uses it: “Welcome back, Chiamaka! Since you like burgundy…”</p>
+            <div className="lp-memory mt-8" aria-label="Example customer memory">
+              <p className="font-semibold">Chiamaka O. <span className="lp-mono text-xs text-[var(--ink-soft)]">· 4 orders · Lekki</span></p>
+              <ul className="mt-3 flex flex-wrap gap-2 text-xs">
+                {["🎂 Birthday · 29 September", "Likes · burgundy", "Size 12", "Buys for her sister", "Budget · about ₦200k"].map((x) => <li key={x} className="lp-chipfact">{x}</li>)}
+              </ul>
+              <p className="lp-bubble lp-out mt-4 opacity-100" style={{ animation: "none", opacity: 1 }}>Happy birthday, Chiamaka! 🎉 Here's 10% off anything this week — the burgundy deep wave just came in.</p>
             </div>
           </div>
         </section>
@@ -395,6 +429,10 @@ const CSS = `
 .lp-ticket{display:flex;gap:.5rem;align-items:flex-start;background:#fffdf7;border:1.5px solid var(--ink);border-radius:10px;padding:.85rem;box-shadow:4px 4px 0 var(--rule)}
 .lp-col-us{background:rgba(245,184,0,.16)}
 th.lp-col-us{color:var(--ink)}
+.lp-brief{background:var(--ink);color:#f6f1e7;border-radius:18px;padding:1.4rem;box-shadow:10px 10px 0 var(--danfo);transform:rotate(-1deg)}
+.lp-brief .lp-mono{color:rgba(246,241,231,.7)}
+.lp-memory{background:#fffdf7;border:1.5px solid var(--ink);border-radius:18px;padding:1.4rem;box-shadow:10px 10px 0 var(--green)}
+.lp-chipfact{border:1.5px solid var(--ink);border-radius:999px;padding:.3rem .7rem;background:var(--paper)}
 .lp-plan{position:relative;display:flex;flex-direction:column;background:#fffdf7;border:1.5px solid var(--rule);border-radius:18px;padding:1.5rem}
 .lp-plan > a{margin-top:auto}
 .lp-plan-best{border-color:var(--ink);box-shadow:8px 8px 0 var(--danfo)}

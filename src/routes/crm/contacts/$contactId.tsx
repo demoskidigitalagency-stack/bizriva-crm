@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { CustomerMemory } from "@/components/app/CustomerMemory";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { ArrowLeft, CalendarPlus, MessageSquare, NotebookPen, Phone, ShoppingBag, Target, UserRoundCog } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -210,6 +211,7 @@ function Customer360Page() {
         </Tabs>
 
         <div className="space-y-4">
+          <CustomerMemory contactId={c360.contact.id} />
           <Section title="Lead">
             {c360.lead ? (
               <div className="space-y-3 p-4 text-sm">

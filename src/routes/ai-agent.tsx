@@ -57,6 +57,8 @@ function Settings() {
 function TestChat() {
   const db = useDb();
   const [ad, setAd] = useState<string>("none");
+  const [who, setWho] = useState<string>("new");
+  const known = db.contacts.filter((c) => (c.facts ?? []).length > 0);
   const [text, setText] = useState("");
   const [lines, setLines] = useState<Line[]>([]);
   const end = useRef<HTMLDivElement>(null);
@@ -65,7 +67,7 @@ function TestChat() {
   const send = (msg: string) => {
     const m = msg.trim();
     if (!m) return;
-    const reply = agentReply(db, m, { ...(ad !== "none" ? { adProductId: ad } : {}), firstMessage: lines.length === 0 });
+    const reply = agentReply(db, m, { ...(ad !== "none" ? { adProductId: ad } : {}), ...(who !== "new" ? { contactId: who } : {}), firstMessage: lines.length === 0 });
     setLines((l) => [...l, { from: "customer", text: m }, { from: "agent", text: reply.text, meta: reply }]);
     setText("");
   };
@@ -83,6 +85,14 @@ function TestChat() {
           <SelectContent>
             <SelectItem value="none">No ad (direct message)</SelectItem>
             {db.products.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <span className="text-muted-foreground">as</span>
+        <Select value={who} onValueChange={(v) => { setWho(v); setLines([]); }}>
+          <SelectTrigger className="h-8 w-56" aria-label="Customer"><SelectValue>{who === "new" ? "A new customer" : (() => { const c = known.find((x) => x.id === who); return c ? `${c.firstName} ${c.lastName} (known)` : "A new customer"; })()}</SelectValue></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="new">A new customer</SelectItem>
+            {known.map((c) => <SelectItem key={c.id} value={c.id}>{c.firstName} {c.lastName} — {(c.facts ?? []).map((f) => f.value).slice(0, 2).join(", ")}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>

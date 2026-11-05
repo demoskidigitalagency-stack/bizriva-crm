@@ -12,7 +12,7 @@ import * as practiceSeed from "./practice-seed";
 import type {
   AgentConfig, Broadcast, BusinessSettings, CalendarEvent, Campaign, Channel, OrderForm, OrderFormField, Contact, DeliveryStatus, FollowUpRule, ID, IntegrationState, KnowledgeEntry,
   LeadOutcome, LeadStage, Lifecycle, MediaAsset, MessageTemplate, OrderStatus, PaymentMethod, Product, Rider, StockMovement, Task,
-  TeamMember, Workflow, WorkflowRun,
+  TeamMember, Workflow, WorkflowRun, FactKind,
 } from "./types";
 
 /** Collections that the generic save/remove actions may touch. */
@@ -37,7 +37,7 @@ type EditableKey = keyof Editable;
  * version when the seed or types change shape — old saves are then ignored.
  */
 const PRACTICE_KEY = "bizriva.practice-db";
-const PRACTICE_VERSION = 5; // v5: the agreed 13 lead stages and 10 order statuses
+const PRACTICE_VERSION = 6; // v6: customer memory, money brief settings, TikTok
 
 function loadPractice(): { db: Database; workspaceId: ID } | null {
   try {
@@ -130,6 +130,10 @@ interface StoreActions {
   importProducts: (rows: Omit<Product, "id">[]) => number;
   addPolicyStarters: () => number;
   importChatHistory: (input: ChatImportInput) => { contactId: ID; conversationId: ID; added: number; duplicates: number } | null;
+  saveFacts: (contactId: ID, facts: { kind: FactKind; value: string; monthDay?: string }[], source: "chat" | "staff") => void;
+  removeFact: (contactId: ID, factId: ID) => void;
+  /** Sends a payment link for the customer's latest unpaid order into this chat. Returns the order reference, or null if nothing is owed. */
+  sendPaymentLink: (conversationId: ID) => string | null;
 }
 
 export interface ChatImportInput {
@@ -954,6 +958,49 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return result;
   }, []);
 
+  const saveFacts = useCallback((contactId: ID, facts: { kind: FactKind; value: string; monthDay?: string }[], source: "chat" | "staff") => {
+    setDb((d) => {
+      const clean = facts.filter((f) => f.value.trim());
+      if (!clean.length) return d;
+      const now = new Date().toISOString();
+      const next: Database = {
+        ...d,
+        contacts: d.contacts.map((c) => {
+          if (c.id !== contactId) return c;
+          const have = c.facts ?? [];
+          const add = clean.filter((f) => !have.some((h) => h.kind === f.kind && h.value.toLowerCase() === f.value.trim().toLowerCase()))
+            .map((f) => ({ id: newId("fact"), kind: f.kind, value: f.value.trim(), ...(f.monthDay ? { monthDay: f.monthDay } : {}), source, at: now }));
+          // One birthday per person: a new one replaces the old.
+          const kept = add.some((f) => f.kind === "birthday") ? have.filter((h) => h.kind !== "birthday") : have;
+          return { ...c, facts: [...kept, ...add] };
+        }),
+      };
+      return logActivity(next, contactId, "Customer memory updated", "note", clean.map((f) => `${f.kind.replace("_", " ")}: ${f.value}`).join(" · "));
+    });
+  }, []);
+
+  const removeFact = useCallback((contactId: ID, factId: ID) => {
+    setDb((d) => ({ ...d, contacts: d.contacts.map((c) => (c.id === contactId ? { ...c, facts: (c.facts ?? []).filter((f) => f.id !== factId) } : c)) }));
+  }, []);
+
+  const sendPaymentLink = useCallback((conversationId: ID): string | null => {
+    const d0 = dbRef.current;
+    const conv = d0.conversations.find((c) => c.id === conversationId);
+    if (!conv) return null;
+    const order = d0.orders
+      .filter((o) => o.contactId === conv.contactId && !["cancelled", "returned", "refused"].includes(o.status) && o.total - (o.amountPaid ?? (o.paymentStatus === "paid" ? o.total : 0)) > 0)
+      .sort((a, b) => +new Date(b.placedAt) - +new Date(a.placedAt))[0];
+    if (!order) return null;
+    setDb((d) => {
+      const balance = order.total - (order.amountPaid ?? 0);
+      const who = d.contacts.find((c) => c.id === order.contactId);
+      const link = d.settings.paymentLinkTemplate.replace("{{order}}", order.reference);
+      const body = `Hi ${who?.firstName ?? "there"}, here's your secure payment link for order ${order.reference} (${moneyIn(d, balance)}):\n${link}\nYou can also pay the rider on delivery.`;
+      return logActivity(postToCustomer(d, order.contactId, body), order.contactId, `Payment link sent for ${order.reference}`, "conversation", moneyIn(d, balance));
+    });
+    return order.reference;
+  }, []);
+
   const resetPracticeData = useCallback(() => {
     try {
       localStorage.removeItem(PRACTICE_KEY);
@@ -975,10 +1022,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
         setIntegration, assignRider, moveStock, recordPayment, logRun, retryRun, sendBroadcast, addCampaignSpend,
         updateContactDetails, simulateIncoming, sendProductCard, updateWorkspace, submitLeadForm,
         submitOrderForm, trackForm, simulateFormTraffic, recordDeposit, requestBalance, issueInvoice, flagComplaint, resolveComplaint,
-        toggleSetupStep, importProducts, addPolicyStarters, importChatHistory,
+        toggleSetupStep, importProducts, addPolicyStarters, importChatHistory, saveFacts, removeFact, sendPaymentLink,
       },
     }),
-    [db, workspaceId, addContact, createOrder, setLeadStage, setLeadOutcome, assignOwner, setLifecycle, completeTask, snoozeTask, addTask, addNote, logCall, sendReply, markNotificationsRead, setOrderStatus, recordCodCheck, setDeliveryStatus, markRemitted, saveProduct, adjustStock, mergeContacts, startLead, resetPracticeData, saveRecord, removeRecord, updateSettings, updateAgent, setIntegration, assignRider, moveStock, recordPayment, logRun, retryRun, sendBroadcast, addCampaignSpend, updateContactDetails, simulateIncoming, sendProductCard, updateWorkspace, submitLeadForm, submitOrderForm, trackForm, simulateFormTraffic, recordDeposit, requestBalance, issueInvoice, flagComplaint, resolveComplaint, toggleSetupStep, importProducts, addPolicyStarters, importChatHistory],
+    [db, workspaceId, addContact, createOrder, setLeadStage, setLeadOutcome, assignOwner, setLifecycle, completeTask, snoozeTask, addTask, addNote, logCall, sendReply, markNotificationsRead, setOrderStatus, recordCodCheck, setDeliveryStatus, markRemitted, saveProduct, adjustStock, mergeContacts, startLead, resetPracticeData, saveRecord, removeRecord, updateSettings, updateAgent, setIntegration, assignRider, moveStock, recordPayment, logRun, retryRun, sendBroadcast, addCampaignSpend, updateContactDetails, simulateIncoming, sendProductCard, updateWorkspace, submitLeadForm, submitOrderForm, trackForm, simulateFormTraffic, recordDeposit, requestBalance, issueInvoice, flagComplaint, resolveComplaint, toggleSetupStep, importProducts, addPolicyStarters, importChatHistory, saveFacts, removeFact, sendPaymentLink],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

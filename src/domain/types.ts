@@ -176,6 +176,20 @@ export interface Contact {
   /** Saved delivery details (often pulled from the chat). */
   address?: string;
   landmark?: string;
+  /** What we know about this person, learned from chats or added by staff. */
+  facts?: CustomerFact[];
+}
+
+export type FactKind = "birthday" | "size" | "likes" | "dislikes" | "budget" | "buys_for" | "note";
+
+export interface CustomerFact {
+  id: ID;
+  kind: FactKind;
+  value: string;
+  /** For birthdays: "MM-DD", so reminders work without a year. */
+  monthDay?: string;
+  source: "chat" | "staff";
+  at: string;
 }
 
 export interface Lead {
@@ -493,7 +507,7 @@ export interface KnowledgeEntry {
 }
 
 export type TemplatePurpose =
-  | "enquiry" | "order" | "payment" | "delivery" | "complaint" | "objection" | "follow_up" | "reactivation" | "referral" | "policy";
+  | "enquiry" | "order" | "payment" | "delivery" | "complaint" | "objection" | "follow_up" | "reactivation" | "referral" | "policy" | "birthday";
 
 export interface MessageTemplate {
   id: ID;
@@ -578,7 +592,7 @@ export interface StockMovement {
 }
 
 export interface IntegrationState {
-  id: "whatsapp" | "messenger" | "instagram" | "meta_ads" | "sms" | "email" | "paystack" | "webchat" | "couriers" | "lead_form";
+  id: "whatsapp" | "messenger" | "instagram" | "tiktok" | "meta_ads" | "sms" | "email" | "paystack" | "webchat" | "couriers" | "lead_form";
   status: "not_connected" | "simulated";
   connectedAt?: string;
 }
@@ -614,6 +628,8 @@ export interface BusinessSettings {
   whatsappNumber: string;
   /** 7-day setup checklist steps the owner has ticked. */
   setupDone: string[];
+  /** Morning Money Brief: when and where it's sent. */
+  brief: { time: string; channels: ("app" | "whatsapp" | "email")[] };
 }
 
 /* ===================================================================
@@ -665,7 +681,7 @@ export interface FormSubmission {
 export interface CalendarEvent {
   id: ID;
   title: string;
-  kind: "callback" | "delivery" | "meeting" | "reminder";
+  kind: "callback" | "delivery" | "meeting" | "reminder" | "birthday";
   at: string;
   contactId?: ID;
   orderId?: ID;

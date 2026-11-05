@@ -10,6 +10,9 @@ import { KpiCard, PageHeader, Section, StatusBadge } from "@/components/app/prim
 import { ContactDialog } from "@/components/app/dialogs";
 import { useDb, useWorkspace } from "@/domain/store";
 import { getDashboard } from "@/domain/repositories";
+import { buildBrief } from "@/domain/brief";
+import { NOW } from "@/domain/database";
+import { BriefActions } from "./brief";
 import { LIFECYCLE_META, SOURCE_LABELS, type ActivityKind } from "@/domain/types";
 import { formatCurrency, formatNumber, formatPercent, relativeTime } from "@/lib/format";
 import type { CurrencyCode } from "@/lib/format";
@@ -76,6 +79,17 @@ function BarRow({ label, value, max, right, tone = "primary" }: { label: string;
   );
 }
 
+function MorningBrief() {
+  const db = useDb();
+  const b = useMemo(() => buildBrief(db, NOW), [db]);
+  if (!db.settings.brief.channels.includes("app")) return null;
+  return (
+    <Section title="☀️ Morning Money Brief" description={b.headline} className="mb-4" action={<Button asChild size="sm" variant="outline"><Link to="/brief">Open brief</Link></Button>}>
+      <BriefActions actions={b.actions.slice(0, 3)} />
+    </Section>
+  );
+}
+
 function Dashboard() {
   const db = useDb();
   const ws = useWorkspace();
@@ -120,6 +134,8 @@ function Dashboard() {
           </>
         }
       />
+
+      <MorningBrief />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
         <KpiCard label="Revenue" value={fmt(k.revenue, true)} hint="all orders in range" icon={<Wallet className="size-4" />} />

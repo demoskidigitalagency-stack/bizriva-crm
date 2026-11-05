@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
-import { AlertTriangle, CheckCircle2, FlaskConical, Megaphone, MessageSquareText, Package, Send, Sparkles, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, CreditCard, FlaskConical, Megaphone, MessageSquareText, Package, Send, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { PageHeader, Section, StatusBadge, EmptyState, PersonAvatar } from "@/components/app/primitives";
 import { OrderDialog } from "@/components/app/dialogs";
+import { CustomerMemory } from "@/components/app/CustomerMemory";
 import { useActions, useDb, useWorkspace } from "@/domain/store";
 import { CURRENT_USER_ID } from "@/domain/database";
 import { INBOX_VIEWS, fullName, getMember, inboxMatches, type InboxView } from "@/domain/repositories";
@@ -63,7 +64,7 @@ function SendProduct({ conversationId }: { conversationId: string }) {
   );
 }
 
-const PURPOSES = ["enquiry", "order", "payment", "delivery", "complaint", "objection", "follow_up", "reactivation", "referral", "policy"] as const;
+const PURPOSES = ["enquiry", "order", "payment", "delivery", "complaint", "objection", "follow_up", "reactivation", "referral", "birthday", "policy"] as const;
 
 function QuickReplies({ conversation, onPick }: { conversation: Conversation; onPick: (text: string) => void }) {
   const db = useDb();
@@ -101,6 +102,21 @@ function QuickReplies({ conversation, onPick }: { conversation: Conversation; on
         </ul>
         <p className="mt-2 border-t pt-2 text-[11px] text-muted-foreground">Fill in the {"{{2}}"}, {"{{3}}"} parts before sending. Edit the library in Templates.</p>
       </PopoverContent>
+    </Popover>
+  );
+}
+
+function PaymentLinkButton({ conversationId }: { conversationId: string }) {
+  const { sendPaymentLink } = useActions();
+  const [note, setNote] = useState("");
+  return (
+    <Popover open={!!note} onOpenChange={(o) => !o && setNote("")}>
+      <PopoverTrigger asChild>
+        <Button size="sm" variant="outline" aria-label="Send payment link" onClick={() => { const ref = sendPaymentLink(conversationId); setNote(ref ? `Payment link for ${ref} sent (practice — nothing really sent).` : "Nothing is owed: this customer has no unpaid order. Create an order first."); }}>
+          <CreditCard className="size-4" /><span className="hidden sm:inline">Pay link</span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-72 p-3 text-xs" role="status">{note}</PopoverContent>
     </Popover>
   );
 }
@@ -177,6 +193,7 @@ function Thread({ conversation }: { conversation: Conversation }) {
       <div className="flex items-center gap-2 border-t p-3">
         <SendProduct conversationId={conversation.id} />
         <QuickReplies conversation={conversation} onPick={setText} />
+        <PaymentLinkButton conversationId={conversation.id} />
         <Input
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -254,6 +271,8 @@ function CustomerPanel({ conversation }: { conversation: Conversation }) {
           )}
         </div>
       </Section>
+
+      <CustomerMemory contactId={c.id} compact />
 
       <Section title="Orders" action={<Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setOrdering(true)}>New order</Button>}>
         {orders.length === 0 ? <p className="p-3 text-xs text-muted-foreground">No orders yet.</p> : (

@@ -51,7 +51,26 @@ function matchKnowledge(db: Database, text: string): KnowledgeEntry | undefined 
   return best?.k;
 }
 
-export function agentReply(db: Database, message: string, opts: { adProductId?: string; firstMessage?: boolean } = {}): AgentReply {
+/** A personal touch from customer memory: their name, and a product matching what they like. */
+function personal(db: Database, contactId: string | undefined, current?: Product): { hello: string; extra: string; sources: string[] } {
+  const c = contactId ? db.contacts.find((x) => x.id === contactId) : undefined;
+  if (!c) return { hello: "", extra: "", sources: [] };
+  const facts = c.facts ?? [];
+  const sources: string[] = [];
+  let extra = "";
+  const likes = facts.filter((f) => f.kind === "likes").map((f) => f.value.toLowerCase().replace(" colour", "").replace("-inch length", ""));
+  const match = db.products.find((p) => p.active !== false && p.id !== current?.id && likes.some((l) => norm(p.name).includes(norm(l))));
+  if (match) {
+    const liked = likes.find((l) => norm(match.name).includes(norm(l)))!;
+    extra = ` Since you like ${liked}, you might love the ${match.name} too.`;
+    sources.push(`Customer memory › likes ${liked}`, `Products › ${match.name}`);
+  }
+  const forWho = facts.find((f) => f.kind === "buys_for");
+  if (!extra && forWho) { extra = ` Is this one for your ${forWho.value.replace("Buys for their ", "")} again?`; sources.push(`Customer memory › ${forWho.value}`); }
+  return { hello: c.firstName, extra, sources };
+}
+
+export function agentReply(db: Database, message: string, opts: { adProductId?: string; firstMessage?: boolean; contactId?: string } = {}): AgentReply {
   const t = norm(message);
   const a = db.agent;
   const currency = db.workspaces[0]?.currency ?? "NGN";
@@ -76,9 +95,10 @@ export function agentReply(db: Database, message: string, opts: { adProductId?: 
     const stock = product.stock === 0 ? " It's out of stock right now, so I'll ask a teammate about the restock date." : product.stock <= product.reorderLevel ? " Only a few left in stock." : "";
     const kb = matchKnowledge(db, "delivery");
     if (kb) sources.push(`Knowledge › ${kb.question}`);
+    const me = personal(db, opts.contactId, product);
     return {
-      text: `The ${product.name} is ${money(product.price)}.${stock} Delivery in Lagos is ${money(db.settings.deliveryFee)} and you can pay on delivery. How many would you like?`,
-      intent: "price", sources, handoff: product.stock === 0, photos: 0, productId: product.id,
+      text: `${me.hello ? `${me.hello}, the` : "The"} ${product.name} is ${money(product.price)}.${stock} Delivery in Lagos is ${money(db.settings.deliveryFee)} and you can pay on delivery.${me.extra} How many would you like?`,
+      intent: "price", sources: [...sources, ...me.sources], handoff: product.stock === 0, photos: 0, productId: product.id,
     };
   }
 
@@ -107,6 +127,10 @@ export function agentReply(db: Database, message: string, opts: { adProductId?: 
 
   if (opts.firstMessage || has(t, ["hello", "hi", "good morning", "good afternoon", "good evening", "interested", "i need", "details"])) {
     const about = adProduct ? ` You were looking at the ${adProduct.name} — it's ${money(adProduct.price)}.` : "";
+    const me = personal(db, opts.contactId, adProduct);
+    if (me.hello) {
+      return { text: `Welcome back, ${me.hello}! Good to hear from you again.${about}${me.extra}`, intent: "greeting", sources: [`Customer memory › ${me.hello}`, ...me.sources], handoff: false, photos: 0, ...(adProduct ? { productId: adProduct.id } : {}) };
+    }
     return { text: `${a.greeting}${about}`, intent: "greeting", sources: adProduct ? [`Products › ${adProduct.name}`] : ["AI agent › Greeting"], handoff: false, photos: 0, ...(adProduct ? { productId: adProduct.id } : {}) };
   }
 

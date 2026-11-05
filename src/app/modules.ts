@@ -12,7 +12,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   BarChart3, BookOpen, Boxes, Bot, CalendarCheck, CreditCard, FileText, HelpCircle, Images, LayoutDashboard,
   Megaphone, MessageSquare, Package, Plug, Send, Settings, ShieldCheck, ShoppingBag, Store, Truck, Users,
-  UsersRound, Wallet, Workflow, History, ListChecks, Bike, Building2, ClipboardList, CalendarDays, Telescope,
+  UsersRound, Wallet, Workflow, History, ListChecks, Bike, Building2, ClipboardList, CalendarDays, Telescope, Sunrise,
 } from "lucide-react";
 
 /** How real a module is today. Shown honestly in the UI — never overstated. */
@@ -53,16 +53,19 @@ export const MODULES: ModuleDef[] = [
   { id: "today", label: "Today", path: "/today", icon: CalendarCheck, group: "Overview", phase: "MVP", state: "practice", sources: ["Bizriva"], decision: "Agreed",
     submenus: ["New leads", "Needs reply", "Follow-ups due", "Orders to confirm", "Awaiting dispatch", "Failed deliveries", "COD outstanding", "Low stock", "7-day setup checklist"],
     summary: "The action queue staff work through each day." },
+  { id: "brief", label: "Money Brief", path: "/brief", icon: Sunrise, group: "Overview", phase: "MVP", state: "practice", sources: ["Review 2026-11-04"], decision: "Agreed",
+    submenus: ["Yesterday's delivered revenue vs average", "Cash with riders and overdue", "Orders to confirm and high-risk COD", "Ad return, best and weakest ad", "Birthdays this week", "Today's list", "Copy as WhatsApp message", "Send time and channels (WhatsApp and email with backend)"],
+    summary: "A plain-words morning summary of the money and what needs you today. Revenue counts only delivered orders." },
   { id: "calendar", label: "Calendar", path: "/calendar", icon: CalendarDays, group: "Overview", phase: "MVP", state: "practice", sources: ["Review 2026-11-04"], decision: "Agreed",
     submenus: ["Month, week and list views", "Deliveries, call-backs, tasks and follow-ups", "Busy days", "Add an event"],
     summary: "Every delivery date, call-back and reminder on one calendar, so nothing is promised twice." },
 
   // Customers
   { id: "inbox", label: "Inbox", path: "/inbox", icon: MessageSquare, group: "Customers", phase: "MVP", state: "practice", sources: ["Sandala", "Kobolink", "Prompt"], decision: "Agreed",
-    submenus: ["Import old WhatsApp chats", "Complaints filter and resolve", "Quick replies from the reply library", "All", "Unread", "New enquiries", "Assigned", "Unassigned", "Priority", "Waiting on customer", "Waiting on us", "AI-handled", "Human-handled", "Closed", "Channel filter"],
+    submenus: ["WhatsApp, Instagram, Messenger, TikTok and website chat in one list", "Send payment link", "Customer memory beside the chat", "Import old WhatsApp chats", "Complaints filter and resolve", "Quick replies from the reply library", "All", "Unread", "New enquiries", "Assigned", "Unassigned", "Priority", "Waiting on customer", "Waiting on us", "AI-handled", "Human-handled", "Closed", "Channel filter"],
     summary: "One shared inbox for every channel, so no conversation depends on a single phone." },
   { id: "crm", label: "CRM", path: "/crm", icon: Users, group: "Customers", phase: "MVP", state: "practice", sources: ["Bizriva", "Sandala", "Prompt"], decision: "Agreed",
-    submenus: ["Overview", "Contacts", "Customer 360", "Customers", "Leads", "Pipeline", "Tasks", "Segments (view only until backend)", "Duplicates and merge", "CSV imports", "Import old WhatsApp chats (Export chat .txt or .zip)"],
+    submenus: ["Overview", "Contacts", "Customer 360", "Customers", "Leads", "Pipeline", "Tasks", "Segments (view only until backend)", "Duplicates and merge", "CSV imports", "Import old WhatsApp chats (Export chat .txt or .zip)", "Customer memory: birthday, size, likes, budget, who they buy for"],
     summary: "One identity per person: a Contact can become a Lead and later a Customer without duplicate records." },
 
   // Sales
@@ -197,6 +200,8 @@ export const FUTURE: FutureIdea[] = [
   { id: "fx-paylinks", bucket: "Needs the backend", title: "Real payment links", from: "StitchBook, Xara", goesInto: "Orders, Payments", needs: "Paystack or Flutterwave account and webhooks", summary: "Deposit and balance links that mark the order paid by themselves." },
   { id: "fx-ad-copy", bucket: "Needs the backend", title: "AI ad copy and weekly WhatsApp report", from: "Adflow", goesInto: "Ads", needs: "AI model and WhatsApp templates", summary: "Draft ad text for Nigerian buyers and send the owner a plain weekly report on WhatsApp." },
   { id: "fx-ad-launch", bucket: "Needs the backend", title: "Launch and auto-tune ads", from: "Adflow", goesInto: "Ads", needs: "Meta Marketing API app review", summary: "Create campaigns from Bizriva and move budget to ads with the most delivered orders, not just chats." },
+  { id: "fx-brief-send", bucket: "Needs the backend", title: "Money Brief on WhatsApp and email", from: "Review 2026-11-05", goesInto: "Money Brief", needs: "WhatsApp Cloud API template and email sending", summary: "The brief arrives on your phone at the time you choose, every morning." },
+  { id: "fx-ai-memory", bucket: "Needs the backend", title: "AI customer memory", from: "Review 2026-11-05", goesInto: "Customer 360, AI Sales Agent", needs: "AI model", summary: "An AI reads every chat (including voice notes) and suggests what to remember, beyond the patterns used today." },
   { id: "fx-store-import", bucket: "Needs the backend", title: "Import from Shopify and WooCommerce", from: "WaContacts", goesInto: "Products", needs: "Store API keys", summary: "Bring a whole catalogue across with photos." },
   { id: "fx-owner-assistant", bucket: "Needs the backend", title: "Owner assistant on WhatsApp", from: "Xara", goesInto: "Analytics, Payments", needs: "WhatsApp Cloud API and an AI model", summary: "Ask \"how much cash is with riders today?\" in WhatsApp and get the answer." },
   { id: "fx-invoice-pdf", bucket: "Needs the backend", title: "Invoice and receipt PDFs by email or WhatsApp", from: "WaContacts, StitchBook", goesInto: "Orders", needs: "Server-side PDF and email sending", summary: "Send the invoice as a file instead of printing it." },

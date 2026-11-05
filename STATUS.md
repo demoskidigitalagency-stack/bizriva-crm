@@ -7,7 +7,7 @@ Generated from `src/app/status.ts` and `src/app/modules.ts` by `bun run status`.
 | **Frontend — Practice Mode** (every page and button works on sample data) | **100%** | `████████████████████` |
 | **Backend — Live** (works for real: auth, database, WhatsApp, AI) | **12%** | `██░░░░░░░░░░░░░░░░░░` |
 
-Modules: 31 of 31 practice ready · 0 partly working · 0 planned.
+Modules: 32 of 32 practice ready · 0 partly working · 0 planned.
 
 ## Frontend track
 
@@ -19,6 +19,7 @@ Modules: 31 of 31 practice ready · 0 partly working · 0 planned.
 | --- | --- | --- | --- | --- | --- |
 | ✅ | Overview | Dashboard | MVP | Practice ready | Bizriva, Sandala, Prompt |
 | ✅ | Overview | Today | MVP | Practice ready | Bizriva |
+| ✅ | Overview | Money Brief | MVP | Practice ready | Review 2026-11-04 |
 | ✅ | Overview | Calendar | MVP | Practice ready | Review 2026-11-04 |
 | ✅ | Customers | Inbox | MVP | Practice ready | Sandala, Kobolink, Prompt |
 | ✅ | Customers | CRM | MVP | Practice ready | Bizriva, Sandala, Prompt |
@@ -60,6 +61,7 @@ Modules: 31 of 31 practice ready · 0 partly working · 0 planned.
 - [x] Every link, search result and Today queue opens a real page _(2026-11-02)_
 - [x] Crosswalk decisions agreed (menus, lead stages, order statuses, roles) _(2026-11-02)_ — See DECISIONS.md — prompt's 13 lead stages and 10 order statuses, 6 roles, own Supabase + Vercel
 - [x] Click-through QA: every page on desktop and phone, light and dark, no console errors _(2026-11-02)_ — tests/practice_qa.py 46/46 and tests/practice_qa_modules.py 61/61
+- [x] Money Brief, customer memory, payment links in chat, TikTok channel _(2026-11-05)_ — tests/practice_qa_brief.py 22/22; contact_facts table and brief settings applied to Supabase
 - [x] Competitor and playbook review added (order forms, deposits, invoices, calendar, complaints, reply library, share kit, imports) _(2026-11-04)_ — tests/practice_qa_review.py 43/43. Backend-dependent and parked ideas are listed on Coming Later
 
 ## Backend track

@@ -16,6 +16,7 @@ export const Route = createFileRoute("/integrations")({
 const INFO: Record<IntegrationState["id"], { name: string; what: string; needs: string[]; phase: string }> = {
   whatsapp: { name: "WhatsApp Cloud API", what: "Receive and send WhatsApp messages in the shared inbox, templates and media.", needs: ["Meta Business account, verified", "A phone number not in use on the WhatsApp Business app (or eligible for coexistence)", "Approved message templates"], phase: "MVP" },
   meta_ads: { name: "Meta Ads", what: "See which ad started each chat and pull spend for return on ad spend.", needs: ["Ad account access", "Click-to-WhatsApp ads running"], phase: "Later" },
+  tiktok: { name: "TikTok Business Messaging", what: "TikTok DMs in the same inbox, so buyers from TikTok ads and videos get answered like everyone else.", needs: ["TikTok Business account", "Approval for TikTok's business messaging API (availability in Nigeria may lag other platforms)"], phase: "Later" },
   messenger: { name: "Facebook Messenger", what: "Messenger chats in the same inbox.", needs: ["Facebook Page admin access", "Meta app review for messaging"], phase: "Later" },
   instagram: { name: "Instagram Direct", what: "Instagram DMs in the same inbox.", needs: ["Instagram professional account linked to a Page"], phase: "Later" },
   sms: { name: "SMS", what: "Order and delivery updates by SMS, and fallback when WhatsApp fails.", needs: ["SMS provider account", "Registered sender ID"], phase: "Later" },

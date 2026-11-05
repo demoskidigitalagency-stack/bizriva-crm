@@ -86,6 +86,9 @@ export const replyLibrary: MessageTemplate[] = [
   // Policies
   lib("rl_28", "policy_returns", "policy", "en", "utility", "Our returns policy: unused items in original packaging can be exchanged within {{1}} days. Please send a photo and your order number to start."),
   lib("rl_29", "policy_delivery_areas", "policy", "en", "utility", "We deliver pay-on-delivery in {{1}}. For other states we use a courier and ask for payment before dispatch."),
+  // Birthdays (marketing — consent and opt-out)
+  lib("rl_30", "birthday_greeting", "birthday", "en", "marketing", "Happy birthday, {{1}}! 🎉 Thank you for shopping with us. Here's {{2}} off anything this week as our gift. Reply STOP to opt out."),
+  lib("rl_31", "birthday_greeting_pidgin", "birthday", "pcm", "marketing", "Happy birthday {{1}}! 🎉 We dey celebrate you. Take {{2}} off anything wey you like this week, na our gift. Reply STOP if you no want message again."),
 ];
 
 export const followUpRules: FollowUpRule[] = [
@@ -171,6 +174,7 @@ export const integrations: IntegrationState[] = [
   { id: "whatsapp", status: "not_connected" },
   { id: "messenger", status: "not_connected" },
   { id: "instagram", status: "not_connected" },
+  { id: "tiktok", status: "not_connected" },
   { id: "meta_ads", status: "not_connected" },
   { id: "sms", status: "not_connected" },
   { id: "email", status: "not_connected" },
@@ -207,6 +211,7 @@ export const settings: BusinessSettings = {
   chat: { bubbleTails: true, flagMissingDetails: true },
   whatsappNumber: "+234 803 555 0142",
   setupDone: ["business", "products"],
+  brief: { time: "07:30", channels: ["app"] },
 };
 
 /** Policy starters a business can add to its Knowledge Base and edit. */
@@ -261,3 +266,18 @@ export const detailMessages: string[] = [
   "Please send it to No 5 Allen Avenue, Ikeja. Close to the Shoprite. You can call me on 0815 220 9034.",
   "This is {first}. Address: 22 Aminu Kano Crescent, Wuse 2, Abuja. Near Banex Plaza. 0902 771 4410",
 ];
+
+/** Customer messages that reveal personal details, so customer memory has something to learn. */
+export const factMessages: string[] = [
+  "Abeg I need am before my birthday on 14 October. I like burgundy and it's for my sister too.",
+  "My budget is 150k. I wear size 14 and I prefer 20 inches, I don't like curly ones.",
+  "It's for my wife, her birthday is next week. I love natural black colour.",
+];
+
+/** A few customers already have saved facts, with birthdays around the practice date (29 Sept). */
+export const savedFacts: Record<string, { kind: "birthday" | "likes" | "size" | "buys_for" | "budget"; value: string; monthDay?: string }[]> = {
+  c_0003: [{ kind: "birthday", value: "29 September", monthDay: "09-29" }, { kind: "likes", value: "Burgundy colour" }, { kind: "size", value: "Size 12" }],
+  c_0007: [{ kind: "birthday", value: "1 October", monthDay: "10-01" }, { kind: "buys_for", value: "Buys for their daughter" }],
+  c_0012: [{ kind: "birthday", value: "4 October", monthDay: "10-04" }, { kind: "budget", value: "About ₦200k" }, { kind: "likes", value: "22-inch length" }],
+  c_0020: [{ kind: "likes", value: "Natural black colour" }, { kind: "size", value: "Size 16" }],
+};

@@ -96,6 +96,27 @@ function withDetailMessages(conversations: Conversation[], contacts: Contact[]):
   });
 }
 
+/** Some sample chats contain personal details for customer memory to find. */
+function withFactMessages(conversations: Conversation[]): Conversation[] {
+  return conversations.map((c, i) => {
+    if (i % 7 !== 2) return c;
+    const last = c.messages[c.messages.length - 1];
+    if (!last) return c;
+    const body = practice.factMessages[i % practice.factMessages.length]!;
+    const at = new Date(new Date(last.at).getTime() - 2 * 60_000).toISOString();
+    const msg = { id: `${last.id}_facts`, conversationId: c.id, direction: "in" as const, body, at };
+    return { ...c, messages: [...c.messages.slice(0, -1), msg, last] };
+  });
+}
+
+function withSavedFacts(contacts: Contact[]): Contact[] {
+  return contacts.map((c) => {
+    const f = practice.savedFacts[c.id];
+    if (!f) return c;
+    return { ...c, facts: f.map((x, i) => ({ id: `fact_${c.id}_${i}`, ...x, source: "chat" as const, at: c.lastActivityAt })) };
+  });
+}
+
 /** Two sample chats carry a complaint: one open, one resolved. */
 function withComplaints(conversations: Conversation[]): Conversation[] {
   return conversations.map((c, i) => {
@@ -108,6 +129,18 @@ function withComplaints(conversations: Conversation[]): Conversation[] {
 /** Part-paid sample orders get a recorded deposit so balances show. */
 function withDeposits(orders: OrderSummary[]): OrderSummary[] {
   return orders.map((o) => (o.paymentStatus === "part_paid" ? { ...o, amountPaid: Math.round(o.total * 0.4) } : o));
+}
+
+/** Spread some completed deliveries over the past week so the Money Brief has a "yesterday". */
+function withRecentDeliveries(deliveries: DeliverySummary[]): DeliverySummary[] {
+  let n = 0;
+  return deliveries.map((d) => {
+    if (d.status !== "delivered" || n >= 28) return d;
+    const i = n++;
+    const day = 1 + (i % 7);
+    const at = new Date(seed.NOW.getFullYear(), seed.NOW.getMonth(), seed.NOW.getDate() - day, 10 + (i % 8), (i * 7) % 60);
+    return { ...d, deliveredAt: at.toISOString() };
+  });
 }
 
 /** In-house deliveries get a rider by city so the Riders module has real-looking work. */
@@ -124,18 +157,18 @@ export function createInitialDatabase(): Database {
   return {
     workspaces: seed.workspaces,
     team: seed.team,
-    contacts: seed.contacts,
+    contacts: withSavedFacts(seed.contacts),
     channelIdentities: seed.channelIdentities,
     attributions: seed.attributions,
     leads: seed.leads,
     opportunities: seed.opportunities,
     activities: seed.activities,
     tasks: seed.tasks,
-    conversations: withComplaints(withDetailMessages(seed.conversations, seed.contacts)),
+    conversations: withComplaints(withFactMessages(withDetailMessages(seed.conversations, seed.contacts))),
     productInterests: seed.productInterests,
     segments: seed.segments,
     orders: withDeposits(seed.orders),
-    deliveries: withRiders(seed.deliveries),
+    deliveries: withRecentDeliveries(withRiders(seed.deliveries)),
     payments: seed.payments,
     products: seed.products.map((p) => ({ ...p, active: true, description: practice.productDescriptions[p.id] ?? "" })),
     campaigns: seed.campaigns,

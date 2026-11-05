@@ -29,6 +29,7 @@ const KIND: Record<Kind, { label: string; tone: BadgeTone }> = {
   callback: { label: "Call-back", tone: "brand" },
   meeting: { label: "Meeting", tone: "neutral" },
   reminder: { label: "Reminder", tone: "neutral" },
+  birthday: { label: "Birthday", tone: "success" },
 };
 
 const dayKey = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
@@ -110,6 +111,11 @@ function CalendarPage() {
     db.tasks.filter((t) => t.status === "open" || t.status === "snoozed").forEach((t) => out.push({ id: `t_${t.id}`, title: t.title, at: new Date(t.dueAt), kind: "task", contactId: t.contactId }));
     followUpQueue(db, NOW).forEach((f) => out.push({ id: `f_${f.conversation.id}`, title: `${f.rule.name}`, at: new Date(NOW.getTime() + Math.max(0, f.dueInHours) * 3_600_000), kind: "follow_up", contactId: f.contact.id }));
     db.events.forEach((e) => out.push({ id: e.id, title: e.title, at: new Date(e.at), kind: e.kind, contactId: e.contactId, ownEvent: true }));
+    // Birthdays from customer memory, this year and next.
+    db.contacts.forEach((c) => c.facts?.filter((f) => f.kind === "birthday" && f.monthDay).forEach((f) => {
+      const [m, d] = f.monthDay!.split("-").map(Number) as [number, number];
+      [NOW.getFullYear(), NOW.getFullYear() + 1].forEach((y) => out.push({ id: `b_${c.id}_${y}`, title: `${fullName(c)}'s birthday`, at: new Date(y, m - 1, d, 9), kind: "birthday", contactId: c.id }));
+    }));
     return out.sort((a, b) => +a.at - +b.at);
   }, [db]);
 
