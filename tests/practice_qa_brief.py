@@ -146,9 +146,40 @@ async def main():
             ok("landing lists connectable platforms", await pg.locator("section#connect").get_by_text("Gravity Forms").count() == 1)
         await step("connections", t_connections())
 
+        async def t_meta():
+            await ready(pg, "/ads/new")
+            await pg.get_by_role("button", name="Use draft: Trust").click()
+            ok("ad draft fills the text", "Exactly as pictured" in await pg.get_by_label("Headline").input_value())
+            await pg.get_by_label("Main text").fill("Guaranteed results! Before and after photos inside.")
+            ok("policy check warns", await pg.get_by_role("alert", name="Policy check").count() == 1)
+            await pg.get_by_role("button", name="Use draft: Straight to the point").click()
+            ok("policy check clears", await pg.get_by_role("alert", name="Policy check").count() == 0)
+            await pg.get_by_role("button", name="Preview Stories").click()
+            ok("stories preview", await pg.get_by_label("Ad preview").count() == 1)
+            await pg.get_by_role("button", name="Create in Meta (paused)").click(); await pg.wait_for_timeout(300)
+            ok("without Meta it saves a draft", await pg.get_by_role("alert").filter(has_text="Saved as a draft").count() == 1)
+            await ready(pg, "/ads")
+            await pg.get_by_role("button", name="Continue with Facebook").click()
+            await pg.get_by_role("button", name="Luxe Hair Collective — Main").click(); await pg.wait_for_timeout(300)
+            ok("Meta connected", await pg.get_by_text("Connected (simulated)").count() == 1)
+            await pg.get_by_role("button", name="Create in Meta").first.click(); await pg.wait_for_timeout(300)
+            ok("ad created paused in Meta", await pg.get_by_text("Paused in Meta").count() >= 1)
+            await pg.get_by_role("button", name="Start").first.click(); await pg.wait_for_timeout(300)
+            ok("ad started", await pg.get_by_text("Running").count() >= 1)
+            ok("advice to scale or fix", await pg.get_by_text("What to do next").count() == 1)
+            await pg.get_by_role("switch", name="Send sales back to Meta").click(); await pg.wait_for_timeout(200)
+            await ready(pg, "/orders")
+            await pg.get_by_role("tab", name=re.compile("^In transit")).click(); await pg.wait_for_timeout(200)
+            await pg.locator("tbody tr").first.click(); await pg.wait_for_timeout(300)
+            await pg.get_by_role("button", name="Delivered", exact=True).click(); await pg.wait_for_timeout(300)
+            await pg.keyboard.press("Escape")
+            await ready(pg, "/ads")
+            ok("delivered sale sent to Meta once", await pg.get_by_text(re.compile("^1 sent")).count() == 1)
+        await step("meta", t_meta())
+
         async def t_mobile():
             m = await b.new_page(viewport={"width": 390, "height": 844}); wide = []
-            for r in ["/brief", "/", "/crm/contacts/c_0003", "/ai-agent", "/inbox", "/welcome", "/connections", "/connections?c=cn_1"]:
+            for r in ["/brief", "/", "/crm/contacts/c_0003", "/ai-agent", "/inbox", "/welcome", "/connections", "/connections?c=cn_1", "/ads", "/ads/new"]:
                 await m.goto(B + r); await m.wait_for_load_state("load"); await m.wait_for_timeout(1500)
                 sw = await m.evaluate("document.documentElement.scrollWidth")
                 if sw > 392: wide.append(f"{r}={sw}")

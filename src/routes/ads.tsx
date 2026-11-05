@@ -1,6 +1,10 @@
 import { useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
-import { Plus } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { Megaphone, Plus, RefreshCw } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { metaAdAccounts } from "@/domain/practice-seed";
+import { CTA_LABEL } from "@/domain/adcopy";
+import { relativeTime } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -54,6 +58,92 @@ function SpendDialog({ campaigns, onClose }: { campaigns: Campaign[]; onClose: (
   );
 }
 
+function MetaConnect() {
+  const db = useDb();
+  const { connectMeta, disconnectMeta, syncMeta, setCapi } = useActions();
+  const [picking, setPicking] = useState(false);
+  const m = db.settings.meta;
+  if (m.status !== "connected") {
+    return (
+      <Section title="Meta Ads" description="Connect to pull campaigns and daily spend automatically, create ads from Bizriva, and send delivered sales back to Meta." action={<StatusBadge>Not connected</StatusBadge>}>
+        <div className="space-y-3 p-4 text-sm">
+          {!picking ? <Button onClick={() => setPicking(true)}>Continue with Facebook</Button> : (
+            <div className="space-y-2" role="group" aria-label="Choose an ad account">
+              <p className="font-medium">Choose the ad account to connect</p>
+              {metaAdAccounts.map((a) => <Button key={a.id} variant="outline" className="mr-2" onClick={() => { connectMeta(a.id); setPicking(false); }}>{a.name}</Button>)}
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground">Practice Mode simulates the Facebook login. The real one opens once your Meta app keys are in Vercel (META_APP_ID, META_APP_SECRET). Your own ad accounts work straight away; customers' accounts need Meta's app review.</p>
+        </div>
+      </Section>
+    );
+  }
+  return (
+    <Section title="Meta Ads" description={`${m.adAccount?.name} · ${m.adAccount?.id}`} action={<StatusBadge tone="info">Connected (simulated)</StatusBadge>}>
+      <div className="grid gap-4 p-4 text-sm md:grid-cols-2">
+        <div className="space-y-2">
+          <p>Campaigns and spend sync every few hours.{m.lastSyncAt ? ` Last sync ${relativeTime(m.lastSyncAt)}.` : ""}</p>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" onClick={syncMeta}><RefreshCw className="size-4" /> Sync now</Button>
+            <Button size="sm" variant="ghost" onClick={disconnectMeta}>Disconnect</Button>
+          </div>
+        </div>
+        <div className="space-y-2 rounded-md border p-3" role="group" aria-label="Conversions API">
+          <label className="flex items-center justify-between gap-3 font-medium">Send sales back to Meta <Switch checked={m.capi.enabled} onCheckedChange={(v) => setCapi({ enabled: v })} aria-label="Send sales back to Meta" /></label>
+          <p className="text-xs text-muted-foreground">One Purchase event per order, with its value, to {m.pixel?.name}. Meta then finds more people who actually pay.</p>
+          <div className="flex gap-2 text-xs">
+            {(["delivered", "confirmed"] as const).map((w) => <button key={w} type="button" aria-pressed={m.capi.when === w} onClick={() => setCapi({ when: w })} className={`rounded-full border px-2.5 py-0.5 ${m.capi.when === w ? "border-primary bg-primary/10 text-primary" : ""}`}>{w === "delivered" ? "When delivered (recommended)" : "When confirmed"}</button>)}
+          </div>
+          <p className="text-xs text-muted-foreground">{db.capiEvents.length} sent{db.capiEvents[0] ? ` · last: ${db.capiEvents[0].reference} (${relativeTime(db.capiEvents[0].at)})` : ""}</p>
+        </div>
+      </div>
+    </Section>
+  );
+}
+
+function YourAds() {
+  const db = useDb();
+  const ws = useWorkspace();
+  const { publishAd, setAdStatus } = useActions();
+  const [note, setNote] = useState("");
+  const money = (n: number) => formatCurrency(n, ws.currency, { compact: true });
+  if (!db.adDrafts.length) return null;
+  return (
+    <Section title="Your ads" description="Created in Bizriva">
+      <ul className="divide-y text-sm">
+        {db.adDrafts.map((a) => {
+          const camp = db.campaigns.find((c) => c.id === a.campaignId);
+          return (
+            <li key={a.id} className="flex flex-wrap items-center gap-2 px-4 py-3">
+              <span className="min-w-0 flex-1"><Link to="/ads/new" search={{ a: a.id }} className="font-medium hover:underline">{a.name}</Link><span className="block text-xs text-muted-foreground">{money(a.dailyBudget)}/day · {a.days} days · {a.audience.locations.join(", ")} · {CTA_LABEL[a.cta]}{camp ? ` · spent ${money(camp.spend)}` : ""}</span></span>
+              <StatusBadge tone={a.status === "active" ? "success" : a.status === "paused" ? "neutral" : "info"}>{a.status === "draft" ? "Draft" : a.status === "paused" ? "Paused in Meta" : "Running"}</StatusBadge>
+              {a.status === "draft" && <Button size="sm" onClick={() => setNote(publishAd(a.id) ? "" : "Connect Meta Ads above first.")}>Create in Meta</Button>}
+              {a.status === "paused" && <Button size="sm" onClick={() => setAdStatus(a.id, "active")}>Start</Button>}
+              {a.status === "active" && <Button size="sm" variant="outline" onClick={() => setAdStatus(a.id, "paused")}>Pause</Button>}
+            </li>
+          );
+        })}
+      </ul>
+      {note && <p className="border-t px-4 py-2 text-sm text-destructive" role="alert">{note}</p>}
+    </Section>
+  );
+}
+
+function Advice() {
+  const db = useDb();
+  const ranked = db.campaigns.filter((c) => c.spend > 0 && c.status !== "paused").map((c) => ({ c, roas: c.revenue / c.spend })).sort((x, y) => y.roas - x.roas);
+  if (ranked.length < 2) return null;
+  const best = ranked[0]!; const weak = ranked.filter((r) => r.roas < 1.5);
+  return (
+    <Section title="What to do next" description="Judged on delivered sales, not chats">
+      <ul className="divide-y text-sm">
+        <li className="px-4 py-2.5"><StatusBadge tone="success">Scale</StatusBadge> <span className="font-medium">{best.c.name}</span> returns {best.roas.toFixed(1)}× on delivered sales. Try raising its budget by 20% for three days and watch delivered orders, not chats.</li>
+        {weak.map((w) => <li key={w.c.id} className="px-4 py-2.5"><StatusBadge tone="warning">Fix or stop</StatusBadge> <span className="font-medium">{w.c.name}</span> returns {w.roas.toFixed(1)}×. Check its COD confirmation rate first — fake orders often hide here — then change the picture or the audience.</li>)}
+      </ul>
+    </Section>
+  );
+}
+
 function Ads() {
   const db = useDb();
   const ws = useWorkspace();
@@ -79,14 +169,20 @@ function Ads() {
           <h1 className="text-2xl font-bold">Ads and Attribution</h1>
           <p className="mt-1 text-sm text-muted-foreground">Which ads bring buyers, not just clicks. Attribution only uses ad data the platform actually sends — nothing is guessed.</p>
         </div>
-        <Button size="sm" onClick={() => setAdding(true)}><Plus className="size-4" /> Add spend</Button>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => setAdding(true)}><Plus className="size-4" /> Add spend</Button>
+          <Button asChild size="sm"><Link to="/ads/new"><Megaphone className="size-4" /> Create an ad</Link></Button>
+        </div>
       </div>
+      <MetaConnect />
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <KpiCard label="Ad spend" value={money(spend)} />
         <KpiCard label="Return on ad spend" value={spend ? `${(revenue / spend).toFixed(2)}×` : "—"} tone={revenue >= spend ? "success" : "warning"} />
         <KpiCard label="Cost per lead" value={leads ? money(spend / leads) : "—"} tone="info" />
         <KpiCard label="Cost per delivered order" value={deliveredOrders ? money(spend / deliveredOrders) : "—"} hint="all campaigns" tone="brand" />
       </div>
+      <YourAds />
+      <Advice />
       <Section title="Campaigns">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-sm">
@@ -110,7 +206,7 @@ function Ads() {
             </tbody>
           </table>
         </div>
-        <p className="border-t px-4 py-2 text-xs text-muted-foreground">Pausing here records it in Bizriva only. Pausing the real ad happens in Meta until Meta Ads is connected.</p>
+        <p className="border-t px-4 py-2 text-xs text-muted-foreground">{db.settings.meta.status === "connected" ? "With Meta connected, pausing here pauses the real ad (practice: simulated)." : "Pausing here records it in Bizriva only until Meta Ads is connected."}</p>
       </Section>
       <Section title="Lead sources" description="From every contact's recorded source">
         <div className="overflow-x-auto">

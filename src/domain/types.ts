@@ -630,6 +630,8 @@ export interface BusinessSettings {
   setupDone: string[];
   /** Morning Money Brief: when and where it's sent. */
   brief: { time: string; channels: ("app" | "whatsapp" | "email")[] };
+  /** Meta Ads link (simulated in Practice Mode). */
+  meta: MetaLink;
 }
 
 /* ===================================================================
@@ -714,4 +716,47 @@ export interface ConnectionEvent {
   contactId?: ID;
   orderId?: ID;
   externalId?: string;
+}
+
+/* Meta Ads (2026-11-05). */
+export interface MetaLink {
+  status: "not_connected" | "connected";
+  adAccount?: { id: string; name: string };
+  pixel?: { id: string; name: string };
+  connectedAt?: string;
+  lastSyncAt?: string;
+  /** Conversions API: send purchases back to Meta, once per order. */
+  capi: { enabled: boolean; when: "delivered" | "confirmed" };
+}
+
+export type AdPlacement = "fb_feed" | "ig_feed" | "stories" | "reels";
+
+export interface AdDraft {
+  id: ID;
+  name: string;
+  productId: ID;
+  mediaIds: ID[];
+  primaryText: string;
+  headline: string;
+  cta: "send_whatsapp" | "order_now" | "learn_more";
+  destination: "whatsapp" | "order_form";
+  formId?: ID;
+  language: "en" | "pcm";
+  audience: { locations: string[]; ageMin: number; ageMax: number; gender: "all" | "women" | "men"; interests: string[] };
+  dailyBudget: number;
+  days: number;
+  placements: AdPlacement[];
+  status: "draft" | "paused" | "active";
+  campaignId?: ID;
+  createdAt: string;
+}
+
+export interface CapiEvent {
+  id: ID;
+  orderId: ID;
+  reference: string;
+  value: number;
+  at: string;
+  /** The dedupe key Meta uses, so the same order is never counted twice. */
+  eventId: string;
 }

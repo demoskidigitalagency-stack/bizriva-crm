@@ -12,6 +12,8 @@ import type {
   AgentConfig,
   CalendarEvent,
   Connection,
+  AdDraft,
+  CapiEvent,
   ConnectionEvent,
   FormSubmission,
   OrderForm,
@@ -83,6 +85,8 @@ export interface Database {
   events: CalendarEvent[];
   connections: Connection[];
   connectionEvents: ConnectionEvent[];
+  adDrafts: AdDraft[];
+  capiEvents: CapiEvent[];
 }
 
 /** A few sample chats get a customer message with delivery details (see practice-seed). */
@@ -195,6 +199,8 @@ export function createInitialDatabase(): Database {
     events: practice.events,
     connections: practice.connections,
     connectionEvents: [],
+    adDrafts: practice.adDrafts,
+    capiEvents: [],
   };
 }
 

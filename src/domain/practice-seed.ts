@@ -7,7 +7,7 @@
  */
 import { NOW } from "./seed";
 import type {
-  AgentConfig, Broadcast, Connection, BusinessSettings, CalendarEvent, FollowUpRule, FormSubmission, IntegrationState, KnowledgeEntry, MediaAsset,
+  AdDraft, AgentConfig, Broadcast, Connection, BusinessSettings, CalendarEvent, FollowUpRule, FormSubmission, IntegrationState, KnowledgeEntry, MediaAsset,
   MessageTemplate, OrderForm, Rider, StockMovement, Workflow, WorkflowRun,
 } from "./types";
 
@@ -212,6 +212,7 @@ export const settings: BusinessSettings = {
   whatsappNumber: "+234 803 555 0142",
   setupDone: ["business", "products"],
   brief: { time: "07:30", channels: ["app"] },
+  meta: { status: "not_connected", capi: { enabled: false, when: "delivered" } },
 };
 
 /** Policy starters a business can add to its Knowledge Base and edit. */
@@ -285,4 +286,20 @@ export const savedFacts: Record<string, { kind: "birthday" | "likes" | "size" | 
 /** One connection already set up, so the hub isn't empty. */
 export const connections: Connection[] = [
   { id: "cn_1", platform: "elementor", name: "Bone straight landing page (Elementor)", secret: "bzk_7f3a9c21e4", fieldMap: {}, createAs: "order", active: true, createdAt: ago(120) },
+];
+
+/** Ad accounts the practice "Login with Facebook" offers. */
+export const metaAdAccounts = [
+  { id: "act_1029384756", name: "Luxe Hair Collective — Main" },
+  { id: "act_5647382910", name: "Luxe Hair — Diaspora" },
+];
+export const metaPixels = [{ id: "px_88120931", name: "Luxe Hair website pixel" }];
+
+/** One draft so the ads list isn't empty. */
+export const adDrafts: AdDraft[] = [
+  { id: "ad_1", name: "Bone Straight 20\" — Lagos & Abuja (WhatsApp)", productId: "p_1", mediaIds: [], language: "en",
+    primaryText: "Raw Vietnamese Bone Straight, 20 inches — silky, full from top to tip. ₦185,000 and you pay on delivery in Lagos and Abuja. Tap to chat with us on WhatsApp 👇",
+    headline: "Pay on delivery · Lagos & Abuja", cta: "send_whatsapp", destination: "whatsapp",
+    audience: { locations: ["Lagos", "Abuja (FCT)"], ageMin: 22, ageMax: 45, gender: "women", interests: ["Wigs", "Hair care"] },
+    dailyBudget: 15000, days: 7, placements: ["fb_feed", "ig_feed", "stories"], status: "draft", createdAt: ago(30) },
 ];

@@ -13,7 +13,7 @@ import { autoMap, flatten, normalise, PLATFORMS } from "./intake";
 import type {
   AgentConfig, Broadcast, BusinessSettings, CalendarEvent, Campaign, Channel, OrderForm, OrderFormField, Contact, DeliveryStatus, FollowUpRule, ID, IntegrationState, KnowledgeEntry,
   LeadOutcome, LeadStage, Lifecycle, MediaAsset, MessageTemplate, OrderStatus, PaymentMethod, Product, Rider, StockMovement, Task,
-  TeamMember, Workflow, WorkflowRun, FactKind, Connection, ConnectionEvent,
+  TeamMember, Workflow, WorkflowRun, FactKind, Connection, ConnectionEvent, AdDraft, MetaLink,
 } from "./types";
 
 /** Collections that the generic save/remove actions may touch. */
@@ -28,6 +28,7 @@ export interface Editable {
   campaigns: Campaign;
   team: TeamMember;
   connections: Connection;
+  adDrafts: AdDraft;
   orderForms: OrderForm;
   events: CalendarEvent;
 }
@@ -39,7 +40,7 @@ type EditableKey = keyof Editable;
  * version when the seed or types change shape — old saves are then ignored.
  */
 const PRACTICE_KEY = "bizriva.practice-db";
-const PRACTICE_VERSION = 7; // v7: website and form connections
+const PRACTICE_VERSION = 8; // v8: Meta Ads link, ad drafts, Conversions API events
 
 function loadPractice(): { db: Database; workspaceId: ID } | null {
   try {
@@ -138,6 +139,13 @@ interface StoreActions {
   sendPaymentLink: (conversationId: ID) => string | null;
   /** A website, form or store sends a submission. Returns what happened. */
   receiveIntake: (connectionId: ID, raw: unknown) => ConnectionEvent | null;
+  connectMeta: (adAccountId: string) => void;
+  disconnectMeta: () => void;
+  syncMeta: () => void;
+  setCapi: (capi: Partial<MetaLink["capi"]>) => void;
+  /** Creates the ad in Meta (paused). Returns false when Meta isn't connected. */
+  publishAd: (adId: ID) => boolean;
+  setAdStatus: (adId: ID, status: "active" | "paused") => void;
 }
 
 export interface ChatImportInput {
@@ -389,6 +397,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const now = new Date().toISOString();
       let next: Database = { ...d, orders: d.orders.map((o) => (o.id === orderId ? { ...o, status } : o)) };
       if (status === "confirmed") next = advanceLead(next, order.contactId, "order_confirmed");
+      // Conversions API: one Purchase event per order, at the moment the business chose.
+      const capi = next.settings.meta.capi;
+      if (next.settings.meta.status === "connected" && capi.enabled && status === capi.when && !next.capiEvents.some((e) => e.orderId === orderId)) {
+        next = { ...next, capiEvents: [{ id: newId("capi"), orderId, reference: order.reference, value: order.total, at: new Date().toISOString(), eventId: `bz_${order.reference}` }, ...next.capiEvents].slice(0, 300) };
+      }
       if (status === "delivered") next = advanceLead(next, order.contactId, "converted");
       // Delivered COD orders become realised revenue only now (master prompt rule).
       if (status === "delivered") {
@@ -1084,6 +1097,73 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return event;
   }, []);
 
+  const connectMeta = useCallback((adAccountId: string) => {
+    setDb((d) => {
+      const acc = practiceSeed.metaAdAccounts.find((a) => a.id === adAccountId);
+      if (!acc) return d;
+      const now = new Date().toISOString();
+      const next: Database = {
+        ...d,
+        settings: { ...d.settings, meta: { ...d.settings.meta, status: "connected", adAccount: acc, pixel: practiceSeed.metaPixels[0]!, connectedAt: now, lastSyncAt: now } },
+        integrations: d.integrations.map((i) => (i.id === "meta_ads" ? { ...i, status: "simulated" as const, connectedAt: now } : i)),
+      };
+      return notify(next, "Meta Ads connected", `${acc.name} — campaigns and spend will sync every few hours.`, "success");
+    });
+  }, []);
+
+  const disconnectMeta = useCallback(() => {
+    setDb((d) => ({
+      ...d,
+      settings: { ...d.settings, meta: { status: "not_connected", capi: d.settings.meta.capi } },
+      integrations: d.integrations.map((i) => (i.id === "meta_ads" ? { id: i.id, status: "not_connected" as const } : i)),
+    }));
+  }, []);
+
+  const syncMeta = useCallback(() => {
+    setDb((d) => {
+      if (d.settings.meta.status !== "connected") return d;
+      const now = new Date().toISOString();
+      // Practice: active Meta campaigns pick up a day's spend and leads.
+      return {
+        ...d,
+        settings: { ...d.settings, meta: { ...d.settings.meta, lastSyncAt: now } },
+        campaigns: d.campaigns.map((c, i) => (c.platform === "meta" && c.status === "active" ? { ...c, spend: c.spend + 12000 + i * 3000, leads: c.leads + 3 + (i % 3) } : c)),
+      };
+    });
+  }, []);
+
+  const setCapi = useCallback((capi: Partial<MetaLink["capi"]>) => {
+    setDb((d) => ({ ...d, settings: { ...d.settings, meta: { ...d.settings.meta, capi: { ...d.settings.meta.capi, ...capi } } } }));
+  }, []);
+
+  const publishAd = useCallback((adId: ID): boolean => {
+    if (dbRef.current.settings.meta.status !== "connected") return false;
+    setDb((d) => {
+      const ad = d.adDrafts.find((a) => a.id === adId);
+      if (!ad || ad.campaignId) return d;
+      const campaignId = newId("cp");
+      const next: Database = {
+        ...d,
+        campaigns: [{ id: campaignId, name: ad.name, platform: "meta", status: "paused", spend: 0, revenue: 0, leads: 0, issue: "Created from Bizriva — paused until you start it" }, ...d.campaigns],
+        adDrafts: d.adDrafts.map((a) => (a.id === adId ? { ...a, status: "paused" as const, campaignId } : a)),
+      };
+      return notify(next, "Ad created in Meta (paused)", `${ad.name} — press Start when you're ready to spend.`, "success");
+    });
+    return true;
+  }, []);
+
+  const setAdStatus = useCallback((adId: ID, status: "active" | "paused") => {
+    setDb((d) => {
+      const ad = d.adDrafts.find((a) => a.id === adId);
+      if (!ad?.campaignId) return d;
+      return {
+        ...d,
+        adDrafts: d.adDrafts.map((a) => (a.id === adId ? { ...a, status } : a)),
+        campaigns: d.campaigns.map((c) => (c.id === ad.campaignId ? { ...c, status, ...(status === "active" ? { issue: undefined } : {}) } : c)) as typeof d.campaigns,
+      };
+    });
+  }, []);
+
   const resetPracticeData = useCallback(() => {
     try {
       localStorage.removeItem(PRACTICE_KEY);
@@ -1105,10 +1185,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
         setIntegration, assignRider, moveStock, recordPayment, logRun, retryRun, sendBroadcast, addCampaignSpend,
         updateContactDetails, simulateIncoming, sendProductCard, updateWorkspace, submitLeadForm,
         submitOrderForm, trackForm, simulateFormTraffic, recordDeposit, requestBalance, issueInvoice, flagComplaint, resolveComplaint,
-        toggleSetupStep, importProducts, addPolicyStarters, importChatHistory, saveFacts, removeFact, sendPaymentLink, receiveIntake,
+        toggleSetupStep, importProducts, addPolicyStarters, importChatHistory, saveFacts, removeFact, sendPaymentLink, receiveIntake, connectMeta, disconnectMeta, syncMeta, setCapi, publishAd, setAdStatus,
       },
     }),
-    [db, workspaceId, addContact, createOrder, setLeadStage, setLeadOutcome, assignOwner, setLifecycle, completeTask, snoozeTask, addTask, addNote, logCall, sendReply, markNotificationsRead, setOrderStatus, recordCodCheck, setDeliveryStatus, markRemitted, saveProduct, adjustStock, mergeContacts, startLead, resetPracticeData, saveRecord, removeRecord, updateSettings, updateAgent, setIntegration, assignRider, moveStock, recordPayment, logRun, retryRun, sendBroadcast, addCampaignSpend, updateContactDetails, simulateIncoming, sendProductCard, updateWorkspace, submitLeadForm, submitOrderForm, trackForm, simulateFormTraffic, recordDeposit, requestBalance, issueInvoice, flagComplaint, resolveComplaint, toggleSetupStep, importProducts, addPolicyStarters, importChatHistory, saveFacts, removeFact, sendPaymentLink, receiveIntake],
+    [db, workspaceId, addContact, createOrder, setLeadStage, setLeadOutcome, assignOwner, setLifecycle, completeTask, snoozeTask, addTask, addNote, logCall, sendReply, markNotificationsRead, setOrderStatus, recordCodCheck, setDeliveryStatus, markRemitted, saveProduct, adjustStock, mergeContacts, startLead, resetPracticeData, saveRecord, removeRecord, updateSettings, updateAgent, setIntegration, assignRider, moveStock, recordPayment, logRun, retryRun, sendBroadcast, addCampaignSpend, updateContactDetails, simulateIncoming, sendProductCard, updateWorkspace, submitLeadForm, submitOrderForm, trackForm, simulateFormTraffic, recordDeposit, requestBalance, issueInvoice, flagComplaint, resolveComplaint, toggleSetupStep, importProducts, addPolicyStarters, importChatHistory, saveFacts, removeFact, sendPaymentLink, receiveIntake, connectMeta, disconnectMeta, syncMeta, setCapi, publishAd, setAdStatus],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

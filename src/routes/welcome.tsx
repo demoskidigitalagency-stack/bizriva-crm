@@ -51,7 +51,7 @@ const FEATURES = [
   { t: "Follow-ups that respect the rules", d: "Nudges quiet buyers inside WhatsApp's 24-hour window, with approved templates, consent and quiet hours." },
   { t: "Deposits, balances, invoices", d: "Record a deposit, send a balance request into the chat, print an invoice." },
   { t: "Customer 360", d: "Every chat, order, payment, note and address for one person. Import your old WhatsApp chats so history isn't lost." },
-  { t: "Ad results that mean money", d: "Return on ad spend from delivered orders, not chats. See which campaign, city and product actually pays." },
+  { t: "Create Facebook & Instagram ads", d: "Pick a product, choose a draft in English or Pidgin, set the states and budget, preview it — and Bizriva judges every ad on delivered sales, then sends those sales back to Meta." },
 ];
 
 type Cell = "yes" | "no" | "part";
@@ -63,6 +63,7 @@ const COMPARE: { row: string; cells: [Cell, Cell, Cell, Cell, Cell] }[] = [
   { row: "Riders, deliveries and cash remitted", cells: ["yes", "no", "no", "no", "no"] },
   { row: "AI replies from your own catalogue", cells: ["yes", "no", "no", "no", "part"] },
   { row: "Return on ads from delivered orders", cells: ["yes", "no", "no", "part", "part"] },
+  { row: "Create Facebook and Instagram ads", cells: ["yes", "no", "part", "no", "yes"] },
   { row: "Follow-ups within WhatsApp's rules", cells: ["yes", "part", "no", "no", "no"] },
 ];
 const COMPARE_COLS = ["Bizriva", "WhatsApp Business app", "Link-in-bio store", "Form plugin", "Ad tool"];
@@ -78,6 +79,7 @@ const FAQ = [
   { q: "What is the Money Brief?", a: "A short summary waiting for you every morning: yesterday's delivered revenue against your average, cash still with riders, orders to confirm, how your ads did, birthdays, and the few things that need you today. You choose the time, and whether it comes in the app, on WhatsApp or by email." },
   { q: "Which platforms does the inbox cover?", a: "WhatsApp, Instagram, Facebook Messenger and your website chat, with TikTok messages as TikTok opens its business messaging to more countries. One list, one customer record, however they reached you." },
   { q: "I already have a WordPress site and order forms. Do I have to change them?", a: "No. Connect Elementor, Gravity Forms, WPForms, Contact Form 7, Fluent Forms, WooCommerce, Shopify, Google Forms, Typeform, Jotform or Tally in a few minutes — or anything else through Zapier or Make. Your pages stay as they are; the orders just land in Bizriva." },
+  { q: "Can I create my Facebook and Instagram ads in Bizriva?", a: "Yes. Connect your Meta ad account, pick a product and a picture, choose ad text in English or Pidgin, set the states, age and budget, and preview it. The ad is created paused in your own Meta account — Meta charges your card, never us — and starts when you press Start. Bizriva also sends your delivered sales back to Meta, so it finds more people who actually pay." },
   { q: "Do I need the WhatsApp Business API?", a: "Yes — Bizriva connects to the official WhatsApp Cloud API, so your team shares one number safely. We guide you through Meta's business verification. You can start in Practice Mode today while that's approved." },
   { q: "What happens to my old WhatsApp chats?", a: "Export any chat from WhatsApp and import it into Bizriva. It lands in that customer's history, and duplicates are skipped. Some numbers can also keep using the WhatsApp Business app alongside Bizriva." },
   { q: "How do you count revenue on cash-on-delivery?", a: "Created, confirmed and delivered are counted separately. Cash-on-delivery only counts as revenue once it's delivered — so your numbers match your bank, not your hopes." },
