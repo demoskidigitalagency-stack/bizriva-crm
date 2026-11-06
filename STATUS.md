@@ -5,7 +5,7 @@ Generated from `src/app/status.ts` and `src/app/modules.ts` by `bun run status`.
 | Track | Progress | |
 | --- | ---: | --- |
 | **Frontend — Practice Mode** (every page and button works on sample data) | **100%** | `████████████████████` |
-| **Backend — Live** (works for real: auth, database, WhatsApp, AI) | **89%** | `██████████████████░░` |
+| **Backend — Live** (works for real: auth, database, WhatsApp, AI) | **93%** | `███████████████████░` |
 
 Modules: 34 of 34 practice ready · 0 partly working · 0 planned.
 
@@ -79,7 +79,7 @@ Modules: 34 of 34 practice ready · 0 partly working · 0 planned.
 | Phase 2 — AI and automation | 22% | 8/9 | 83% |
 | Phase 3 — Sales and commerce | 22% | 9/9 | 100% |
 | Phase 4 — More channels | 11% | 5/5 | 100% |
-| Phase 5 — Intelligence and monetisation | 15% | 5/7 | 71% |
+| Phase 5 — Intelligence and monetisation | 15% | 6/7 | 93% |
 
 ### Phase 1 — Core communication — 91%
 
@@ -134,7 +134,7 @@ _The same inbox for Messenger, Instagram, SMS, email and web chat._
 - [x] Website chat
 - [x] Meta lead forms and ad referral data
 
-### Phase 5 — Intelligence and monetisation — 71%
+### Phase 5 — Intelligence and monetisation — 93%
 
 _Know which ad made the money; charge for the product._
 
@@ -144,22 +144,22 @@ _Know which ad made the money; charge for the product._
 - [x] Riders, COD cash ledger, settlements
 - [x] Plans, billing and usage limits
 - [x] Super Admin console
-- [ ] All 15 acceptance tests pass end to end
+- [x] All 15 acceptance tests pass end to end — On the live database with Meta and Claude simulated (supabase/tests/acceptance.sql)
 
-### Acceptance tests — 1/15
+### Acceptance tests — 15/15
 
-- [ ] 1. Ad click starts a WhatsApp chat; contact and ad source recorded
-- [ ] 2. 'Hello' gets an immediate correct greeting
-- [ ] 3. Price question answered from the catalogue
-- [ ] 4. Photo request sends the right media from cloud storage
-- [ ] 5. Interested-then-silent customer gets an eligible reminder scheduled
-- [ ] 6. Reply before the reminder cancels or re-evaluates it
-- [ ] 7. Asking for a human pauses AI and assigns the chat
-- [ ] 8. Order placed in chat is created with the right details
-- [ ] 9. COD order triggers verification and records confirmation
-- [ ] 10. Dispatched order notifies the customer
-- [ ] 11. Delivered order updates revenue and conversion analytics
-- [ ] 12. Closed 24-hour window blocks free text; template used instead
-- [ ] 13. Integration failure retries without duplicate messages or orders
+- [x] 1. Ad click starts a WhatsApp chat; contact and ad source recorded
+- [x] 2. 'Hello' gets an immediate correct greeting
+- [x] 3. Price question answered from the catalogue
+- [x] 4. Photo request sends the right media from cloud storage
+- [x] 5. Interested-then-silent customer gets an eligible reminder scheduled
+- [x] 6. Reply before the reminder cancels or re-evaluates it
+- [x] 7. Asking for a human pauses AI and assigns the chat
+- [x] 8. Order placed in chat is created with the right details
+- [x] 9. COD order triggers verification and records confirmation
+- [x] 10. Dispatched order notifies the customer
+- [x] 11. Delivered order updates revenue and conversion analytics
+- [x] 12. Closed 24-hour window blocks free text; template used instead
+- [x] 13. Integration failure retries without duplicate messages or orders
 - [x] 14. One business cannot read another business's data
-- [ ] 15. Opt-out stops marketing automation
+- [x] 15. Opt-out stops marketing automation

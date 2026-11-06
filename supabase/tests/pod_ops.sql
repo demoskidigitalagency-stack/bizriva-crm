@@ -24,6 +24,13 @@ insert into auth.users (id, email, email_confirmed_at, aud, role, raw_user_meta_
 set local role authenticated;
 select pg_temp.as_user('00000000-0000-0000-0000-0000000000a1');
 insert into v values ('ws', public.create_workspace('POD Shop'));
+-- Five people need a plan with more than the Trial's 3 seats (plans and limits, 2026-11-06).
+reset role;
+select set_config('bizriva.system', 'on', true);
+update workspaces set plan = 'growth', plan_renews_at = now() + interval '30 days' where id = pg_temp.g('ws');
+select set_config('bizriva.system', '', true);
+set local role authenticated;
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000a1');
 insert into workspace_members(workspace_id, user_id, role, on_duty, states) values
   (pg_temp.g('ws'), '00000000-0000-0000-0000-0000000000a2', 'manager', false, '{}'),
   (pg_temp.g('ws'), '00000000-0000-0000-0000-0000000000a3', 'sales', true, '{Lagos}'),

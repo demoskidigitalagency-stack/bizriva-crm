@@ -126,7 +126,7 @@ function Progress() {
           {ACCEPTANCE_TESTS.map((t) => (
             <li key={t.n} className="flex items-start gap-3 px-4 py-2 text-sm">
               <span className="num w-6 shrink-0 text-muted-foreground">{t.n}</span>
-              <span className="flex-1">{t.label}</span>
+              <span className="flex-1">{t.label}{t.note && <span className="block text-xs text-muted-foreground">{t.note}</span>}</span>
               <StatusBadge tone={t.passed ? "success" : "neutral"}>{t.passed ? "Passed" : "Not yet"}</StatusBadge>
             </li>
           ))}

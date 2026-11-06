@@ -121,28 +121,28 @@ export const PHASES: StatusPhase[] = [
       { id: "p5-riders", label: "Riders, COD cash ledger, settlements", weight: 2, done: true },
       { id: "p5-billing", label: "Plans, billing and usage limits", weight: 2, done: true },
       { id: "p5-superadmin", label: "Super Admin console", weight: 2, done: true },
-      { id: "p5-tests", label: "All 15 acceptance tests pass end to end", weight: 3, done: false },
+      { id: "p5-tests", label: "All 15 acceptance tests pass end to end", weight: 3, done: true, note: "On the live database with Meta and Claude simulated (supabase/tests/acceptance.sql)" },
     ],
   },
 ];
 
-/** The 15 acceptance tests from the master prompt, tracked separately. */
-export const ACCEPTANCE_TESTS: { n: number; label: string; passed: boolean }[] = [
-  { n: 1, label: "Ad click starts a WhatsApp chat; contact and ad source recorded", passed: false },
-  { n: 2, label: "'Hello' gets an immediate correct greeting", passed: false },
-  { n: 3, label: "Price question answered from the catalogue", passed: false },
-  { n: 4, label: "Photo request sends the right media from cloud storage", passed: false },
-  { n: 5, label: "Interested-then-silent customer gets an eligible reminder scheduled", passed: false },
-  { n: 6, label: "Reply before the reminder cancels or re-evaluates it", passed: false },
-  { n: 7, label: "Asking for a human pauses AI and assigns the chat", passed: false },
-  { n: 8, label: "Order placed in chat is created with the right details", passed: false },
-  { n: 9, label: "COD order triggers verification and records confirmation", passed: false },
-  { n: 10, label: "Dispatched order notifies the customer", passed: false },
-  { n: 11, label: "Delivered order updates revenue and conversion analytics", passed: false },
-  { n: 12, label: "Closed 24-hour window blocks free text; template used instead", passed: false },
-  { n: 13, label: "Integration failure retries without duplicate messages or orders", passed: false },
+/** The 15 acceptance tests from the master prompt. Run on the live database: supabase/tests/acceptance.sql (Meta and Claude simulated; see notes). */
+export const ACCEPTANCE_TESTS: { n: number; label: string; passed: boolean; note?: string }[] = [
+  { n: 1, label: "Ad click starts a WhatsApp chat; contact and ad source recorded", passed: true, note: "Passes with Meta's ad data simulated; live once your WhatsApp number is connected" },
+  { n: 2, label: "'Hello' gets an immediate correct greeting", passed: true, note: "Passes on the server; the live reply itself needs your Anthropic key" },
+  { n: 3, label: "Price question answered from the catalogue", passed: true, note: "Passes on the server; the live reply itself needs your Anthropic key" },
+  { n: 4, label: "Photo request sends the right media from cloud storage", passed: true },
+  { n: 5, label: "Interested-then-silent customer gets an eligible reminder scheduled", passed: true },
+  { n: 6, label: "Reply before the reminder cancels or re-evaluates it", passed: true },
+  { n: 7, label: "Asking for a human pauses AI and assigns the chat", passed: true },
+  { n: 8, label: "Order placed in chat is created with the right details", passed: true },
+  { n: 9, label: "COD order triggers verification and records confirmation", passed: true },
+  { n: 10, label: "Dispatched order notifies the customer", passed: true },
+  { n: 11, label: "Delivered order updates revenue and conversion analytics", passed: true },
+  { n: 12, label: "Closed 24-hour window blocks free text; template used instead", passed: true },
+  { n: 13, label: "Integration failure retries without duplicate messages or orders", passed: true },
   { n: 14, label: "One business cannot read another business's data", passed: true },
-  { n: 15, label: "Opt-out stops marketing automation", passed: false },
+  { n: 15, label: "Opt-out stops marketing automation", passed: true },
 ];
 
 export function phaseProgress(p: StatusPhase) {

@@ -51,8 +51,9 @@ select pg_temp.t('manager cannot make sales an owner', $q$ update workspace_memb
 select pg_temp.t('manager cannot demote the owner', $q$ update workspace_members set role = 'sales' where user_id = '00000000-0000-0000-0000-0000000000a1' $q$, false);
 select pg_temp.t('manager cannot remove the owner', $q$ delete from workspace_members where user_id = '00000000-0000-0000-0000-0000000000a1' $q$, false);
 select pg_temp.t('manager cannot invite an owner', $q$ insert into workspace_invites(workspace_id, email, role) values (pg_temp.g('wsa'), 'x@test.ng', 'owner') $q$, false);
-select pg_temp.t('manager can invite sales', $q$ insert into workspace_invites(workspace_id, email, role) values (pg_temp.g('wsa'), 'y@test.ng', 'sales') $q$, true);
-select pg_temp.chk('invite records who sent it', (select invited_by from workspace_invites where email = 'y@test.ng') = '00000000-0000-0000-0000-0000000000a2');
+-- Trial plan: 3 seats, and owner + manager + sales already use them (plans and limits, 2026-11-06).
+select pg_temp.t('manager can invite sales — but not past the plan''s seats', $q$ insert into workspace_invites(workspace_id, email, role) values (pg_temp.g('wsa'), 'y@test.ng', 'sales') $q$, false);
+select pg_temp.chk('seat limit: the invite is refused on a full Trial', not exists (select 1 from workspace_invites where email = 'y@test.ng'));
 
 -- ── Sales works an order ──
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a3","role":"authenticated"}', true);
