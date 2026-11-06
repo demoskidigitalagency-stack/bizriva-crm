@@ -3,6 +3,8 @@
 export interface Job {
   id: string; workspace_id: string; phone_number_id: string; token: string; to_phone: string | null; body: string | null;
   template_name: string | null; in_window: boolean; media_path?: string | null; media_kind?: string | null; media_name?: string | null;
+  /** Values for {{1}}, {{2}}… of an approved template, in order. */
+  template_params?: string[] | null;
 }
 
 /** mediaLink: a short-lived link to the file (needed when the message has one). */
@@ -22,7 +24,10 @@ export function payloadFor(j: Job, mediaLink?: string | null): { body: Record<st
   if (j.in_window && j.body) return { body: { messaging_product: "whatsapp", recipient_type: "individual", to, type: "text", text: { preview_url: true, body: j.body.slice(0, 4096) } } };
   if (j.template_name) {
     const [name, lang] = j.template_name.split(":");
-    return { body: { messaging_product: "whatsapp", to, type: "template", template: { name, language: { code: lang || "en" } } } };
+    const params = (j.template_params ?? []).map((v) => ({ type: "text", text: String(v || "-").slice(0, 200) }));
+    const template: Record<string, unknown> = { name, language: { code: lang === "pcm" || !lang ? "en" : lang } };
+    if (params.length) template["components"] = [{ type: "body", parameters: params }];
+    return { body: { messaging_product: "whatsapp", to, type: "template", template } };
   }
   return { error: "Outside the 24-hour window — needs an approved template" };
 }

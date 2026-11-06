@@ -576,6 +576,8 @@ export interface MessageTemplate {
   purpose?: TemplatePurpose;
   body: string;
   status: "draft" | "submitted" | "approved" | "rejected";
+  /** Why Meta turned it down (real data). */
+  rejectedReason?: string;
   updatedAt: string;
 }
 

@@ -20,7 +20,7 @@ Deno.serve(async (req) => {
   const { data: ok } = await db.rpc("svc_cron_ok", { p_secret: req.headers.get("x-bizriva-cron") ?? "" });
   if (ok !== true) return json(401, { error: "Scheduled job only" });
 
-  const { data, error } = await db.rpc("svc_whatsapp_claim_media", { p_limit: 50 });
+  const { data, error } = await db.rpc("svc_whatsapp_claim_v2", { p_limit: 50 });
   if (error) return json(500, { error: error.message });
   const jobs = (data ?? []) as Job[];
   const out = { sent: 0, failed: 0 };

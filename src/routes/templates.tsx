@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EmptyState, Section, StatusBadge } from "@/components/app/primitives";
-import { useActions, useDb } from "@/domain/store";
+import { useActions, useDb, useLive } from "@/domain/store";
 import type { MessageTemplate, TemplatePurpose } from "@/domain/types";
 import { cn } from "@/lib/utils";
 import { relativeTime } from "@/lib/format";
@@ -28,6 +28,7 @@ const vars = (body: string) => [...new Set(body.match(/\{\{\d+\}\}/g) ?? [])];
 
 function TemplateDialog({ t, onClose }: { t: MessageTemplate | "new"; onClose: () => void }) {
   const { saveRecord } = useActions();
+  const live = useLive().on;
   const [d, setD] = useState<Omit<MessageTemplate, "id" | "updatedAt"> & { id?: string }>(t === "new" ? { name: "", category: "utility", language: "en", purpose: "enquiry", body: "", status: "draft" } : t);
   const [error, setError] = useState("");
   const save = () => {
@@ -50,12 +51,14 @@ function TemplateDialog({ t, onClose }: { t: MessageTemplate | "new"; onClose: (
                 <SelectContent><SelectItem value="utility">Utility — order updates</SelectItem><SelectItem value="marketing">Marketing — needs consent</SelectItem><SelectItem value="authentication">Authentication — codes</SelectItem></SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5"><Label>Approval</Label>
+            {live ? (
+              <div className="space-y-1.5"><Label>Approval</Label><p className="flex h-9 items-center text-sm"><StatusBadge tone={STATUS_TONE[d.status]}>{d.status}</StatusBadge></p></div>
+            ) : <div className="space-y-1.5"><Label>Approval</Label>
               <Select value={d.status} onValueChange={(v) => setD({ ...d, status: v as MessageTemplate["status"] })}>
                 <SelectTrigger aria-label="Approval"><SelectValue>{d.status}</SelectValue></SelectTrigger>
                 <SelectContent><SelectItem value="draft">Draft</SelectItem><SelectItem value="submitted">Submitted to Meta</SelectItem><SelectItem value="approved">Approved</SelectItem><SelectItem value="rejected">Rejected</SelectItem></SelectContent>
               </Select>
-            </div>
+            </div>}
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5"><Label>Used for</Label>
@@ -72,7 +75,9 @@ function TemplateDialog({ t, onClose }: { t: MessageTemplate | "new"; onClose: (
             </div>
           </div>
           <div className="space-y-1.5"><Label htmlFor="tb">Message</Label><Textarea id="tb" rows={5} value={d.body} onChange={(e) => setD({ ...d, body: e.target.value })} /></div>
-          <p className="text-xs text-muted-foreground">In Practice Mode you set the approval yourself. With the backend, Meta decides and this updates on its own.</p>
+          <p className="text-xs text-muted-foreground">{live
+            ? <>Press <strong>Submit to Meta</strong> on the list when it's ready. Meta decides and the status updates on its own. When sending, {"{{1}}"} is the customer's first name, {"{{2}}"} their latest order number, {"{{3}}"} the product. Changing an approved template sends it back to draft.</>
+            : "In Practice Mode you set the approval yourself. With the backend, Meta decides and this updates on its own."}</p>
         </div>
         {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
         <DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={save}>Save</Button></DialogFooter>
@@ -83,7 +88,8 @@ function TemplateDialog({ t, onClose }: { t: MessageTemplate | "new"; onClose: (
 
 function Templates() {
   const db = useDb();
-  const { removeRecord } = useActions();
+  const { removeRecord, saveRecord } = useActions();
+  const live = useLive().on;
   const [editing, setEditing] = useState<MessageTemplate | "new" | null>(null);
   const [purpose, setPurpose] = useState<TemplatePurpose | "all">("all");
   const [lang, setLang] = useState<"all" | "en" | "pcm">("all");
@@ -129,9 +135,12 @@ function Templates() {
                     {inUse(t.id) && <StatusBadge>In use</StatusBadge>}
                   </div>
                   <p className="mt-1 whitespace-pre-wrap text-muted-foreground">{t.body}</p>
+                  {t.status === "rejected" && t.rejectedReason && <p className="mt-1 text-xs text-destructive" role="note">{t.rejectedReason}</p>}
                   <p className="mt-1 text-xs text-muted-foreground">{vars(t.body).length} variable{vars(t.body).length === 1 ? "" : "s"} · updated {relativeTime(t.updatedAt)}</p>
                 </div>
-                <div className="flex shrink-0 gap-1">
+                <div className="flex shrink-0 items-start gap-1">
+                  {live && (t.status === "draft" || t.status === "rejected") && <Button size="sm" variant="outline" onClick={() => saveRecord("templates", { ...t, status: "submitted" })}>Submit to Meta</Button>}
+                  {live && t.status === "submitted" && <span className="px-2 py-1.5 text-xs text-muted-foreground">Waiting for Meta</span>}
                   <Button size="icon" variant="ghost" onClick={() => setEditing(t)} aria-label={`Edit ${t.name}`}><Pencil className="size-4" /></Button>
                   <Button size="icon" variant="ghost" disabled={inUse(t.id)} title={inUse(t.id) ? "Used by a follow-up or broadcast" : undefined} onClick={() => removeRecord("templates", t.id)} aria-label={`Delete ${t.name}`}><Trash2 className="size-4" /></Button>
                 </div>

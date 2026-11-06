@@ -278,7 +278,7 @@ export function toDatabase(raw: RawData, now = new Date()): Database {
     ...(p["whatsapp_group"] ? { whatsappGroup: p["whatsapp_group"] } : {}),
   }));
 
-  const templates: MessageTemplate[] = raw.templates.map((t) => ({ id: t["id"], name: t["name"], category: t["category"] ?? "utility", language: t["language"] ?? "en", ...(t["purpose"] ? { purpose: t["purpose"] } : {}), body: t["body"], status: t["status"] ?? "draft", updatedAt: iso(t["updated_at"]) }));
+  const templates: MessageTemplate[] = raw.templates.map((t) => ({ id: t["id"], name: t["name"], category: t["category"] ?? "utility", language: t["language"] ?? "en", ...(t["purpose"] ? { purpose: t["purpose"] } : {}), body: t["body"], status: t["status"] ?? "draft", ...(t["rejected_reason"] ? { rejectedReason: t["rejected_reason"] } : {}), updatedAt: iso(t["updated_at"]) }));
   const knowledge: KnowledgeEntry[] = raw.knowledge.map((k) => ({ id: k["id"], topic: k["topic"], question: k["question"] ?? "", answer: k["answer"], keywords: k["keywords"] ?? [], updatedAt: iso(k["updated_at"]) }));
   const followUpRules: FollowUpRule[] = raw.rules.map((r) => {
     const tpl = raw.templates.find((t) => t["name"] === r["template_name"]);

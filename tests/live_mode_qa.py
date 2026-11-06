@@ -76,7 +76,8 @@ FIX = {
     "logistics_partners": [
         {**W, "id": K1, "name": "Kunle Rider", "phone": "+2348065521180", "kind": "rider", "states": ["Lagos"], "fees": {"Lagos": 2500}, "failed_fee": 1000, "vehicle": "bike", "active": True},
         {**W, "id": K2, "name": "Arewa Express", "phone": "+2348169001122", "kind": "partner", "states": ["FCT", "Kano"], "fees": {"FCT": 4000}, "failed_fee": 2000, "vehicle": "van", "active": True}],
-    "message_templates": [{**W, "id": str(uuid.uuid4()), "body": "Hi {{1}}, your order is confirmed.", "name": "order_confirm", "status": "approved", "purpose": "order", "category": "utility", "language": "en", "updated_at": AGO(48)}],
+    "message_templates": [{**W, "id": str(uuid.uuid4()), "body": "Hi {{1}}, your order is confirmed.", "name": "order_confirm", "status": "approved", "purpose": "order", "category": "utility", "language": "en", "updated_at": AGO(48)},
+        {**W, "id": "8d2b8c32-4e5f-4a71-8c1d-2e3f4a5b6c72", "body": "Hi {{1}}, big sale this week! Reply STOP to opt out.", "name": "promo_sale", "status": "rejected", "rejected_reason": "Meta: the text doesn't match the chosen type (utility/marketing)", "purpose": "reactivation", "category": "utility", "language": "en", "updated_at": AGO(2)}],
     "knowledge_entries": [{**W, "id": str(uuid.uuid4()), "topic": "delivery", "answer": "Lagos 1–2 days, other states 3–5 days.", "keywords": ["delivery", "how long"], "question": "How long is delivery?", "updated_at": AGO(48)}],
     "followup_rules": [{**W, "id": str(uuid.uuid4()), "name": "Delivery failed — rebook", "enabled": True, "message": "Hi {{name}}, when can we deliver?", "trigger": "delivery_failed", "delay_hours": 2, "max_attempts": 2, "template_name": "order_confirm"}],
     "tasks": [{**W, "id": "7a5c0c1e-0b5e-4c38-9a4e-0d3b8f1a2c01", "contact_id": C2, "title": "Confirm Abuja delivery day", "type": "delivery_check", "priority": "high", "status": "open", "due_at": AGO(1), "assigned_to": OWNER, "created_by": OWNER, "created_at": AGO(5)}],
@@ -365,6 +366,15 @@ async def main():
         await pg.get_by_role("button", name=re.compile("Glow Body Cream")).click(); await pg.wait_for_timeout(1000)
         ok("a product card goes out with its photo, price and options", wrote("POST", "messages", lambda b: b.get("media_path") == f"{WS}/out/media/abc-glow.jpg" and "Glow Body Cream" in (b.get("body") or "") and "500ml" in (b.get("body") or "")))
         ok("AI-written messages are labelled", "ai reply" in (await pg.locator("main").inner_text()).lower())
+
+        await ready("/templates")
+        t = await pg.locator("main").inner_text()
+        ok("templates show Meta's reason for a rejection", "doesn't match the chosen type" in t)
+        await pg.get_by_role("button", name="Submit to Meta").click(); await pg.wait_for_timeout(1000)
+        ok("Submit to Meta asks the server to send it for review", wrote("PATCH", "message_templates", lambda b: b.get("status") == "submitted" and b.get("name") == "promo_sale"))
+        await pg.get_by_role("button", name="Edit order_confirm").click()
+        ok("on real data nobody can mark a template approved by hand", await pg.get_by_role("dialog").get_by_role("combobox", name="Approval").count() == 0)
+        await pg.keyboard.press("Escape")
 
         await ready("/cod")
         t = await pg.locator("main").inner_text()
