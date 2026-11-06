@@ -154,6 +154,7 @@ export function toDatabase(raw: RawData, now = new Date()): Database {
       channel: (CHANNEL[o["channel"] ?? convChannel.get(o["conversation_id"])] ?? o["channel"] ?? "whatsapp") as Channel,
       productNames: items.length ? items.map((i) => `${i["quantity"]}× ${productById.get(i["product_id"])?.["name"] ?? "Item"}`) : [String(o["notes"] ?? "Order").split("\n")[0]!.slice(0, 60)],
       ...(num(o["amount_paid"]) ? { amountPaid: num(o["amount_paid"]) } : {}),
+      ...(o["risk_level"] ? { serverRisk: { score: num(o["risk_score"]), level: o["risk_level"], reasons: o["risk_reasons"] ?? [] } } : {}),
       ...(o["invoice_no"] ? { invoiceNo: o["invoice_no"] } : {}), ...(o["form_id"] ? { formId: o["form_id"] } : {}),
       ...(o["assigned_to"] ? { assignedTo: o["assigned_to"], assignedAt: iso(o["assigned_at"] ?? o["created_at"]) } : {}),
       ...(o["moved_from"]?.length ? { movedFrom: o["moved_from"] } : {}),

@@ -299,6 +299,8 @@ export interface ProductInterest {
 }
 
 export interface OrderSummary {
+  /** Real data: the server's COD risk check (it decides who may confirm). */
+  serverRisk?: { score: number; level: "low" | "medium" | "high"; reasons: string[] };
   id: ID;
   reference: string;
   contactId: ID;

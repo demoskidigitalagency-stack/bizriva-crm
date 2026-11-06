@@ -751,6 +751,7 @@ export interface CodRisk {
  * only add a small amount, and only alongside other signals.
  */
 export function codRisk(db: Database, order: OrderSummary): CodRisk {
+  if (order.serverRisk) return order.serverRisk;   // real data: the server's verdict is the one that counts
   const reasons: string[] = [];
   let score = 0;
   const contact = getContact(db, order.contactId);

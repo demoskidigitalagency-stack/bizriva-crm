@@ -61,7 +61,7 @@ FIX = {
         {**W, "id": P1, "name": "Glow Body Cream", "category": "Skincare", "price": 12000.00, "cost": 5000.00, "stock": 40, "reorder_level": 10, "active": True, "deposit": 0, "care_guide": "Apply twice daily on damp skin.", "reorder_days": 30, "created_at": AGO(48)},
         {**W, "id": P2, "name": "Shea Butter Jar", "category": "Skincare", "price": 6000.00, "cost": 2500.00, "stock": 8, "reorder_level": 10, "active": True, "deposit": 0, "reorder_days": 45, "created_at": AGO(48)}],
     "orders": [
-        {**W, "id": O3, "ref": "BZ-1003", "total": 8500.00, "status": "pending_verification", "channel": "whatsapp", "discount": 0, "subtotal": 6000, "contact_id": C3, "created_at": AGO(3), "moved_from": [], "amount_paid": 0, "assigned_at": AGO(3), "assigned_to": CHIDI, "delivery_fee": 2500, "payment_method": "cod"},
+        {**W, "id": O3, "ref": "BZ-1003", "total": 8500.00, "status": "pending_verification", "channel": "whatsapp", "discount": 0, "subtotal": 6000, "contact_id": C3, "created_at": AGO(3), "moved_from": [], "amount_paid": 0, "assigned_at": AGO(3), "assigned_to": CHIDI, "delivery_fee": 2500, "payment_method": "cod", "risk_score": 55, "risk_level": "high", "risk_reasons": ["Phone number looks incomplete", "No delivery address", "First order"]},
         {**W, "id": O2, "ref": "BZ-1002", "total": 16000.00, "status": "confirmed", "channel": "whatsapp", "discount": 0, "subtotal": 12000, "contact_id": C2, "created_at": AGO(30), "moved_from": [], "amount_paid": 0, "assigned_at": AGO(30), "assigned_to": CHIDI, "delivery_fee": 4000, "payment_method": "cod", "customer_confirmed_at": AGO(29)},
         {**W, "id": O1, "ref": "BZ-1001", "total": 26500.00, "status": "delivered", "channel": "whatsapp", "discount": 0, "subtotal": 24000, "contact_id": C1, "created_at": AGO(40), "moved_from": [], "amount_paid": 26500, "receipt_no": "RCPT-BZ-1001", "assigned_at": AGO(40), "assigned_to": CHIDI, "delivery_fee": 2500, "payment_method": "cod", "customer_confirmed_at": AGO(39)}],
     "order_items": [
@@ -336,6 +336,10 @@ async def main():
         ok("attaching uploads into this business's out/ folder", len(up) == 1 and up[0][1].startswith(f"chat-media/{WS}/out/") and up[0][1].endswith("-glow-cream.png"), up[-1:] )
         ok("and queues it with the typed caption", wrote("POST", "messages", lambda b: b.get("media_kind") == "image" and b.get("body") == "Here is the cream" and str(b.get("media_path", "")).startswith(f"{WS}/out/")))
         ok("AI-written messages are labelled", "ai reply" in (await pg.locator("main").inner_text()).lower())
+
+        await ready("/cod")
+        t = await pg.locator("main").inner_text()
+        ok("COD check shows the server's risk and reasons", "Phone number looks incomplete" in t and "No delivery address" in t)
 
         await ready("/follow-ups")
         fu = pg.get_by_role("tablist", name="Follow-ups from the server")

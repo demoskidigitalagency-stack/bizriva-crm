@@ -5,7 +5,7 @@ Generated from `src/app/status.ts` and `src/app/modules.ts` by `bun run status`.
 | Track | Progress | |
 | --- | ---: | --- |
 | **Frontend — Practice Mode** (every page and button works on sample data) | **100%** | `████████████████████` |
-| **Backend — Live** (works for real: auth, database, WhatsApp, AI) | **46%** | `█████████░░░░░░░░░░░` |
+| **Backend — Live** (works for real: auth, database, WhatsApp, AI) | **54%** | `███████████░░░░░░░░░` |
 
 Modules: 34 of 34 practice ready · 0 partly working · 0 planned.
 
@@ -77,7 +77,7 @@ Modules: 34 of 34 practice ready · 0 partly working · 0 planned.
 | --- | ---: | ---: | --- |
 | Phase 1 — Core communication | 30% | 8/10 | 82% |
 | Phase 2 — AI and automation | 22% | 4/9 | 50% |
-| Phase 3 — Sales and commerce | 22% | 4/9 | 40% |
+| Phase 3 — Sales and commerce | 22% | 7/9 | 75% |
 | Phase 4 — More channels | 11% | 1/5 | 14% |
 | Phase 5 — Intelligence and monetisation | 15% | 0/7 | 0% |
 
@@ -110,17 +110,17 @@ _Instant first replies from real catalogue data, and follow-ups that respect the
 - [x] Consent records, opt-out keywords, suppression list _(2026-11-06)_ — Consent records; STOP and your opt-out words record a marketing opt-out; opted-out customers are left out of follow-ups, WhatsApp and email broadcasts; email unsubscribe link. WhatsApp broadcasts 6/6 on the live project
 - [ ] AI workflow planner (from repo 3) moved off Lovable's AI service onto our own AI key, with a screen in Automation Builder — Code is in src/server/ai; it only runs with a Lovable key today
 
-### Phase 3 — Sales and commerce — 40%
+### Phase 3 — Sales and commerce — 75%
 
 _Chats become confirmed, delivered, paid orders._
 
-- [ ] Lead pipeline with agreed stages
-- [ ] Lead scoring from real buying actions
+- [x] Lead pipeline with agreed stages _(2026-11-06)_ — Stages new → first contact → engaged → high intent → checkout → order created/confirmed → converted or lost, moved forward by the server from real events; staff can still move a lead
+- [x] Lead scoring from real buying actions _(2026-11-06)_ — Score 0–100 from real buying actions (messages, asking the price, checkout, orders, deliveries; minus cancellations, refusals and opt-outs), kept up to date by the server
 - [ ] Conversational checkout with order summary and explicit confirmation
 - [ ] Orders: edit, cancel, history, receipts — Server rules done (status order, prices locked after dispatch, receipt numbers, history); screens switch from Practice data next
 - [x] Agents, partner delivery links and commission enforced on the server _(2026-11-06)_ — Orders shared on insert (least busy, round robin, by state), uncalled orders moved every 5 minutes, call records append-only, partner link (hashed token) via the delivery-link Edge Function, commission only on delivered and paid orders; tested end to end
 - [x] Live intake: website/store forms, public order form, Paystack/Flutterwave/Monnify payment notifications _(2026-11-06)_ — Supabase Edge Functions intake, order-form, payments-webhook — keys checked, signatures verified, prices from the database, each event applied once; tested end to end Payment links from the chat (Paystack/Flutterwave, payment-link function): paid order and request marked automatically, tested live.
-- [ ] COD verification and risk flags — Server already refuses to dispatch an unverified COD order; risk flags still to come
+- [x] COD verification and risk flags _(2026-11-06)_ — Server refuses dispatch before COD verification, and works out each order's risk (earlier failed deliveries, another unconfirmed order, incomplete phone, no address, unpaid balance, high value); a high-risk COD order needs an owner or manager to confirm. Live tests: supabase/tests/risk_and_scoring.md
 - [x] Dispatch board and delivery outcomes _(2026-11-06)_ — Dispatch board on real data: confirmed orders get a delivery record, send to rider or partner with a private link, outcomes and cash recorded by the server
 - [x] Order, dispatch and delivery notifications _(2026-11-06)_ — Written by the server (confirmation, dispatch, receipt, care guide, payment links) and sent by WhatsApp every minute or by email per Notifications settings. Tested live up to Meta and the email service; real delivery needs your connected number and email key
 

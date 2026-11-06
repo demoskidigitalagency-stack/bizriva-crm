@@ -18,3 +18,8 @@ Choices made while finishing the backend unattended (6 Nov 2026). Each is easy t
 
 ## Broadcasts
 11. WhatsApp broadcasts go to customers whose **latest** marketing choice is yes (a later STOP wins). Customers inside 24 hours get the text; everyone else gets the campaign's template.
+
+## COD risk and leads
+12. **A high-risk cash-on-delivery order (score 50+) needs an owner or manager to confirm it**; sales agents see the reasons and escalate. The threshold for "high value" is ₦150,000 (`riskHighValue` in settings).
+13. Risk never counts "new customer" on its own — first orders only add 5 points alongside another reason.
+14. Lead stages only move forward automatically (and back up from "unresponsive" when the customer writes again). Staff can still move a lead by hand.
