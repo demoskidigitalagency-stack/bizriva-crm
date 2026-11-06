@@ -52,6 +52,8 @@ FIX = {
         {**W, "id": str(uuid.uuid4()), "conversation_id": V3, "direction": "in", "body": "Hi, how much is the body cream?", "status": "received", "created_at": AGO(3)},
         {**W, "id": str(uuid.uuid4()), "conversation_id": V1, "direction": "in", "body": "Hi, how much is the body cream?", "status": "received", "created_at": AGO(40)},
         {**W, "id": str(uuid.uuid4()), "conversation_id": V1, "direction": "out", "body": "🧾 *Receipt RCPT-BZ-1001* — Glow Naturals", "status": "queued", "by_ai": True, "created_at": AGO(20)},
+        {**W, "id": str(uuid.uuid4()), "conversation_id": V1, "direction": "in", "body": "[image] My payment proof", "status": "received", "media_kind": "image", "media_path": f"{WS}/in/proof.jpg", "created_at": AGO(19)},
+        {**W, "id": str(uuid.uuid4()), "conversation_id": V1, "direction": "in", "body": "[audio]", "status": "received", "media_kind": "audio", "media_error": "190 Malformed access token", "created_at": AGO(18)},
         {**W, "id": str(uuid.uuid4()), "conversation_id": V1, "direction": "out", "body": "We miss you, Ada!", "status": "failed", "error": "Outside the 24-hour window — needs an approved template", "created_at": AGO(1)}],
     "complaints": [], "consents": [{**W, "id": str(uuid.uuid4()), "source": "order form", "channel": "whatsapp", "granted": True, "category": "marketing", "contact_id": C1, "recorded_at": AGO(40)}],
     "contact_facts": [], "customer_accounts": [],
@@ -105,6 +107,17 @@ async def handle(route):
     hdr = {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "*", "Access-Control-Allow-Methods": "*"}
     if req.method == "OPTIONS":
         return await route.fulfill(status=204, headers=hdr)
+    if path.startswith("/storage/v1/"):
+        if "/object/sign/" in path and req.method == "POST":
+            obj = path.split("/object/sign/", 1)[1]
+            return await route.fulfill(status=200, headers=hdr, body=json.dumps({"signedURL": f"/object/sign/{obj}?token=t"}))
+        if "/object/sign/" in path:
+            png = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==")
+            return await route.fulfill(status=200, headers={**hdr, "Content-Type": "image/png"}, body=png)
+        if req.method == "POST" and "/object/chat-media/" in path:
+            writes.append(("upload", path.split("/object/", 1)[1], None, ""))
+            return await route.fulfill(status=200, headers=hdr, body=json.dumps({"Key": path.split("/object/", 1)[1]}))
+        return await route.fulfill(status=404, headers=hdr, body="{}")
     if path.startswith("/auth/v1/"):
         if path.endswith("/user"):
             return await route.fulfill(status=200, headers=hdr, body=json.dumps(session()["user"]))
@@ -294,6 +307,16 @@ async def main():
         await ready(f"/inbox?c={V2}")
         ok("a handed-over chat says it needs a reply", "Handed to the team" in await pg.get_by_role("status", name="Who answers this chat").inner_text())
         await ready(f"/inbox?c={V1}")
+        await pg.wait_for_timeout(800)
+        ok("a customer's photo shows in the chat", await pg.locator("main img[alt='Photo']").count() == 1)
+        ok("a file that couldn't be saved says why", "Voice note couldn't be saved: 190 Malformed access token" in await pg.locator("main").inner_text())
+        await pg.get_by_label("Reply").fill("Here is the cream")
+        png = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==")
+        await pg.get_by_label("Choose a file to send").set_input_files({"name": "glow cream.png", "mimeType": "image/png", "buffer": png})
+        await pg.wait_for_timeout(1200)
+        up = [w for w in writes if w[0] == "upload"]
+        ok("attaching uploads into this business's out/ folder", len(up) == 1 and up[0][1].startswith(f"chat-media/{WS}/out/") and up[0][1].endswith("-glow-cream.png"), up[-1:] )
+        ok("and queues it with the typed caption", wrote("POST", "messages", lambda b: b.get("media_kind") == "image" and b.get("body") == "Here is the cream" and str(b.get("media_path", "")).startswith(f"{WS}/out/")))
         ok("AI-written messages are labelled", "ai reply" in (await pg.locator("main").inner_text()).lower())
 
         await ready("/integrations")

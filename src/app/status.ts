@@ -66,7 +66,7 @@ export const PHASES: StatusPhase[] = [
       { id: "p1-contacts", label: "Contacts, leads and conversations saved for real (no sample data)", weight: 2, done: true, doneOn: "2026-11-06", note: "Signed in, every screen reads and writes your real business (customers, leads, chats, orders, tasks, notes, merges); one tap back to Practice Mode. tests/live_mode_qa.py 23/23, supabase/tests/tasks_notes_merge.sql 19/19" },
       { id: "p1-wa-connect", label: "WhatsApp Cloud API number connected", weight: 2, done: false, note: "Connect screen ready (Integrations, owner only, keys in Vault). Needs your verified Meta Business number" },
       { id: "p1-webhook", label: "Inbound webhook: signature checked, duplicates ignored", weight: 3, done: true, doneOn: "2026-11-06", note: "whatsapp-webhook Edge Function: Meta verify check, HMAC-SHA256 with each business's app secret, one save per Meta message id, STOP opt-out, delivery ticks. Tested on the live project: supabase/tests/whatsapp_e2e.md" },
-      { id: "p1-send", label: "Send replies, media and templates from the inbox", weight: 2, done: false, note: "Text replies and templates send every minute with the 24-hour rule (reached Meta in testing); media still to do" },
+      { id: "p1-send", label: "Send replies, media and templates from the inbox", weight: 2, done: true, doneOn: "2026-11-06", note: "Replies, photos, videos, voice notes and documents (paperclip in the Inbox, private storage per business, 1-hour link for Meta) and approved templates outside 24 hours; customers' files are saved into the chat. Storage rules 9/9 on the live project; sending reached Meta in testing" },
       { id: "p1-realtime", label: "Inbox updates live; assignment and transfer", weight: 2, done: false },
     ],
   },

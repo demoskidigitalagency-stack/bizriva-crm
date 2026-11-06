@@ -1,4 +1,5 @@
 import { AiChatBar } from "@/components/app/AiChatBar";
+import { AttachFile, MessageMedia } from "@/components/app/ChatMedia";
 import { useEffect, useMemo, useState } from "react";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AlertTriangle, CheckCircle2, CreditCard, FlaskConical, Megaphone, MessageSquareText, Package, Send, Sparkles, X } from "lucide-react";
@@ -201,7 +202,8 @@ function Thread({ conversation }: { conversation: Conversation }) {
               tails && (m.direction === "out" ? "rounded-br-none" : "rounded-bl-none"),
             )}>
               {m.byAi && <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary-foreground/80">AI reply</p>}
-              <p className="whitespace-pre-wrap">{m.body}</p>
+              <MessageMedia m={m} />
+              {(!m.media || !/^\[(image|video|audio|document|sticker|Media)\]$/.test(m.body)) && <p className="whitespace-pre-wrap">{m.media ? m.body.replace(/^\[(image|video|audio|document|sticker|Media)\]\s*/, "") : m.body}</p>}
               <p className={cn("mt-1 text-[10px]", m.direction === "out" ? "text-primary-foreground/70" : "text-muted-foreground")}>{relativeTime(m.at)}{m.delivery && m.delivery !== "failed" ? ` · ${DELIVERY_LABEL[m.delivery]}` : ""}</p>
               {m.delivery === "failed" && <p className="mt-1 rounded bg-destructive/90 px-1.5 py-0.5 text-[11px] text-white" role="note">Not delivered{m.error ? `: ${m.error}` : ""}</p>}
             </div>
@@ -216,7 +218,8 @@ function Thread({ conversation }: { conversation: Conversation }) {
           <Button type="button" size="icon" variant="ghost" className="size-8" onClick={() => setSimOpen(false)} aria-label="Close practice message"><X className="size-4" /></Button>
         </form>
       )}
-      <div className="flex items-center gap-2 border-t p-3">
+      <div className="relative flex items-center gap-2 border-t p-3">
+        {conversation.channel === "whatsapp" && <AttachFile conversationId={conversation.id} caption={text} onSent={() => setText("")} />}
         <SendProduct conversationId={conversation.id} />
         <QuickReplies conversation={conversation} onPick={setText} />
         <PaymentLinkButton conversationId={conversation.id} />

@@ -268,6 +268,8 @@ export interface Message {
   error?: string;
   /** Written by the AI agent (real data). */
   byAi?: boolean;
+  /** A photo, video, voice note or document (real data). path is in the business's private storage. */
+  media?: { kind: "image" | "video" | "audio" | "document" | "sticker"; path?: string; name?: string; error?: string };
 }
 
 export interface Conversation {

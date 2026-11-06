@@ -5,7 +5,7 @@ Generated from `src/app/status.ts` and `src/app/modules.ts` by `bun run status`.
 | Track | Progress | |
 | --- | ---: | --- |
 | **Frontend — Practice Mode** (every page and button works on sample data) | **100%** | `████████████████████` |
-| **Backend — Live** (works for real: auth, database, WhatsApp, AI) | **35%** | `███████░░░░░░░░░░░░░` |
+| **Backend — Live** (works for real: auth, database, WhatsApp, AI) | **38%** | `████████░░░░░░░░░░░░` |
 
 Modules: 34 of 34 practice ready · 0 partly working · 0 planned.
 
@@ -75,13 +75,13 @@ Modules: 34 of 34 practice ready · 0 partly working · 0 planned.
 
 | Phase | Share | Done | Progress |
 | --- | ---: | ---: | --- |
-| Phase 1 — Core communication | 30% | 7/10 | 73% |
+| Phase 1 — Core communication | 30% | 8/10 | 82% |
 | Phase 2 — AI and automation | 22% | 2/9 | 22% |
 | Phase 3 — Sales and commerce | 22% | 3/9 | 30% |
 | Phase 4 — More channels | 11% | 1/5 | 14% |
 | Phase 5 — Intelligence and monetisation | 15% | 0/7 | 0% |
 
-### Phase 1 — Core communication — 73%
+### Phase 1 — Core communication — 82%
 
 _Real WhatsApp messages land in a shared, saved inbox for several agents._
 
@@ -93,7 +93,7 @@ _Real WhatsApp messages land in a shared, saved inbox for several agents._
 - [x] Contacts, leads and conversations saved for real (no sample data) _(2026-11-06)_ — Signed in, every screen reads and writes your real business (customers, leads, chats, orders, tasks, notes, merges); one tap back to Practice Mode. tests/live_mode_qa.py 23/23, supabase/tests/tasks_notes_merge.sql 19/19
 - [ ] WhatsApp Cloud API number connected — Connect screen ready (Integrations, owner only, keys in Vault). Needs your verified Meta Business number
 - [x] Inbound webhook: signature checked, duplicates ignored _(2026-11-06)_ — whatsapp-webhook Edge Function: Meta verify check, HMAC-SHA256 with each business's app secret, one save per Meta message id, STOP opt-out, delivery ticks. Tested on the live project: supabase/tests/whatsapp_e2e.md
-- [ ] Send replies, media and templates from the inbox — Text replies and templates send every minute with the 24-hour rule (reached Meta in testing); media still to do
+- [x] Send replies, media and templates from the inbox _(2026-11-06)_ — Replies, photos, videos, voice notes and documents (paperclip in the Inbox, private storage per business, 1-hour link for Meta) and approved templates outside 24 hours; customers' files are saved into the chat. Storage rules 9/9 on the live project; sending reached Meta in testing
 - [ ] Inbox updates live; assignment and transfer
 
 ### Phase 2 — AI and automation — 22%
