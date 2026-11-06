@@ -8,6 +8,7 @@ import { useActions, useDb, useLive, useWorkspace } from "@/domain/store";
 import { WhatsAppConnect } from "@/components/app/WhatsAppConnect";
 import { EmailConnect } from "@/components/app/EmailConnect";
 import { WebChatConnect } from "@/components/app/WebChatConnect";
+import { SmsConnect } from "@/components/app/SmsConnect";
 import type { IntegrationState } from "@/domain/types";
 import { relativeTime } from "@/lib/format";
 
@@ -96,6 +97,7 @@ function Integrations() {
           const sim = s.status === "simulated";
           if (s.id === "email" && live.on) return <div key={s.id} className="md:col-span-2"><EmailConnect /></div>;
           if (s.id === "webchat" && live.on) return <div key={s.id} className="md:col-span-2"><WebChatConnect /></div>;
+          if (s.id === "sms" && live.on) return <div key={s.id} className="md:col-span-2"><SmsConnect /></div>;
           if (s.id === "whatsapp" && live.on) {
             return (
               <Section key={s.id} title={i.name} description={i.what} className="md:col-span-2">

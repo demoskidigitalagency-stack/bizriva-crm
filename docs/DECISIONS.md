@@ -46,3 +46,9 @@ Choices made while finishing the backend unattended (6 Nov 2026). Each is easy t
 25. **Visitors give their name (and phone, unless you switch it off) before chatting**, so every web chat is a real customer record — matched to an existing customer by phone.
 26. **A visitor only ever sees their own chat**, through a secret kept in their browser; clearing the browser starts a new chat. Limits: 20 messages a minute per visitor, 300 new visitors an hour per business.
 27. **The AI answers website chats exactly like WhatsApp** (same rules, prices check, checkout). There's no 24-hour window on the website.
+
+## SMS
+28. **SMS uses each business's own Termii account and approved sender ID**, and is send-only (Nigerian sender IDs can't receive replies).
+29. **SMS backup is on by default:** an order or delivery update that WhatsApp couldn't deliver — or that would wait because WhatsApp isn't connected (after 2 minutes) — goes once by SMS. Marketing is never sent by SMS backup.
+30. **Order updates use Termii's DND route** so they reach numbers on Do-Not-Disturb (it costs more per SMS); other SMS use the normal route and never go to someone who opted out. Long texts are cut at 3 SMS pages.
+31. Order updates now also reach customers who never chatted (e.g. from an order form): they go to WhatsApp first and fall back to SMS.

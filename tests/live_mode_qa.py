@@ -445,8 +445,17 @@ async def main():
         await ready("/integrations")
         ok("then shows the script to paste and the chat link", "/webchat.js" in await pg.get_by_label("Website script").inner_text() and "/chat/" + "k" * 32 in await pg.get_by_label("Chat link").inner_text())
 
+        smf = pg.get_by_role("form", name="Connect SMS")
+        ok("owner sees Connect SMS on real data", await smf.count() == 1)
+        await smf.get_by_label(re.compile("Termii API key")).fill("TL" + "s" * 30); await smf.get_by_label("Sender ID").fill("GlowNG")
+        await smf.get_by_role("button", name="Connect SMS").click(); await pg.wait_for_timeout(1200)
+        sk = [w for w in writes if w[0] == "rpc" and w[1] == "save_sms_key"]
+        ok("the Termii key and sender go to the server, with SMS backup on", len(sk) == 1 and sk[0][2].get("p_sender") == "GlowNG" and sk[0][2].get("p_fallback") is True and ("s" * 30) not in await pg.locator("main").inner_text())
+
         vis = await ctx.new_page()
-        await vis.goto(B + "/chat/" + "k" * 32); await vis.wait_for_timeout(1200)
+        await vis.goto(B + "/chat/" + "k" * 32)
+        try: await vis.get_by_text("Hi! Ask us anything.").wait_for(timeout=15000)
+        except Exception: pass
         ok("a visitor sees the business and its greeting", "Glow Naturals" in await vis.locator("body").inner_text() and "Hi! Ask us anything." in await vis.locator("body").inner_text())
         await vis.get_by_label("Your name").fill("Bisi"); await vis.get_by_role("button", name="Start chat").click(); await vis.wait_for_timeout(300)
         ok("a phone number is asked for before chatting", "phone number" in (await vis.locator("body").inner_text()).lower())

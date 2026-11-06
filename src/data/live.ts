@@ -102,6 +102,7 @@ export function liveSettings(w: Row, providers: Row[], meta: Row[]): BusinessSet
     ...s,
     businessName: String(w["name"] ?? ""),
     ...(w["webchat_key"] ? { webchatKey: String(w["webchat_key"]) } : {}),
+    sms: (() => { const x = (w["sms_settings"] ?? {}) as Row; return { provider: x["provider"] === "termii" ? "termii" as const : "none" as const, ...(x["sender"] ? { sender: String(x["sender"]) } : {}), fallback: x["fallback"] !== false, ...(x["base_url"] ? { baseUrl: String(x["base_url"]) } : {}), ...(x["last_error"] ? { lastError: String(x["last_error"]) } : {}), ...(x["last_sent_at"] ? { lastSentAt: String(x["last_sent_at"]) } : {}) }; })(),
     timezone: String(w["timezone"] ?? "Africa/Lagos"),
     plan: (["trial", "starter", "growth", "scale"].includes(String(w["plan"])) ? w["plan"] : "trial") as BusinessSettings["plan"],
     brief: { time: hhmm(w["brief_time"], "07:00"), channels: (w["brief_channels"] ?? ["app"]) as BusinessSettings["brief"]["channels"] },

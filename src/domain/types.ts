@@ -685,6 +685,8 @@ export interface BusinessSettings {
   webchat?: { greeting?: string; color?: string; askPhone?: boolean };
   /** Website chat public key (real data); missing = turned off. */
   webchatKey?: string;
+  /** SMS through Termii (real data; the key itself stays on the server). */
+  sms?: { provider: "termii" | "none"; sender?: string; fallback?: boolean; baseUrl?: string; lastError?: string; lastSentAt?: string };
   timezone: string;
   deliveryFee: number;
   freeDeliveryOver: number;
