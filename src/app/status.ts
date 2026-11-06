@@ -67,7 +67,7 @@ export const PHASES: StatusPhase[] = [
       { id: "p1-wa-connect", label: "WhatsApp Cloud API number connected", weight: 2, done: false, note: "Connect screen ready (Integrations, owner only, keys in Vault). Needs your verified Meta Business number" },
       { id: "p1-webhook", label: "Inbound webhook: signature checked, duplicates ignored", weight: 3, done: true, doneOn: "2026-11-06", note: "whatsapp-webhook Edge Function: Meta verify check, HMAC-SHA256 with each business's app secret, one save per Meta message id, STOP opt-out, delivery ticks. Tested on the live project: supabase/tests/whatsapp_e2e.md" },
       { id: "p1-send", label: "Send replies, media and templates from the inbox", weight: 2, done: true, doneOn: "2026-11-06", note: "Replies, photos, videos, voice notes and documents (paperclip in the Inbox, private storage per business, 1-hour link for Meta) and approved templates outside 24 hours; customers' files are saved into the chat. Storage rules 9/9 on the live project; sending reached Meta in testing" },
-      { id: "p1-realtime", label: "Inbox updates live; assignment and transfer", weight: 2, done: false },
+      { id: "p1-realtime", label: "Inbox updates live; assignment and transfer", weight: 2, done: true, doneOn: "2026-11-06", note: "Inbox reloads the moment the database changes; handed-over chats go to the on-duty sales/support teammate with the fewest open chats; transfer from the chat; only team members; every hand-over and transfer logged. 7/7 on the live project" },
     ],
   },
   {

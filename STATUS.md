@@ -5,7 +5,7 @@ Generated from `src/app/status.ts` and `src/app/modules.ts` by `bun run status`.
 | Track | Progress | |
 | --- | ---: | --- |
 | **Frontend — Practice Mode** (every page and button works on sample data) | **100%** | `████████████████████` |
-| **Backend — Live** (works for real: auth, database, WhatsApp, AI) | **54%** | `███████████░░░░░░░░░` |
+| **Backend — Live** (works for real: auth, database, WhatsApp, AI) | **56%** | `███████████░░░░░░░░░` |
 
 Modules: 34 of 34 practice ready · 0 partly working · 0 planned.
 
@@ -75,13 +75,13 @@ Modules: 34 of 34 practice ready · 0 partly working · 0 planned.
 
 | Phase | Share | Done | Progress |
 | --- | ---: | ---: | --- |
-| Phase 1 — Core communication | 30% | 8/10 | 82% |
+| Phase 1 — Core communication | 30% | 9/10 | 91% |
 | Phase 2 — AI and automation | 22% | 4/9 | 50% |
 | Phase 3 — Sales and commerce | 22% | 7/9 | 75% |
 | Phase 4 — More channels | 11% | 1/5 | 14% |
 | Phase 5 — Intelligence and monetisation | 15% | 0/7 | 0% |
 
-### Phase 1 — Core communication — 82%
+### Phase 1 — Core communication — 91%
 
 _Real WhatsApp messages land in a shared, saved inbox for several agents._
 
@@ -94,7 +94,7 @@ _Real WhatsApp messages land in a shared, saved inbox for several agents._
 - [ ] WhatsApp Cloud API number connected — Connect screen ready (Integrations, owner only, keys in Vault). Needs your verified Meta Business number
 - [x] Inbound webhook: signature checked, duplicates ignored _(2026-11-06)_ — whatsapp-webhook Edge Function: Meta verify check, HMAC-SHA256 with each business's app secret, one save per Meta message id, STOP opt-out, delivery ticks. Tested on the live project: supabase/tests/whatsapp_e2e.md
 - [x] Send replies, media and templates from the inbox _(2026-11-06)_ — Replies, photos, videos, voice notes and documents (paperclip in the Inbox, private storage per business, 1-hour link for Meta) and approved templates outside 24 hours; customers' files are saved into the chat. Storage rules 9/9 on the live project; sending reached Meta in testing
-- [ ] Inbox updates live; assignment and transfer
+- [x] Inbox updates live; assignment and transfer _(2026-11-06)_ — Inbox reloads the moment the database changes; handed-over chats go to the on-duty sales/support teammate with the fewest open chats; transfer from the chat; only team members; every hand-over and transfer logged. 7/7 on the live project
 
 ### Phase 2 — AI and automation — 50%
 

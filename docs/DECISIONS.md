@@ -23,3 +23,6 @@ Choices made while finishing the backend unattended (6 Nov 2026). Each is easy t
 12. **A high-risk cash-on-delivery order (score 50+) needs an owner or manager to confirm it**; sales agents see the reasons and escalate. The threshold for "high value" is ₦150,000 (`riskHighValue` in settings).
 13. Risk never counts "new customer" on its own — first orders only add 5 points alongside another reason.
 14. Lead stages only move forward automatically (and back up from "unresponsive" when the customer writes again). Staff can still move a lead by hand.
+
+## Chats
+15. **Handed-over chats go to on-duty sales or support first**, the one with the fewest open team chats; owners and managers only when no agent is on duty.
