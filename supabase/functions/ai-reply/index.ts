@@ -28,7 +28,8 @@ async function ask(key: string, model: string, ctx: Ctx): Promise<Decision> {
   const use = (res.content ?? []).find((b: any) => b.type === "tool_use" && b.name === "respond");
   if (!use) throw new Error("The AI didn't return a reply");
   const ck = use.input?.checkout;
-  return { reply: String(use.input?.reply ?? ""), handoff: !!use.input?.handoff, reason: String(use.input?.reason ?? ""), ...(ck?.items?.length ? { draft: ck as Draft } : {}) };
+  const photos = Array.isArray(use.input?.photos) ? use.input.photos.map(String) : [];
+  return { reply: String(use.input?.reply ?? ""), handoff: !!use.input?.handoff, reason: String(use.input?.reason ?? ""), ...(ck?.items?.length ? { draft: ck as Draft } : {}), ...(photos.length ? { photos } : {}) };
 }
 
 Deno.serve(async (req) => {
@@ -64,6 +65,8 @@ Deno.serve(async (req) => {
         else if (r?.error === "unknown_items") decision = { reply: `Sorry, I couldn't find ${(r.items as string[]).join(", ")} in our list right now. Would you like something else?`, handoff: false, reason: "" };
         else decision = { reply: "", handoff: true, reason: "The order couldn't be priced" };
       }
+      // Product photos go out before the text reply, straight from the media library.
+      for (const name of decision?.photos ?? []) await db.rpc("svc_ai_send_photo", { p_conversation: j.conversation_id, p_product: name });
     } catch (e) { err = (e instanceof Error ? e.message : String(e)).slice(0, 500); }
     await db.rpc("svc_ai_result", {
       p_conversation: j.conversation_id, p_message: j.message_id, p_reply: decision?.reply ?? null,

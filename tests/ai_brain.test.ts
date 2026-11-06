@@ -61,3 +61,10 @@ describe("checkout", () => {
   });
   test("the prompt tells the model never to write totals or say the order is placed", () => expect(systemPrompt(base)).toContain("never say the order is placed"));
 });
+
+describe("variants and product photos", () => {
+  const v: Ctx = { ...base, products: [{ name: "Glow Body Cream", price: 12000, inStock: true, hasPhoto: true, variants: [{ name: "500ml", price: 18000, inStock: true }] }, { name: "Shea Butter Jar", price: 6000, inStock: true }] };
+  test("a variant's own price may be quoted", () => expect(checkReply(v, { reply: "The 500ml is ₦18,000.", handoff: false, reason: "" }).handoff).toBe(false));
+  test("photos only for products that have one", () => expect(checkReply(v, { reply: "Here you go!", handoff: false, reason: "", photos: ["glow body cream", "Shea Butter Jar", "Made-up thing"] }).photos).toEqual(["Glow Body Cream"]));
+  test("a photo alone is a valid answer", () => { const d = checkReply(v, { reply: "", handoff: false, reason: "", photos: ["Glow Body Cream"] }); expect(d.handoff).toBe(false); expect(d.photos).toEqual(["Glow Body Cream"]); });
+});

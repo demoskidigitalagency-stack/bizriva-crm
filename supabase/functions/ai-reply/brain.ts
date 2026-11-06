@@ -5,15 +5,16 @@ export interface Ctx {
   agent: { name?: string; greeting?: string; tone?: string; handoffKeywords?: string[]; enabled?: boolean };
   optOutKeywords: string[];
   customer: { name?: string | null; location?: string | null };
-  products: { name: string; price: number | string; promoPrice?: number | string | null; inStock: boolean; category?: string | null; description?: string | null; benefits?: string | null }[];
+  products: { name: string; price: number | string; promoPrice?: number | string | null; inStock: boolean; category?: string | null; description?: string | null; benefits?: string | null;
+    hasPhoto?: boolean; variants?: { name: string; price: number | string; inStock: boolean }[] }[];
   knowledge: { topic: string; question?: string | null; answer: string }[];
   orders: { ref: string; status: string; total: number | string; paid: number | string; placed: string }[];
   facts: { kind: string; value: string }[];
   messages: { from: "customer" | "business"; text: string; at: string }[];
   checkout?: { total?: number | string; summary_at?: string } | null;
 }
-export interface Draft { items: { product: string; quantity?: number | string }[]; name?: string; phone?: string; address?: string; state?: string }
-export interface Decision { reply: string; handoff: boolean; reason: string; confirm?: boolean; draft?: Draft }
+export interface Draft { items: { product: string; variant?: string; quantity?: number | string }[]; name?: string; phone?: string; address?: string; state?: string }
+export interface Decision { reply: string; handoff: boolean; reason: string; confirm?: boolean; draft?: Draft; photos?: string[] }
 
 const YES = ["yes", "yes please", "yeah", "yep", "yup", "confirm", "confirmed", "i confirm", "ok", "okay", "ok confirm", "go ahead", "sure", "correct", "proceed", "oya", "abeg confirm", "yes confirm", "place it", "place the order"];
 /** A clear yes to the order summary — decided by rule, never by the model. */
@@ -46,7 +47,7 @@ export function allowedAmounts(ctx: Ctx): Set<number> {
   const ok = new Set<number>();
   const add = (v: unknown) => { const n = num(v); if (Number.isFinite(n) && n > 0) ok.add(Math.round(n)); };
   const fee = num(ctx.deliveryFee);
-  for (const p of ctx.products) for (const v of [p.price, p.promoPrice]) {
+  for (const p of ctx.products) for (const v of [p.price, p.promoPrice, ...(p.variants ?? []).map((x) => x.price)]) {
     const n = num(v); if (!Number.isFinite(n) || n <= 0) continue;
     for (let q = 1; q <= 10; q++) { add(n * q); if (Number.isFinite(fee)) add(n * q + fee); }
   }
@@ -71,12 +72,24 @@ export function amountsIn(text: string): number[] {
 export function checkReply(ctx: Ctx, d: Decision): Decision {
   const reply = (d.reply ?? "").trim().slice(0, 1500);
   if (!d.handoff && d.draft?.items?.length) return { reply, handoff: false, reason: "", draft: d.draft };   // the server prices and words the summary
+  const photos = photosFor(ctx, d.photos);
   if (d.handoff) return { reply: reply || "I'm passing you to a member of our team — they'll reply here shortly.", handoff: true, reason: d.reason || "The AI wasn't sure" };
+  if (!reply && photos.length) return { reply: "", handoff: false, reason: "", photos };
   if (!reply) return { reply: "", handoff: true, reason: "The AI had no answer" };
   const ok = allowedAmounts(ctx);
   const bad = amountsIn(reply).filter((n) => !ok.has(n));
   if (bad.length) return { reply: "Let me confirm that for you — a member of our team will reply here shortly.", handoff: true, reason: `The AI quoted an amount that isn't in your prices (${bad.join(", ")})` };
-  return { reply, handoff: false, reason: "" };
+  return { reply, handoff: false, reason: "", ...(photos.length ? { photos } : {}) };
+}
+
+/** Only products in the list that really have a photo; at most 3 per reply. */
+export function photosFor(ctx: Ctx, asked?: string[]): string[] {
+  const out: string[] = [];
+  for (const a of asked ?? []) {
+    const p = ctx.products.find((x) => norm(x.name) === norm(String(a))) ?? ctx.products.find((x) => norm(x.name).includes(norm(String(a))) && norm(String(a)).length >= 3);
+    if (p?.hasPhoto && !out.includes(p.name)) out.push(p.name);
+  }
+  return out.slice(0, 3);
 }
 
 const TONE: Record<string, string> = { friendly: "warm and friendly, like a helpful shop assistant", formal: "polite and professional", playful: "light and playful, but still clear" };
@@ -94,6 +107,8 @@ export function systemPrompt(ctx: Ctx): string {
     "- To take an order, collect: which product and how many, full name, phone number, delivery address and state. Don't promise a delivery date unless the data says it.",
     "- When the customer has chosen what to buy and you have their name, phone and address, fill `checkout` (use product names exactly as in the data). The system then sends the priced summary and asks them to reply YES — don't write the summary or totals yourself, and never say the order is placed.",
     "- If `checkout` in the data is set, a summary is waiting for the customer's YES. If they want changes, fill `checkout` again with the new details.",
+    "- Some products have options (variants) with their own price and stock: ask which option, and put it in the checkout item's `variant` exactly as named.",
+    "- When the customer wants to see a product and it has hasPhoto=true, put its name in `photos` — the system sends the picture. Never say you are sending a photo for a product without one.",
     "- For an existing order, use customerOrders (ref and status) to answer.",
     "- Set handoff=true when the customer wants a person, is upset or complaining, asks something the data doesn't answer, wants a discount, or you are unsure. Then tell them a team member will reply shortly.",
     "- Never ask for card details, PINs, passwords or OTPs.",
@@ -126,10 +141,11 @@ export const RESPOND_TOOL = {
       reply: { type: "string", description: "The WhatsApp message to send to the customer." },
       handoff: { type: "boolean", description: "true to pass the chat to a human team member." },
       reason: { type: "string", description: "If handing off, why (one short line for the team)." },
+      photos: { type: "array", items: { type: "string" }, description: "Product names whose photo to send (only products with hasPhoto)." },
       checkout: {
         type: "object", description: "Only when the customer has chosen what to buy and given name, phone and delivery address.",
         properties: {
-          items: { type: "array", items: { type: "object", properties: { product: { type: "string" }, quantity: { type: "integer" } }, required: ["product"] } },
+          items: { type: "array", items: { type: "object", properties: { product: { type: "string" }, variant: { type: "string" }, quantity: { type: "integer" } }, required: ["product"] } },
           name: { type: "string" }, phone: { type: "string" }, address: { type: "string" }, state: { type: "string" },
         },
         required: ["items"],

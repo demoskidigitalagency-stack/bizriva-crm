@@ -4,7 +4,10 @@ import { Film, ImageUp, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EmptyState, KpiCard, Section } from "@/components/app/primitives";
-import { useActions, useDb } from "@/domain/store";
+import { useActions, useDb, useLive } from "@/domain/store";
+import { useAuth } from "@/app/auth";
+import { supabase } from "@/lib/supabase";
+import { MAX_FILE, safeName } from "@/components/app/ChatMedia";
 import type { MediaAsset } from "@/domain/types";
 import { formatDate } from "@/lib/format";
 
@@ -29,6 +32,9 @@ async function shrink(file: File): Promise<string> {
 function Media() {
   const db = useDb();
   const { saveRecord, removeRecord } = useActions();
+  const live = useLive();
+  const { current } = useAuth();
+  const [busy, setBusy] = useState(false);
   const [productFilter, setProductFilter] = useState("all");
   const [message, setMessage] = useState("");
   const inlineBytes = db.media.reduce((s, m) => s + (m.url?.length ?? 0), 0);
@@ -37,6 +43,7 @@ function Media() {
 
   const onFiles = async (files: FileList | null) => {
     if (!files?.length) return;
+    if (live.on) return uploadLive(Array.from(files));
     let added = 0;
     const notes: string[] = [];
     for (const f of Array.from(files)) {
@@ -56,6 +63,31 @@ function Media() {
     setMessage([added ? `Added ${added} file${added > 1 ? "s" : ""}.` : "", ...notes].filter(Boolean).join(" "));
   };
 
+  /** Real data: files go to the business's private storage; the AI and product cards send them from there. */
+  const uploadLive = async (files: File[]) => {
+    const sb = supabase();
+    if (!sb || !current) return;
+    setBusy(true);
+    let added = 0;
+    const notes: string[] = [];
+    const productId = productFilter !== "all" && productFilter !== "none" ? productFilter : null;
+    for (const f of files) {
+      const kind = f.type.startsWith("image/") ? "image" : f.type.startsWith("video/") ? "video" : null;
+      if (!kind) { notes.push(`${f.name}: only images and videos`); continue; }
+      if (f.size > MAX_FILE) { notes.push(`${f.name}: files can be up to 16 MB`); continue; }
+      if (db.media.some((m) => m.name === f.name && m.bytes === f.size)) { notes.push(`${f.name}: already uploaded`); continue; }
+      const path = `${current.workspaceId}/out/media/${crypto.randomUUID()}-${safeName(f.name)}`;
+      const up = await sb.storage.from("chat-media").upload(path, f, { contentType: f.type });
+      if (up.error) { notes.push(`${f.name}: ${up.error.message.includes("mime") ? "WhatsApp can't send this kind of file (use JPG, PNG, WEBP or MP4)" : up.error.message}`); continue; }
+      const { error } = await sb.from("media_assets").insert({ workspace_id: current.workspaceId, product_id: productId, kind, storage_path: path, bytes: f.size, name: f.name.slice(0, 200) });
+      if (error) { notes.push(`${f.name}: ${error.message}`); continue; }
+      added++;
+    }
+    setBusy(false);
+    setMessage([added ? `Uploaded ${added} file${added > 1 ? "s" : ""}.` : "", ...notes].filter(Boolean).join(" "));
+    await live.reload();
+  };
+
   return (
     <div className="space-y-4">
       <div>
@@ -67,7 +99,8 @@ function Media() {
         <KpiCard label="Files" value={String(db.media.length)} />
         <KpiCard label="Linked to products" value={String(db.media.filter((m) => m.productId).length)} tone="success" />
         <KpiCard label="Original size" value={size(totalBytes)} tone="info" />
-        <KpiCard label="Practice storage used" value={`${Math.round((inlineBytes / PRACTICE_BUDGET) * 100)}%`} hint="of 3 MB in this browser" tone={inlineBytes > PRACTICE_BUDGET * 0.8 ? "warning" : "brand"} />
+        {live.on ? <KpiCard label="Photos the AI can send" value={String(db.media.filter((m) => m.productId && m.kind === "image").length)} tone="brand" />
+          : <KpiCard label="Practice storage used" value={`${Math.round((inlineBytes / PRACTICE_BUDGET) * 100)}%`} hint="of 3 MB in this browser" tone={inlineBytes > PRACTICE_BUDGET * 0.8 ? "warning" : "brand"} />}
       </div>
       <Section
         title="Files"
@@ -85,9 +118,9 @@ function Media() {
         <div className="p-4">
           <label className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border border-dashed p-6 text-center hover:border-primary/50">
             <ImageUp className="size-6 text-muted-foreground" aria-hidden="true" />
-            <span className="text-sm font-medium">Upload photos or videos{productFilter !== "all" && productFilter !== "none" ? " for this product" : ""}</span>
-            <span className="text-xs text-muted-foreground">Images are resized for WhatsApp. Duplicates are skipped.</span>
-            <input type="file" accept="image/*,video/*" multiple className="sr-only" onChange={(e) => { void onFiles(e.target.files); e.target.value = ""; }} />
+            <span className="text-sm font-medium">{busy ? "Uploading…" : "Upload photos or videos"}{productFilter !== "all" && productFilter !== "none" ? " for this product" : ""}</span>
+            <span className="text-xs text-muted-foreground">{live.on ? "Kept in your private storage, up to 16 MB each. When a customer asks to see a product, the AI sends its first photo." : "Images are resized for WhatsApp. Duplicates are skipped."}</span>
+            <input type="file" accept="image/*,video/*" multiple disabled={busy} className="sr-only" onChange={(e) => { void onFiles(e.target.files); e.target.value = ""; }} />
           </label>
           {message && <p className="mt-2 text-sm text-muted-foreground" role="status">{message}</p>}
         </div>

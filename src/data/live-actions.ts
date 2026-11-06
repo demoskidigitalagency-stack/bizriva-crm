@@ -30,7 +30,7 @@ const PAY_METHOD_DB: Record<PaymentMethod, string> = { cash_on_delivery: "cash",
 /** Collections the generic save/remove buttons write to, and their tables. */
 const TABLE: Record<string, string> = {
   riders: "logistics_partners", knowledge: "knowledge_entries", templates: "message_templates", followUpRules: "followup_rules",
-  orderForms: "order_forms", events: "calendar_events", broadcasts: "campaigns",
+  orderForms: "order_forms", events: "calendar_events", broadcasts: "campaigns", media: "media_assets",
 };
 const isUuid = (s?: string) => !!s && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
 
@@ -107,7 +107,35 @@ export function liveWriter(sb: SupabaseClient, ws: string, getDb: () => Database
     },
     async saveProduct(p: CreateLike["product"]): Promise<Result> {
       const row = { workspace_id: ws, name: p.name, category: p.category, price: p.price, cost: p.cost, stock: p.stock, reorder_level: p.reorderLevel, description: p.description ?? null, active: p.active !== false, deposit: p.deposit ?? 0, care_guide: p.careGuide ?? null, reorder_days: p.reorderDays ?? null };
-      return fail((isUuid(p.id) ? await sb.from("products").update(row).eq("id", p.id!) : await sb.from("products").insert(row)).error);
+      const saved = isUuid(p.id) ? await sb.from("products").update(row).eq("id", p.id!).select("id").single() : await sb.from("products").insert(row).select("id").single();
+      if (saved.error) return fail(saved.error);
+      if (!p.variants) return {};
+      // Options: keep the ones still listed, add the new ones, remove the rest.
+      const pid = saved.data.id as string;
+      const keep = p.variants.filter((v) => v.name.trim());
+      const before = getDb().products.find((x) => x.id === pid)?.variants ?? [];
+      const gone = before.filter((b) => !keep.some((v) => v.id === b.id)).map((b) => b.id);
+      if (gone.length) { const r = await sb.from("product_variants").delete().in("id", gone); if (r.error) return { error: r.error.code === "23503" ? "An option you removed is on past orders — set its stock to 0 instead." : r.error.message }; }
+      for (const v of keep) {
+        const vr = { name: v.name.trim(), price: v.price, stock: v.stock };
+        const r = isUuid(v.id) && before.some((b) => b.id === v.id)
+          ? await sb.from("product_variants").update(vr).eq("id", v.id)
+          : await sb.from("product_variants").insert({ workspace_id: ws, product_id: pid, ...vr });
+        if (r.error) return fail(r.error.message.includes("duplicate") ? { message: `Two options are both called "${v.name}"` } : r.error);
+      }
+      return {};
+    },
+    /** A product card in the chat: name, price and its first photo from the media library. */
+    async sendProductCard(conversationId: ID, productId: ID): Promise<Result> {
+      const db = getDb();
+      const p = db.products.find((x) => x.id === productId);
+      if (!p) return { error: "Product not found" };
+      const money = (n: number) => new Intl.NumberFormat("en-NG", { style: "currency", currency: db.workspaces[0]?.currency ?? "NGN", maximumFractionDigits: 0 }).format(n);
+      const photo = db.media.find((m) => m.productId === p.id && m.kind === "image" && m.path);
+      const opts = p.variants?.length ? `Options: ${p.variants.map((v) => `${v.name} ${money(v.price)}${v.stock <= 0 ? " (sold out)" : ""}`).join(", ")}` : "";
+      const body = [`${p.name} — ${money(p.price)}`, p.description, opts, p.deposit ? `Deposit to book: ${money(p.deposit)}` : "Pay on delivery available.", "Reply YES to order."].filter(Boolean).join("\n");
+      return fail((await sb.from("messages").insert({ workspace_id: ws, conversation_id: conversationId, direction: "out", status: "queued", body: body.slice(0, 1024),
+        ...(photo ? { media_path: photo.path, media_kind: "image", media_name: photo.name } : {}) })).error);
     },
     async adjustStock(productId: ID, delta: number): Promise<Result> {
       const p = getDb().products.find((x) => x.id === productId);
@@ -126,6 +154,7 @@ export function liveWriter(sb: SupabaseClient, ws: string, getDb: () => Database
         : collection === "templates" ? { name: r["name"], category: r["category"], language: r["language"], purpose: r["purpose"] ?? null, body: r["body"], status: r["status"], updated_at: new Date().toISOString() }
         : collection === "followUpRules" ? { name: r["name"], trigger: r["trigger"], delay_hours: r["delayHours"], max_attempts: r["maxAttempts"], template_name: db.templates.find((t) => t.id === r["templateId"])?.name ?? null, message: r["message"], quiet_start: r["quietStart"], quiet_end: r["quietEnd"], enabled: r["enabled"] }
         : collection === "orderForms" ? { name: r["name"], product_id: r["productId"], headline: r["headline"], banner: r["banner"] ?? null, packages: r["packages"], fields: r["fields"], pay_on_delivery: r["payOnDelivery"], meta_pixel: r["pixels"]?.meta ?? false, tiktok_pixel: r["pixels"]?.tiktok ?? false, thank_you: r["thankYou"], active: r["active"] }
+        : collection === "media" ? { product_id: r["productId"] ?? null, name: r["name"] }
         : collection === "events" ? { title: r["title"], kind: r["kind"], starts_at: r["at"], contact_id: r["contactId"] ?? null, order_id: r["orderId"] ?? null, note: r["note"] ?? null }
         : { name: r["name"], channel: r["channel"] ?? "whatsapp", template_name: db.templates.find((t) => t.id === r["templateId"])?.name ?? null, subject: r["subject"] ?? null, body: r["body"] ?? null, status: r["status"] === "scheduled" ? "scheduled" : "draft", scheduled_for: r["scheduledFor"] ?? null };
       return fail((isUuid(r["id"]) ? await sb.from(table).update(row).eq("id", r["id"]) : await sb.from(table).insert({ workspace_id: ws, ...row })).error);

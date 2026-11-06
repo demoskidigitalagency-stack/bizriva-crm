@@ -20,12 +20,13 @@ export const Route = createFileRoute("/products")({
   component: Products,
 });
 
-type Draft = { id?: string; name: string; category: string; price: string; cost: string; stock: string; reorderLevel: string; description: string; active: boolean; deposit: string; careGuide: string };
+type Draft = { id?: string; name: string; category: string; price: string; cost: string; stock: string; reorderLevel: string; description: string; active: boolean; deposit: string; careGuide: string; variants: { id: string; name: string; price: string; stock: string }[] };
 const toDraft = (p?: Product): Draft => ({
   ...(p ? { id: p.id } : {}),
   name: p?.name ?? "", category: p?.category ?? "", price: p ? String(p.price) : "", cost: p ? String(p.cost) : "",
   stock: p ? String(p.stock) : "0", reorderLevel: p ? String(p.reorderLevel) : "5",
   description: p?.description ?? "", active: p?.active !== false, deposit: p?.deposit ? String(p.deposit) : "", careGuide: p?.careGuide ?? "",
+  variants: (p?.variants ?? []).map((v) => ({ id: v.id, name: v.name, price: String(v.price), stock: String(v.stock) })),
 });
 
 function ProductDialog({ product, open, onOpenChange }: { product?: Product | undefined; open: boolean; onOpenChange: (o: boolean) => void }) {
@@ -41,7 +42,11 @@ function ProductDialog({ product, open, onOpenChange }: { product?: Product | un
     if (Number.isNaN(num(d.cost)) || num(d.cost) < 0) return setError("Enter the cost, or 0 if you don't know it yet.");
     const deposit = d.deposit.trim() ? num(d.deposit) : 0;
     if (Number.isNaN(deposit) || deposit < 0 || deposit > num(d.price)) return setError("Deposit must be between 0 and the selling price.");
-    saveProduct({ ...(d.id ? { id: d.id } : {}), name: d.name.trim(), category: d.category.trim() || "General", price: num(d.price), cost: num(d.cost) || 0, stock: Math.max(0, Math.round(num(d.stock) || 0)), reorderLevel: Math.max(0, Math.round(num(d.reorderLevel) || 0)), description: d.description.trim(), active: d.active, deposit, careGuide: d.careGuide.trim() });
+    const opts = d.variants.filter((v) => v.name.trim() || v.price.trim());
+    if (opts.some((v) => !v.name.trim() || !(num(v.price) > 0))) return setError("Each option needs a name and a price above zero.");
+    if (new Set(opts.map((v) => v.name.trim().toLowerCase())).size !== opts.length) return setError("Two options have the same name.");
+    const variants = opts.map((v) => ({ id: v.id, name: v.name.trim(), price: num(v.price), stock: Math.max(0, Math.round(num(v.stock) || 0)) }));
+    saveProduct({ ...(d.id ? { id: d.id } : {}), variants, name: d.name.trim(), category: d.category.trim() || "General", price: num(d.price), cost: num(d.cost) || 0, stock: Math.max(0, Math.round(num(d.stock) || 0)), reorderLevel: Math.max(0, Math.round(num(d.reorderLevel) || 0)), description: d.description.trim(), active: d.active, deposit, careGuide: d.careGuide.trim() });
     onOpenChange(false);
   };
   const set = (k: keyof Draft) => (e: React.ChangeEvent<HTMLInputElement>) => { setD((x) => ({ ...x, [k]: e.target.value })); setError(""); };
@@ -63,6 +68,28 @@ function ProductDialog({ product, open, onOpenChange }: { product?: Product | un
           <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="pd">Description (the AI agent and product cards use it)</Label><Textarea id="pd" rows={2} value={d.description} onChange={(e) => { setD((x) => ({ ...x, description: e.target.value })); setError(""); }} /></div>
           <div className="space-y-1.5"><Label htmlFor="pdep">Deposit to book (optional)</Label><Input id="pdep" inputMode="decimal" value={d.deposit} onChange={set("deposit")} placeholder="0 = pure cash on delivery" /></div>
           <label className="flex items-center gap-2 self-end pb-2 text-sm"><Switch checked={d.active} onCheckedChange={(v) => setD((x) => ({ ...x, active: v }))} aria-label="Visible" /> Visible to customers and the AI agent</label>
+          <fieldset className="space-y-1.5 sm:col-span-2">
+            <div className="flex items-center justify-between gap-2">
+              <legend className="text-sm font-medium">Options (size, colour, length…)</legend>
+              <Button type="button" size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setD((x) => ({ ...x, variants: [...x.variants, { id: `new_${Date.now()}`, name: "", price: x.price, stock: "0" }] }))}><Plus className="size-3.5" /> Add option</Button>
+            </div>
+            {d.variants.length === 0 ? <p className="text-xs text-muted-foreground">No options — the customer buys the product as it is.</p> : (
+              <ul className="space-y-1.5">
+                {d.variants.map((v, i) => {
+                  const upd = (k: "name" | "price" | "stock") => (e: React.ChangeEvent<HTMLInputElement>) => { setD((x) => ({ ...x, variants: x.variants.map((y, j) => (j === i ? { ...y, [k]: e.target.value } : y)) })); setError(""); };
+                  return (
+                    <li key={v.id} className="flex items-center gap-1.5">
+                      <Input aria-label={`Option ${i + 1} name`} value={v.name} onChange={upd("name")} placeholder="22 inch" className="h-8" />
+                      <Input aria-label={`Option ${i + 1} price`} inputMode="decimal" value={v.price} onChange={upd("price")} placeholder="Price" className="h-8 w-28" />
+                      <Input aria-label={`Option ${i + 1} stock`} inputMode="numeric" value={v.stock} onChange={upd("stock")} placeholder="Stock" className="h-8 w-20" />
+                      <Button type="button" size="icon" variant="ghost" className="size-8 shrink-0" aria-label={`Remove option ${i + 1}`} onClick={() => setD((x) => ({ ...x, variants: x.variants.filter((_, j) => j !== i) }))}><Minus className="size-3.5" /></Button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {d.variants.length > 0 && <p className="text-xs text-muted-foreground">The AI agent asks which option and charges its price.</p>}
+          </fieldset>
           <div className="space-y-1.5 sm:col-span-2">
             <div className="flex items-center justify-between gap-2"><Label htmlFor="pcare">How to use and care (sent after delivery)</Label>
               {!d.careGuide && CARE_STARTERS[d.category] && <button type="button" className="text-xs text-primary underline" onClick={() => setD((x) => ({ ...x, careGuide: CARE_STARTERS[x.category] ?? "" }))}>Use the {d.category} starter</button>}

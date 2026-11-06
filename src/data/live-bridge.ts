@@ -28,7 +28,7 @@ const NOT_YET: Partial<Record<keyof StoreActions, string>> = {
   importChatHistory: "Chat import on live data comes next.",
   setLifecycle: "On live data the stage follows the customer's orders.",
   setIntegration: "Channels connect for real from Integrations once their keys are in place.",
-  addCampaignSpend: "Ad spend comes from Meta once it's connected.", sendProductCard: "Product cards are sent once WhatsApp is connected.",
+  addCampaignSpend: "Ad spend comes from Meta once it's connected.",
   saveRecord: "", removeRecord: "",
 };
 
@@ -56,6 +56,7 @@ export function liveActions(w: LiveWriter, getDb: () => Database, reload: () => 
     recordPayment: (orderId, method) => run(w.recordPayment(orderId, method), "Payment recorded"),
     recordDeposit: (orderId, amount, method) => run(w.recordPayment(orderId, method, amount), "Deposit recorded"),
     saveProduct: (p) => run(w.saveProduct(p), "Product saved"),
+    sendProductCard: (conversationId, productId) => run(w.sendProductCard(conversationId, productId), "Product card queued"),
     adjustStock: (id, delta) => run(w.adjustStock(id, delta)),
     moveStock: (id, delta) => run(w.adjustStock(id, delta)),
     saveRecord: ((collection: string, record: Record<string, unknown>) => { run(w.saveRecord(collection, record), "Saved"); return String(record["id"] ?? ""); }) as StoreActions["saveRecord"],

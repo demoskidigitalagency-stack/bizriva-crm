@@ -86,6 +86,8 @@ FIX = {
         {"id": str(uuid.uuid4()), "state": "scheduled", "cancel_reason": None, "run_at": AGO(-2), "sent_at": None, "attempt": 1, "rule_id": "__RULE__", "conversation_id": V2},
         {"id": str(uuid.uuid4()), "state": "sent", "cancel_reason": None, "run_at": AGO(3), "sent_at": AGO(3), "attempt": 1, "rule_id": "__RULE__", "conversation_id": V1},
         {"id": str(uuid.uuid4()), "state": "cancelled", "cancel_reason": "replied", "run_at": AGO(1), "sent_at": None, "attempt": 2, "rule_id": "__RULE__", "conversation_id": V3}],
+    "product_variants": [{**W, "id": "5b0f6a10-2c3d-4e5f-8a9b-0c1d2e3f4a50", "product_id": P1, "name": "500ml", "price": 18000.00, "stock": 6}],
+    "media_assets": [{**W, "id": "6c1a7b21-3d4e-4f60-9b0c-1d2e3f4a5b61", "product_id": P1, "kind": "image", "storage_path": f"{WS}/out/media/abc-glow.jpg", "bytes": 120000, "name": "glow.jpg", "created_at": AGO(5)}],
     "order_forms": [], "connections": [], "calendar_events": [], "payment_events": [], "campaigns": [], "campaign_results": [], "payment_providers": [], "meta_links": [],
 }
 
@@ -118,6 +120,9 @@ async def handle(route):
         writes.append(("fn", "payment-link", json.loads(req.post_data or "{}"), req.headers.get("authorization", "")))
         return await route.fulfill(status=200, headers=hdr, body=json.dumps({"url": "https://checkout.paystack.com/abc123", "reference": "BZ-1002-x", "amount": 16000, "queued": True}))
     if path.startswith("/storage/v1/"):
+        if "/object/sign/" in path and req.method == "POST" and "paths" in json.loads(req.post_data or "{}"):
+            ps = json.loads(req.post_data)["paths"]
+            return await route.fulfill(status=200, headers=hdr, body=json.dumps([{"path": x, "signedURL": f"/object/sign/chat-media/{x}?token=t", "error": None} for x in ps]))
         if "/object/sign/" in path and req.method == "POST":
             obj = path.split("/object/sign/", 1)[1]
             return await route.fulfill(status=200, headers=hdr, body=json.dumps({"signedURL": f"/object/sign/{obj}?token=t"}))
@@ -172,7 +177,8 @@ async def handle(route):
             return await route.fulfill(status=200, headers=hdr, body=json.dumps(rows if isinstance(rows, list) else [rows]))
         body = json.loads(req.post_data or "null")
         writes.append((req.method, table, body, u.query))
-        out = {"id": str(uuid.uuid4())}
+        qid = (q.get("id") or [""])[0]
+        out = {"id": qid[3:] if req.method == "PATCH" and qid.startswith("eq.") else str(uuid.uuid4())}
         return await route.fulfill(status=201 if req.method == "POST" else 200, headers=hdr, body=json.dumps(out if accept_one else [out]))
     return await route.fulfill(status=404, headers=hdr, body="{}")
 
@@ -244,6 +250,23 @@ async def main():
         await ready("/products")
         t = await pg.locator("main").inner_text()
         ok("products are the real ones", "Glow Body Cream" in t and "Shea Butter Jar" in t)
+        await pg.get_by_role("row", name=re.compile("Glow Body Cream")).get_by_role("button", name="Edit").click()
+        dlg = pg.get_by_role("dialog")
+        ok("a product's options load from the server", await dlg.get_by_label("Option 1 name").input_value() == "500ml" and await dlg.get_by_label("Option 1 price").input_value() == "18000")
+        await dlg.get_by_role("button", name="Add option").click()
+        await dlg.get_by_label("Option 2 name").fill("1 litre"); await dlg.get_by_label("Option 2 price").fill("30000"); await dlg.get_by_label("Option 2 stock").fill("4")
+        await dlg.get_by_role("button", name="Save changes").click(); await pg.wait_for_timeout(1200)
+        ok("saving keeps the old option and adds the new one with its own price and stock",
+           wrote("PATCH", "product_variants", lambda b: b.get("name") == "500ml" and b.get("price") == 18000)
+           and wrote("POST", "product_variants", lambda b: b.get("name") == "1 litre" and b.get("price") == 30000 and b.get("stock") == 4 and b.get("product_id") == P1))
+
+        await ready("/media")
+        ok("the media library shows the real photo, linked to its product", await pg.locator("main img[alt='glow.jpg']").count() == 1)
+        await pg.locator("main input[type=file]").set_input_files({"name": "shea jar.png", "mimeType": "image/png", "buffer": base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==")})
+        await pg.wait_for_timeout(1500)
+        upm = [w for w in writes if w[0] == "upload" and "/out/media/" in w[1]]
+        ok("uploading puts the file in the business's private media folder", len(upm) == 1 and upm[0][1].startswith(f"chat-media/{WS}/out/media/"), upm)
+        ok("and records it in the library", wrote("POST", "media_assets", lambda b: b.get("kind") == "image" and str(b.get("storage_path", "")).startswith(f"{WS}/out/media/") and b.get("name") == "shea jar.png"))
 
         await ready("/crm/contacts")
         t = await pg.locator("main").inner_text()
@@ -335,9 +358,12 @@ async def main():
         png = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==")
         await pg.get_by_label("Choose a file to send").set_input_files({"name": "glow cream.png", "mimeType": "image/png", "buffer": png})
         await pg.wait_for_timeout(1200)
-        up = [w for w in writes if w[0] == "upload"]
+        up = [w for w in writes if w[0] == "upload" and "/out/media/" not in w[1]]
         ok("attaching uploads into this business's out/ folder", len(up) == 1 and up[0][1].startswith(f"chat-media/{WS}/out/") and up[0][1].endswith("-glow-cream.png"), up[-1:] )
         ok("and queues it with the typed caption", wrote("POST", "messages", lambda b: b.get("media_kind") == "image" and b.get("body") == "Here is the cream" and str(b.get("media_path", "")).startswith(f"{WS}/out/")))
+        await pg.get_by_role("button", name="Send product").click()
+        await pg.get_by_role("button", name=re.compile("Glow Body Cream")).click(); await pg.wait_for_timeout(1000)
+        ok("a product card goes out with its photo, price and options", wrote("POST", "messages", lambda b: b.get("media_path") == f"{WS}/out/media/abc-glow.jpg" and "Glow Body Cream" in (b.get("body") or "") and "500ml" in (b.get("body") or "")))
         ok("AI-written messages are labelled", "ai reply" in (await pg.locator("main").inner_text()).lower())
 
         await ready("/cod")

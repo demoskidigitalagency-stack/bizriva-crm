@@ -379,6 +379,8 @@ export interface Segment {
   rulesSummary: string;
 }
 
+export interface ProductVariant { id: ID; name: string; price: number; stock: number }
+
 export interface Product {
   id: ID;
   name: string;
@@ -396,6 +398,8 @@ export interface Product {
   careGuide?: string;
   /** Days a customer usually takes to finish it — drives re-order reminders. */
   reorderDays?: number;
+  /** Options (size, colour…) with their own price and stock. When set, the customer picks one. */
+  variants?: ProductVariant[];
 }
 
 export interface Campaign {
@@ -638,6 +642,8 @@ export interface MediaAsset {
   productId?: ID;
   /** Practice Mode keeps small images inline; the backend uses cloud storage URLs. */
   url?: string;
+  /** Where the file sits in the business's private storage (real data). */
+  path?: string;
   addedAt: string;
 }
 

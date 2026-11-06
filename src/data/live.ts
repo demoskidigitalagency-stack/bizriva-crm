@@ -15,7 +15,7 @@ import { stateOf } from "@/domain/ops";
 import type {
   AcquisitionSource, AttemptOutcome, BusinessSettings, Channel, Contact, Conversation, CustomerFact, DeliveryStatus, DeliverySummary, FollowUpRule,
   KnowledgeEntry, Lead, LeadStage, Lifecycle, MessageTemplate, OrderStatus, OrderSummary, PaymentMethod, PaymentStatus, PaymentSummary, Product,
-  Rider, TeamMember, Activity, ActivityKind, LeadOutcome, Task, TaskStatus, TaskPriority,
+  MediaAsset, ProductVariant, Rider, TeamMember, Activity, ActivityKind, LeadOutcome, Task, TaskStatus, TaskPriority,
 } from "@/domain/types";
 
 type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -27,10 +27,12 @@ export interface RawData {
   products: Row[]; orders: Row[]; items: Row[]; attempts: Row[]; deliveries: Row[]; payments: Row[]; partners: Row[];
   templates: Row[]; knowledge: Row[]; rules: Row[]; forms: Row[]; connections: Row[]; events: Row[]; paymentEvents: Row[];
   campaigns: Row[]; campaignResults: Row[]; providers: Row[]; meta: Row[];
-  tasks: Row[]; log: Row[];
+  tasks: Row[]; log: Row[]; variants: Row[]; media: Row[];
+  /** Short-lived links to the media library's images (private storage). */
+  mediaUrls?: Record<string, string>;
 }
 
-const TABLES: Record<Exclude<keyof RawData, "workspace" | "team">, { table: string; order?: string; limit?: number }> = {
+const TABLES: Record<Exclude<keyof RawData, "workspace" | "team" | "mediaUrls">, { table: string; order?: string; limit?: number }> = {
   contacts: { table: "contacts" }, leads: { table: "leads" }, conversations: { table: "conversations" },
   messages: { table: "messages", order: "created_at", limit: 5000 }, complaints: { table: "complaints" }, consents: { table: "consents", order: "recorded_at" },
   facts: { table: "contact_facts" }, accounts: { table: "customer_accounts" }, products: { table: "products" },
@@ -40,6 +42,7 @@ const TABLES: Record<Exclude<keyof RawData, "workspace" | "team">, { table: stri
   forms: { table: "order_forms" }, connections: { table: "connections" }, events: { table: "calendar_events" }, paymentEvents: { table: "payment_events", order: "received_at", limit: 1000 },
   campaigns: { table: "campaigns" }, campaignResults: { table: "campaign_results" }, providers: { table: "payment_providers" }, meta: { table: "meta_links" },
   tasks: { table: "tasks", order: "due_at", limit: 2000 }, log: { table: "activity_log", order: "created_at", limit: 2000 },
+  variants: { table: "product_variants" }, media: { table: "media_assets", order: "created_at", limit: 2000 },
 };
 
 /** Read everything for one business. Throws with a plain message if the database refuses. */
@@ -56,7 +59,13 @@ export async function fetchRaw(sb: SupabaseClient, workspaceId: string): Promise
     if (r.error) throw new Error(`${t.table}: ${r.error.message}`);
     return [key, r.data ?? []] as const;
   }));
-  return { workspace: ws.data, team: team.data ?? [], ...Object.fromEntries(entries) } as RawData;
+  const raw = { workspace: ws.data, team: team.data ?? [], ...Object.fromEntries(entries) } as RawData;
+  const paths = (raw.media ?? []).filter((m) => m["kind"] === "image" && m["storage_path"]).map((m) => String(m["storage_path"]));
+  if (paths.length) {
+    const s = await sb.storage.from("chat-media").createSignedUrls(paths, 3600);
+    raw.mediaUrls = Object.fromEntries((s.data ?? []).filter((x) => x.signedUrl && x.path).map((x) => [x.path!, x.signedUrl]));
+  }
+  return raw;
 }
 
 /* ───────────────────────── mapping ───────────────────────── */
@@ -221,10 +230,22 @@ export function toDatabase(raw: RawData, now = new Date()): Database {
     } as Conversation;
   });
 
+  const variantsBy = new Map<string, ProductVariant[]>();
+  for (const v of [...(raw.variants ?? [])].sort((a, b) => String(a["name"]).localeCompare(String(b["name"])))) {
+    const list = variantsBy.get(v["product_id"]) ?? [];
+    list.push({ id: v["id"], name: v["name"], price: num(v["price"]), stock: num(v["stock"]) });
+    variantsBy.set(v["product_id"], list);
+  }
   const products: Product[] = raw.products.map((p) => ({
     id: p["id"], name: p["name"], category: p["category"] ?? "General", price: num(p["promo_price"] ?? p["price"]), cost: num(p["cost"]), stock: num(p["stock"]), reorderLevel: num(p["reorder_level"]),
     ...(p["description"] ? { description: p["description"] } : {}), active: p["active"] !== false, ...(num(p["deposit"]) ? { deposit: num(p["deposit"]) } : {}),
     ...(p["care_guide"] ? { careGuide: p["care_guide"] } : {}), ...(p["reorder_days"] ? { reorderDays: num(p["reorder_days"]) } : {}),
+    ...(variantsBy.get(p["id"])?.length ? { variants: variantsBy.get(p["id"])! } : {}),
+  }));
+  const media: MediaAsset[] = (raw.media ?? []).map((m) => ({
+    id: m["id"], name: m["name"] ?? String(m["storage_path"] ?? "").split("/").pop() ?? "file", kind: m["kind"] === "video" ? "video" : "image", bytes: num(m["bytes"]),
+    ...(m["product_id"] ? { productId: m["product_id"] } : {}), ...(raw.mediaUrls?.[m["storage_path"]] ? { url: raw.mediaUrls[m["storage_path"]] } : {}),
+    path: m["storage_path"], addedAt: iso(m["created_at"]),
   }));
 
   const orderById = new Map(raw.orders.map((o) => [o["id"], o]));
@@ -301,7 +322,7 @@ export function toDatabase(raw: RawData, now = new Date()): Database {
         ...(r ? { stats: { delivered: num(r["delivered"]), opened: num(r["opened"]), clicked: num(r["clicked"]), orders: num(r["orders"]), revenue: num(r["delivered_revenue"]) } } : {}),
       };
     }),
-    workflows: [], workflowRuns: [], media: [], stockMovements: [],
+    workflows: [], workflowRuns: [], media, stockMovements: [],
     integrations: practice.integrations.map((i) => ({ ...i, status: "not_connected" as const })) as Database["integrations"],
     agent: { ...practice.agent, ...((w["settings"]?.["agent"] ?? {}) as Partial<typeof practice.agent>) }, settings: liveSettings(w, raw.providers, raw.meta),
     orderForms: raw.forms.map((f) => ({ id: f["id"], name: f["name"], productId: f["product_id"], headline: f["headline"], ...(f["banner"] ? { banner: f["banner"] } : {}), packages: f["packages"] ?? [], fields: f["fields"] ?? ["name", "phone", "address", "city"], payOnDelivery: f["pay_on_delivery"] !== false, pixels: { meta: !!f["meta_pixel"], tiktok: !!f["tiktok_pixel"] }, thankYou: f["thank_you"] ?? "Thank you!", active: f["active"] !== false, createdAt: iso(f["created_at"]), stats: { views: 0, starts: 0, submits: 0, duplicatesBlocked: 0, dropOff: {} } })),
