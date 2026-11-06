@@ -92,6 +92,16 @@ Deno.serve(async (req) => {
       out.statuses++;
     }
   }
+  // A customer wrote: wake the AI now instead of waiting for the next minute.
+  if (out.saved) {
+    const wake = (async () => {
+      const { data: secret } = await db.rpc("svc_cron_secret");
+      if (secret) await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/ai-reply`, { method: "POST", headers: { "Content-Type": "application/json", "x-bizriva-cron": String(secret) }, body: "{}" }).catch(() => {});
+    })();
+    // deno-lint-ignore no-explicit-any
+    const rt = (globalThis as any).EdgeRuntime;
+    if (rt?.waitUntil) rt.waitUntil(wake); else await wake;
+  }
   // Unsigned or unknown numbers get 401 so a forged call learns nothing and saves nothing.
   return out.rejected && !out.saved && !out.statuses && !out.duplicates ? json(401, { error: "Bad signature" }) : json(200, out);
 });
