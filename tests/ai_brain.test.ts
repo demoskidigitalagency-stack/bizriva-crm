@@ -45,3 +45,19 @@ describe("what the model sees", () => {
     expect(p).toContain("Glow Naturals"); expect(p).toContain("Glow Body Cream"); expect(p).toContain("Never invent"); expect(p).toContain("Never ask for card details");
   });
 });
+
+describe("checkout", () => {
+  const pending = (text: string): Ctx => ({ ...withLast(text), checkout: { total: 14500, summary_at: "now" } });
+  test("a clear yes to the summary confirms, by rule", () => {
+    for (const y of ["YES", "Yes please", "ok", "Oya", "confirm", "👍", "yes, go ahead"]) expect(quickRules(pending(y))?.confirm).toBe(true);
+  });
+  test("anything else is not a yes", () => {
+    for (const n of ["no", "yes but change the address", "not yet", "how much again?", "yes not now"]) expect(quickRules(pending(n))?.confirm).toBeFalsy();
+  });
+  test("yes without a pending summary is not an order", () => expect(quickRules(withLast("yes"))).toBeNull());
+  test("a draft goes to the server to be priced, not checked as a reply", () => {
+    const d = checkReply(base, { reply: "Great!", handoff: false, reason: "", draft: { items: [{ product: "Glow Body Cream", quantity: 1 }], name: "Tolu", phone: "0806", address: "Ikeja" } });
+    expect(d.draft?.items[0]?.product).toBe("Glow Body Cream"); expect(d.handoff).toBe(false);
+  });
+  test("the prompt tells the model never to write totals or say the order is placed", () => expect(systemPrompt(base)).toContain("never say the order is placed"));
+});

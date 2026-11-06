@@ -10,8 +10,17 @@ export interface Ctx {
   orders: { ref: string; status: string; total: number | string; paid: number | string; placed: string }[];
   facts: { kind: string; value: string }[];
   messages: { from: "customer" | "business"; text: string; at: string }[];
+  checkout?: { total?: number | string; summary_at?: string } | null;
 }
-export interface Decision { reply: string; handoff: boolean; reason: string }
+export interface Draft { items: { product: string; quantity?: number | string }[]; name?: string; phone?: string; address?: string; state?: string }
+export interface Decision { reply: string; handoff: boolean; reason: string; confirm?: boolean; draft?: Draft }
+
+const YES = ["yes", "yes please", "yeah", "yep", "yup", "confirm", "confirmed", "i confirm", "ok", "okay", "ok confirm", "go ahead", "sure", "correct", "proceed", "oya", "abeg confirm", "yes confirm", "place it", "place the order"];
+/** A clear yes to the order summary — decided by rule, never by the model. */
+export function isYes(text: string): boolean {
+  const t = norm(text.replace(/👍|✅/g, " yes "));
+  return YES.includes(t) || /^yes\b/.test(t) && !/\b(but|change|not|no)\b/.test(t);
+}
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
 const num = (v: unknown) => (v === null || v === undefined || v === "" ? NaN : Number(v));
@@ -27,6 +36,7 @@ export function quickRules(ctx: Ctx): Decision | null {
   if ((ctx.optOutKeywords ?? ["STOP"]).some((k) => norm(last.text) === norm(k))) return { reply: "", handoff: false, reason: "Customer opted out" };
   const words = (ctx.agent.handoffKeywords?.length ? ctx.agent.handoffKeywords : DEFAULT_HANDOFF).map(norm).filter(Boolean);
   if (words.some((w) => t.includes(` ${w} `))) return { reply: "Sure — I'm passing you to a member of our team now. They'll reply here shortly.", handoff: true, reason: "Customer asked for a person" };
+  if (ctx.checkout && isYes(last.text)) return { reply: "", handoff: false, reason: "Customer confirmed the order", confirm: true };
   if (COMPLAINT.some((w) => t.includes(` ${norm(w)} `))) return { reply: "I'm sorry about this. I'm passing you to a member of our team right away so they can sort it out.", handoff: true, reason: "Possible complaint" };
   return null;
 }
@@ -60,6 +70,7 @@ export function amountsIn(text: string): number[] {
 /** The safety check on the model's answer. Returns the decision to apply. */
 export function checkReply(ctx: Ctx, d: Decision): Decision {
   const reply = (d.reply ?? "").trim().slice(0, 1500);
+  if (!d.handoff && d.draft?.items?.length) return { reply, handoff: false, reason: "", draft: d.draft };   // the server prices and words the summary
   if (d.handoff) return { reply: reply || "I'm passing you to a member of our team — they'll reply here shortly.", handoff: true, reason: d.reason || "The AI wasn't sure" };
   if (!reply) return { reply: "", handoff: true, reason: "The AI had no answer" };
   const ok = allowedAmounts(ctx);
@@ -72,7 +83,7 @@ const TONE: Record<string, string> = { friendly: "warm and friendly, like a help
 
 export function systemPrompt(ctx: Ctx): string {
   const name = ctx.agent.name || "the sales assistant";
-  const data = { products: ctx.products, knowledge: ctx.knowledge, customer: ctx.customer, customerFacts: ctx.facts, customerOrders: ctx.orders, deliveryFee: ctx.deliveryFee, freeDeliveryOver: ctx.freeDeliveryOver, currency: ctx.currency };
+  const data = { pendingCheckout: ctx.checkout ?? null, products: ctx.products, knowledge: ctx.knowledge, customer: ctx.customer, customerFacts: ctx.facts, customerOrders: ctx.orders, deliveryFee: ctx.deliveryFee, freeDeliveryOver: ctx.freeDeliveryOver, currency: ctx.currency };
   return [
     `You are ${name}, answering customers on WhatsApp for ${ctx.business}, a Nigerian business that sells with pay on delivery.`,
     `Tone: ${TONE[ctx.agent.tone ?? "friendly"] ?? TONE.friendly}. Write short WhatsApp messages (1–4 sentences), plain text, no markdown. Match the customer's language (English or Nigerian Pidgin).`,
@@ -81,6 +92,8 @@ export function systemPrompt(ctx: Ctx): string {
     `- Prices are in ${ctx.currency}. Write amounts like ₦12,000. Only quote prices, delivery fees and order totals exactly as given.`,
     "- If a product is out of stock, say so and suggest a similar in-stock one if there is one.",
     "- To take an order, collect: which product and how many, full name, phone number, delivery address and state. Don't promise a delivery date unless the data says it.",
+    "- When the customer has chosen what to buy and you have their name, phone and address, fill `checkout` (use product names exactly as in the data). The system then sends the priced summary and asks them to reply YES — don't write the summary or totals yourself, and never say the order is placed.",
+    "- If `checkout` in the data is set, a summary is waiting for the customer's YES. If they want changes, fill `checkout` again with the new details.",
     "- For an existing order, use customerOrders (ref and status) to answer.",
     "- Set handoff=true when the customer wants a person, is upset or complaining, asks something the data doesn't answer, wants a discount, or you are unsure. Then tell them a team member will reply shortly.",
     "- Never ask for card details, PINs, passwords or OTPs.",
@@ -113,6 +126,14 @@ export const RESPOND_TOOL = {
       reply: { type: "string", description: "The WhatsApp message to send to the customer." },
       handoff: { type: "boolean", description: "true to pass the chat to a human team member." },
       reason: { type: "string", description: "If handing off, why (one short line for the team)." },
+      checkout: {
+        type: "object", description: "Only when the customer has chosen what to buy and given name, phone and delivery address.",
+        properties: {
+          items: { type: "array", items: { type: "object", properties: { product: { type: "string" }, quantity: { type: "integer" } }, required: ["product"] } },
+          name: { type: "string" }, phone: { type: "string" }, address: { type: "string" }, state: { type: "string" },
+        },
+        required: ["items"],
+      },
     },
     required: ["reply", "handoff"],
   },
