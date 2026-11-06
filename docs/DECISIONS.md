@@ -52,3 +52,9 @@ Choices made while finishing the backend unattended (6 Nov 2026). Each is easy t
 29. **SMS backup is on by default:** an order or delivery update that WhatsApp couldn't deliver — or that would wait because WhatsApp isn't connected (after 2 minutes) — goes once by SMS. Marketing is never sent by SMS backup.
 30. **Order updates use Termii's DND route** so they reach numbers on Do-Not-Disturb (it costs more per SMS); other SMS use the normal route and never go to someone who opted out. Long texts are cut at 3 SMS pages.
 31. Order updates now also reach customers who never chatted (e.g. from an order form): they go to WhatsApp first and fall back to SMS.
+
+## Facebook Page: Messenger, Instagram and lead forms
+32. **One connection for the Facebook Page covers Messenger, Instagram DMs (from the Instagram account linked to the Page) and ad lead forms.** It uses the business's own Meta app and a long-lived Page token, kept in the vault.
+33. **A lead-form submission becomes a customer (matched by phone or email), a lead with the ad it came from, and a "Call this new lead" task** for the on-duty agent with the fewest open chats, due in 15 minutes. No automatic WhatsApp message — that would need an approved template and their consent.
+34. **Messenger and Instagram replies only go out within 24 hours of the customer's last message** (Meta's rule); later ones are marked failed with the reason. The AI answers these chats like WhatsApp.
+35. New Messenger/Instagram customers get their name from Meta once; customer photos and files are copied into the private storage.

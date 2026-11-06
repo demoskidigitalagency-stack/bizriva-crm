@@ -158,6 +158,10 @@ async def handle(route):
         if fn == "save_whatsapp":
             FIX["whatsapp_numbers"] = [{**W, "phone_number_id": body.get("p_phone_number_id"), "waba_id": None, "display_phone": body.get("p_display_phone"), "verify_token": "vt-0123456789abcdef", "active": True, "connected_at": NOW, "last_inbound_at": None, "last_sent_at": None, "last_error": None}]
             return await route.fulfill(status=200, headers=hdr, body=json.dumps("vt-0123456789abcdef"))
+        if fn == "save_meta_page":
+            FIX["meta_pages"] = [{"page_id": body.get("p_page_id"), "page_name": body.get("p_page_name"), "ig_account_id": body.get("p_ig_id") or None, "verify_token": "mv-abcdef123456", "active": True, "connected_at": NOW, "last_event_at": None, "last_sent_at": None, "last_error": None}]
+            FIX["meta_leads"] = [{"id": str(uuid.uuid4()), "fields": {"full_name": "Tolu Ade", "phone_number": "+2348031112222"}, "platform": "ig", "error": None, "received_at": AGO(0.5)}]
+            return await route.fulfill(status=200, headers=hdr, body=json.dumps("mv-abcdef123456"))
         if fn == "payment_connection":
             return await route.fulfill(status=200, headers=hdr, body=json.dumps(FIX.get("payconn")))
         if fn == "save_payment_key":
@@ -451,6 +455,17 @@ async def main():
         await smf.get_by_role("button", name="Connect SMS").click(); await pg.wait_for_timeout(1200)
         sk = [w for w in writes if w[0] == "rpc" and w[1] == "save_sms_key"]
         ok("the Termii key and sender go to the server, with SMS backup on", len(sk) == 1 and sk[0][2].get("p_sender") == "GlowNG" and sk[0][2].get("p_fallback") is True and ("s" * 30) not in await pg.locator("main").inner_text())
+
+        mpf = pg.get_by_role("form", name="Connect Facebook Page")
+        ok("owner sees Connect Facebook Page on real data (one card for Messenger and Instagram)", await mpf.count() == 1 and await pg.get_by_text("Instagram Direct").count() == 0)
+        await mpf.get_by_label("Page ID").fill("1029384756"); await mpf.get_by_label("Page name").fill("Glow Naturals")
+        await mpf.get_by_label(re.compile("Instagram account ID")).fill("17841400000000")
+        await mpf.get_by_label(re.compile("Page access token")).fill("EAA" + "p" * 60); await mpf.get_by_label(re.compile("App secret")).fill("a" * 32)
+        await mpf.get_by_role("button", name="Connect Page").click(); await pg.wait_for_timeout(1500)
+        sp = [w for w in writes if w[0] == "rpc" and w[1] == "save_meta_page"]
+        t = await pg.locator("main").inner_text()
+        ok("Page keys go to the server once, then it shows the callback and verify token", len(sp) == 1 and sp[0][2].get("p_ig_id") == "17841400000000" and "meta-webhook" in t and "mv-abcdef123456" in t and ("p" * 60) not in t)
+        ok("and the latest leads from ads", "Tolu Ade" in await pg.get_by_role("list", name="Latest leads from ads").inner_text())
 
         vis = await ctx.new_page()
         await vis.goto(B + "/chat/" + "k" * 32)

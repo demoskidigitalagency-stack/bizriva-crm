@@ -16,7 +16,7 @@ export const WHATSAPP_WEBHOOK = "https://xjhzkciowmklxrtwsikm.supabase.co/functi
 
 interface NumberRow { phone_number_id: string; waba_id: string | null; display_phone: string | null; verify_token: string; active: boolean; connected_at: string; last_inbound_at: string | null; last_sent_at: string | null; last_error: string | null }
 
-function Copy({ label, value }: { label: string; value: string }) {
+export function Copy({ label, value }: { label: string; value: string }) {
   const [done, setDone] = useState(false);
   return (
     <div>
