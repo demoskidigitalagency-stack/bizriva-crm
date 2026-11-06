@@ -698,7 +698,7 @@ export interface BusinessSettings {
   /** Alert when a rider or partner hasn't accepted an order sent to them. */
   partnerAcceptMinutes: number;
   /** Email service for campaigns (Practice Mode simulates it). */
-  email: { provider: "none" | "brevo" | "mailgun" | "ses" | "smtp"; fromName: string; fromEmail: string };
+  email: { provider: "none" | "brevo" | "resend" | "mailgun"; fromName: string; fromEmail: string };
 }
 
 export interface AssignmentSettings {

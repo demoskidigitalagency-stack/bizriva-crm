@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Section, StatusBadge } from "@/components/app/primitives";
 import { useActions, useDb, useLive, useWorkspace } from "@/domain/store";
 import { WhatsAppConnect } from "@/components/app/WhatsAppConnect";
+import { EmailConnect } from "@/components/app/EmailConnect";
 import type { IntegrationState } from "@/domain/types";
 import { relativeTime } from "@/lib/format";
 
@@ -92,6 +93,7 @@ function Integrations() {
         {db.integrations.map((s) => {
           const i = INFO[s.id];
           const sim = s.status === "simulated";
+          if (s.id === "email" && live.on) return <div key={s.id} className="md:col-span-2"><EmailConnect /></div>;
           if (s.id === "whatsapp" && live.on) {
             return (
               <Section key={s.id} title={i.name} description={i.what} className="md:col-span-2">

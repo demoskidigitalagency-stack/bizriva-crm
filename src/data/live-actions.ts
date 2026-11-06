@@ -144,7 +144,7 @@ export function liveWriter(sb: SupabaseClient, ws: string, getDb: () => Database
       if (assignment) cols["assignment"] = SNAKE_ASSIGN(assignment);
       if (commission) cols["commission_per_order"] = commission.perOrder;
       if (partnerAcceptMinutes) cols["partner_accept_minutes"] = partnerAcceptMinutes;
-      if (email) cols["email_settings"] = { provider: email.provider, from: email.fromEmail };
+      // The email service and address are set by the owner through save_email_key (key in Vault); only the sender name is an everyday setting.
       if (businessName) cols["name"] = businessName;
       if (Object.keys(rest).length || email) {
         const { meta: _m, payments: _p, plan: _pl, assignment: _a, commission: _c, brief: _b, afterDelivery: _d, partnerAcceptMinutes: _pa, ...everyday } = { ...cur, ...rest };

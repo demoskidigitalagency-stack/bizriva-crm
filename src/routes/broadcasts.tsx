@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EmptyState, KpiCard, Section, StatusBadge } from "@/components/app/primitives";
-import { useActions, useDb, useWorkspace } from "@/domain/store";
+import { useActions, useDb, useLive, useWorkspace } from "@/domain/store";
+import { EmailConnect } from "@/components/app/EmailConnect";
 import type { Broadcast, BusinessSettings } from "@/domain/types";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 
@@ -21,9 +22,8 @@ export const Route = createFileRoute("/broadcasts")({
 const STATUS_TONE = { draft: "neutral", scheduled: "info", sent: "success" } as const;
 const PROVIDERS: { id: BusinessSettings["email"]["provider"]; name: string; hint: string }[] = [
   { id: "brevo", name: "Brevo", hint: "Free for 300 emails a day" },
+  { id: "resend", name: "Resend", hint: "Free for 3,000 emails a month" },
   { id: "mailgun", name: "Mailgun", hint: "Pay as you go" },
-  { id: "ses", name: "Amazon SES", hint: "Cheapest at volume" },
-  { id: "smtp", name: "Your own mail (SMTP)", hint: "Hosting mail, Gmail, Zoho" },
 ];
 const pct = (n = 0, of = 0) => (of ? `${Math.round((n / of) * 100)}%` : "—");
 
@@ -122,6 +122,7 @@ function EmailService() {
 
 function Broadcasts() {
   const db = useDb();
+  const live = useLive();
   const ws = useWorkspace();
   const { sendBroadcast, removeRecord } = useActions();
   const [channel, setChannel] = useState<"whatsapp" | "email">("whatsapp");
@@ -152,7 +153,7 @@ function Broadcasts() {
         {channel === "email" ? <KpiCard label="Clicked" value={pct(tot.clicked, tot.delivered)} hint={`${tot.clicked} people`} tone="info" /> : <KpiCard label="Orders" value={String(tot.orders)} tone="success" />}
         <KpiCard label="Revenue from campaigns" value={formatCurrency(tot.revenue, ws.currency, { compact: true })} {...(channel === "email" ? { hint: `${tot.orders} orders` } : {})} tone="success" />
       </div>
-      {channel === "email" && <EmailService />}
+      {channel === "email" && (live.on ? <EmailConnect /> : <EmailService />)}
       <Section>
         {list.length === 0 ? <EmptyState title={channel === "email" ? "No email campaigns yet" : "No broadcasts yet"} /> : (
           <ul className="divide-y">

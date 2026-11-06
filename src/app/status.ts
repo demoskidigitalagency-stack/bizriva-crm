@@ -106,7 +106,7 @@ export const PHASES: StatusPhase[] = [
     items: [
       { id: "p4-meta", label: "Messenger and Instagram DMs", weight: 2, done: false },
       { id: "p4-sms", label: "SMS", weight: 1, done: false },
-      { id: "p4-email", label: "Email", weight: 1, done: false },
+      { id: "p4-email", label: "Email", weight: 1, done: true, doneOn: "2026-11-06", note: "Own service (Brevo, Resend or Mailgun, key in Vault): order emails by Notifications, email campaigns to consenting customers with a working unsubscribe link, test email, latest-emails list. Tested on the live project up to the email service: supabase/tests/email_e2e.md" },
       { id: "p4-webchat", label: "Website chat", weight: 1, done: false },
       { id: "p4-leadforms", label: "Meta lead forms and ad referral data", weight: 2, done: false },
     ],

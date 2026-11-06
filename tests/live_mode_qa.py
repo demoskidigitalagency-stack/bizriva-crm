@@ -79,6 +79,7 @@ FIX = {
     "followup_rules": [{**W, "id": str(uuid.uuid4()), "name": "Delivery failed — rebook", "enabled": True, "message": "Hi {{name}}, when can we deliver?", "trigger": "delivery_failed", "delay_hours": 2, "max_attempts": 2, "template_name": "order_confirm"}],
     "tasks": [{**W, "id": "7a5c0c1e-0b5e-4c38-9a4e-0d3b8f1a2c01", "contact_id": C2, "title": "Confirm Abuja delivery day", "type": "delivery_check", "priority": "high", "status": "open", "due_at": AGO(1), "assigned_to": OWNER, "created_by": OWNER, "created_at": AGO(5)}],
     "activity_log": [{**W, "id": str(uuid.uuid4()), "actor": CHIDI, "entity": "contact", "entity_id": C1, "action": "note", "detail": {"text": "Prefers evening deliveries"}, "created_at": AGO(10)}],
+    "email_outbox": [{"id": str(uuid.uuid4()), "kind": "order", "to_email": "ada@example.com", "subject": "Your order BZ-1001 is confirmed", "status": "failed", "error": "401 Key not found", "created_at": AGO(1)}],
     "order_forms": [], "connections": [], "calendar_events": [], "payment_events": [], "campaigns": [], "campaign_results": [], "payment_providers": [], "meta_links": [],
 }
 
@@ -117,6 +118,11 @@ async def handle(route):
         if fn == "save_whatsapp":
             FIX["whatsapp_numbers"] = [{**W, "phone_number_id": body.get("p_phone_number_id"), "waba_id": None, "display_phone": body.get("p_display_phone"), "verify_token": "vt-0123456789abcdef", "active": True, "connected_at": NOW, "last_inbound_at": None, "last_sent_at": None, "last_error": None}]
             return await route.fulfill(status=200, headers=hdr, body=json.dumps("vt-0123456789abcdef"))
+        if fn == "save_email_key":
+            FIX["workspaces"]["email_settings"] = {"provider": body.get("p_provider"), "from": body.get("p_from")}
+            return await route.fulfill(status=200, headers=hdr, body="null")
+        if fn == "send_test_email":
+            return await route.fulfill(status=200, headers=hdr, body=json.dumps("ademola@shop.ng"))
         if fn == "save_ai_key":
             FIX["ai_keys"] = [{**W, "active": True, "model": None, "saved_at": NOW, "last_used_at": None, "last_error": None}]
             return await route.fulfill(status=200, headers=hdr, body="null")
@@ -289,6 +295,20 @@ async def main():
         ok("a handed-over chat says it needs a reply", "Handed to the team" in await pg.get_by_role("status", name="Who answers this chat").inner_text())
         await ready(f"/inbox?c={V1}")
         ok("AI-written messages are labelled", "ai reply" in (await pg.locator("main").inner_text()).lower())
+
+        await ready("/integrations")
+        emf = pg.get_by_role("form", name="Connect email")
+        ok("owner sees Connect email on real data", await emf.count() == 1)
+        await emf.get_by_role("radio", name=re.compile("Resend")).click()
+        await emf.get_by_label("Send from").fill("hello@glow.ng")
+        await emf.get_by_label("API key").fill("re_" + "e" * 30)
+        await emf.get_by_role("button", name="Connect email").click(); await pg.wait_for_timeout(1500)
+        sk = [w for w in writes if w[0] == "rpc" and w[1] == "save_email_key"]
+        ok("the email key goes to the server once, with the service chosen", len(sk) == 1 and sk[0][2].get("p_provider") == "resend" and sk[0][2].get("p_from") == "hello@glow.ng")
+        t = await pg.locator("main").inner_text()
+        ok("then it shows Connected, the latest emails and why one failed, never the key", "Connected" in t and "401 Key not found" in t and ("e" * 30) not in t)
+        await pg.get_by_role("button", name="Send me a test email").click(); await pg.wait_for_timeout(800)
+        ok("test email asks the server to send one", any(w[0] == "rpc" and w[1] == "send_test_email" for w in writes) and "Test email queued to ademola@shop.ng" in await pg.locator("main").inner_text())
 
         # Switch back to sample data.
         await pg.get_by_role("button", name=re.compile("Showing your real data")).click()

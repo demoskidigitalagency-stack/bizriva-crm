@@ -5,7 +5,7 @@ Generated from `src/app/status.ts` and `src/app/modules.ts` by `bun run status`.
 | Track | Progress | |
 | --- | ---: | --- |
 | **Frontend — Practice Mode** (every page and button works on sample data) | **100%** | `████████████████████` |
-| **Backend — Live** (works for real: auth, database, WhatsApp, AI) | **33%** | `███████░░░░░░░░░░░░░` |
+| **Backend — Live** (works for real: auth, database, WhatsApp, AI) | **35%** | `███████░░░░░░░░░░░░░` |
 
 Modules: 34 of 34 practice ready · 0 partly working · 0 planned.
 
@@ -78,7 +78,7 @@ Modules: 34 of 34 practice ready · 0 partly working · 0 planned.
 | Phase 1 — Core communication | 30% | 7/10 | 73% |
 | Phase 2 — AI and automation | 22% | 2/9 | 22% |
 | Phase 3 — Sales and commerce | 22% | 3/9 | 30% |
-| Phase 4 — More channels | 11% | 0/5 | 0% |
+| Phase 4 — More channels | 11% | 1/5 | 14% |
 | Phase 5 — Intelligence and monetisation | 15% | 0/7 | 0% |
 
 ### Phase 1 — Core communication — 73%
@@ -124,13 +124,13 @@ _Chats become confirmed, delivered, paid orders._
 - [x] Dispatch board and delivery outcomes _(2026-11-06)_ — Dispatch board on real data: confirmed orders get a delivery record, send to rider or partner with a private link, outcomes and cash recorded by the server
 - [ ] Order, dispatch and delivery notifications — Written and queued in the chat by the server (confirmation, dispatch, receipt, care guide); sending needs the WhatsApp number
 
-### Phase 4 — More channels — 0%
+### Phase 4 — More channels — 14%
 
 _The same inbox for Messenger, Instagram, SMS, email and web chat._
 
 - [ ] Messenger and Instagram DMs
 - [ ] SMS
-- [ ] Email
+- [x] Email _(2026-11-06)_ — Own service (Brevo, Resend or Mailgun, key in Vault): order emails by Notifications, email campaigns to consenting customers with a working unsubscribe link, test email, latest-emails list. Tested on the live project up to the email service: supabase/tests/email_e2e.md
 - [ ] Website chat
 - [ ] Meta lead forms and ad referral data
 
