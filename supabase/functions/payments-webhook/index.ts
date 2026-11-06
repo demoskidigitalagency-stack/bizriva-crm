@@ -40,8 +40,10 @@ Deno.serve(async (req) => {
   const body = await req.text();
   if (body.length > 512_000) return json(413, { error: "Too large" });
 
-  const { data: keys } = await db.rpc("svc_provider_key", { p_workspace: ws });
-  const saved = (keys as { provider: string; secret: string }[] | null)?.find((k) => k.provider === provider)?.secret;
+  const { data: keys } = await db.rpc("svc_provider_secrets", { p_workspace: ws });
+  const mine = (keys as { provider: string; secret: string | null; hash: string | null }[] | null)?.find((k) => k.provider === provider);
+  const saved = mine?.secret ?? undefined;
+  const savedHash = mine?.hash ?? undefined;
 
   let paid: Paid | null = null;
   let evt: Record<string, any>;
@@ -73,7 +75,7 @@ Deno.serve(async (req) => {
       };
     }
   } else {
-    const hash = Deno.env.get("FLW_SECRET_HASH") ?? (saved && !saved.startsWith("FLWSECK") ? saved : undefined);
+    const hash = savedHash ?? Deno.env.get("FLW_SECRET_HASH") ?? (saved && !saved.startsWith("FLWSECK") ? saved : undefined);
     if (!hash) return json(503, { error: "Flutterwave secret hash not set up" });
     if (!same(hash, req.headers.get("verif-hash") ?? "")) return json(401, { error: "Bad signature" });
     const d = evt.data ?? {};

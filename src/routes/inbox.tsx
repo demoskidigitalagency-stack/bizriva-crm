@@ -1,5 +1,6 @@
 import { AiChatBar } from "@/components/app/AiChatBar";
 import { AttachFile, MessageMedia } from "@/components/app/ChatMedia";
+import { LivePaymentLink } from "@/components/app/LivePaymentLink";
 import { useEffect, useMemo, useState } from "react";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AlertTriangle, CheckCircle2, CreditCard, FlaskConical, Megaphone, MessageSquareText, Package, Send, Sparkles, X } from "lucide-react";
@@ -9,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { PageHeader, Section, StatusBadge, EmptyState, PersonAvatar } from "@/components/app/primitives";
 import { OrderDialog } from "@/components/app/dialogs";
 import { CustomerMemory } from "@/components/app/CustomerMemory";
-import { useActions, useDb, useWorkspace } from "@/domain/store";
+import { useActions, useDb, useWorkspace, useLive } from "@/domain/store";
 import { CURRENT_USER_ID } from "@/domain/database";
 import { INBOX_VIEWS, fullName, getMember, inboxMatches, type InboxView } from "@/domain/repositories";
 import { extractDetails } from "@/domain/extract";
@@ -179,6 +180,7 @@ function ComplaintBar({ conversation }: { conversation: Conversation }) {
 
 function Thread({ conversation }: { conversation: Conversation }) {
   const db = useDb();
+  const live = useLive();
   const { sendReply, simulateIncoming } = useActions();
   const [text, setText] = useState("");
   const [sim, setSim] = useState("");
@@ -222,7 +224,7 @@ function Thread({ conversation }: { conversation: Conversation }) {
         {conversation.channel === "whatsapp" && <AttachFile conversationId={conversation.id} caption={text} onSent={() => setText("")} />}
         <SendProduct conversationId={conversation.id} />
         <QuickReplies conversation={conversation} onPick={setText} />
-        <PaymentLinkButton conversationId={conversation.id} />
+        {live.on ? <LivePaymentLink conversationId={conversation.id} /> : <PaymentLinkButton conversationId={conversation.id} />}
         <Input
           value={text}
           onChange={(e) => setText(e.target.value)}

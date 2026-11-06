@@ -107,6 +107,11 @@ async def handle(route):
     hdr = {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "*", "Access-Control-Allow-Methods": "*"}
     if req.method == "OPTIONS":
         return await route.fulfill(status=204, headers=hdr)
+    if path.startswith("/functions/v1/payment-link"):
+        if req.method == "OPTIONS":
+            return await route.fulfill(status=204, headers=hdr)
+        writes.append(("fn", "payment-link", json.loads(req.post_data or "{}"), req.headers.get("authorization", "")))
+        return await route.fulfill(status=200, headers=hdr, body=json.dumps({"url": "https://checkout.paystack.com/abc123", "reference": "BZ-1002-x", "amount": 16000, "queued": True}))
     if path.startswith("/storage/v1/"):
         if "/object/sign/" in path and req.method == "POST":
             obj = path.split("/object/sign/", 1)[1]
@@ -131,6 +136,14 @@ async def handle(route):
         if fn == "save_whatsapp":
             FIX["whatsapp_numbers"] = [{**W, "phone_number_id": body.get("p_phone_number_id"), "waba_id": None, "display_phone": body.get("p_display_phone"), "verify_token": "vt-0123456789abcdef", "active": True, "connected_at": NOW, "last_inbound_at": None, "last_sent_at": None, "last_error": None}]
             return await route.fulfill(status=200, headers=hdr, body=json.dumps("vt-0123456789abcdef"))
+        if fn == "payment_connection":
+            return await route.fulfill(status=200, headers=hdr, body=json.dumps(FIX.get("payconn")))
+        if fn == "save_payment_key":
+            FIX["payconn"] = {"provider": body.get("p_provider"), "connected_at": NOW, "has_key": True, "has_hash": False}
+            return await route.fulfill(status=200, headers=hdr, body="null")
+        if fn == "save_payment_hash":
+            FIX["payconn"]["has_hash"] = True
+            return await route.fulfill(status=200, headers=hdr, body="null")
         if fn == "save_email_key":
             FIX["workspaces"]["email_settings"] = {"provider": body.get("p_provider"), "from": body.get("p_from")}
             return await route.fulfill(status=200, headers=hdr, body="null")
@@ -332,6 +345,28 @@ async def main():
         ok("then it shows Connected, the latest emails and why one failed, never the key", "Connected" in t and "401 Key not found" in t and ("e" * 30) not in t)
         await pg.get_by_role("button", name="Send me a test email").click(); await pg.wait_for_timeout(800)
         ok("test email asks the server to send one", any(w[0] == "rpc" and w[1] == "send_test_email" for w in writes) and "Test email queued to ademola@shop.ng" in await pg.locator("main").inner_text())
+
+        await ready("/payments")
+        pf = pg.get_by_role("form", name="Connect payments")
+        ok("owner sees Connect payments on real data", await pf.count() == 1)
+        await pf.get_by_role("radio", name=re.compile("Flutterwave")).click()
+        await pf.get_by_label(re.compile("Secret key")).fill("FLWSECK-" + "f" * 30)
+        await pf.get_by_label(re.compile("Secret hash")).fill("my-secret-hash-123")
+        await pf.get_by_role("button", name="Connect Flutterwave").click(); await pg.wait_for_timeout(1200)
+        ok("key and hash go to the server, never shown again", any(w[0] == "rpc" and w[1] == "save_payment_key" and w[2].get("p_provider") == "flutterwave" for w in writes)
+           and any(w[0] == "rpc" and w[1] == "save_payment_hash" for w in writes) and ("f" * 30) not in await pg.locator("main").inner_text())
+        ok("shows the notification address to paste into the provider", f"/payments-webhook/flutterwave/{WS}" in await pg.get_by_label("Notification address").inner_text())
+
+        await ready(f"/inbox?c={V2}")
+        await pg.get_by_role("button", name="Request payment").click()
+        await pg.get_by_role("button", name="Send link in chat").click(); await pg.wait_for_timeout(1200)
+        pl = [w for w in writes if w[0] == "fn" and w[1] == "payment-link"]
+        ok("Send link asks the server for a link for the unpaid order, signed in", len(pl) == 1 and pl[0][2].get("order_id") == O2 and pl[0][3].startswith("Bearer "))
+        ok("and shows it was sent in the chat", "Link sent in the chat: https://checkout.paystack.com/abc123" in await pg.locator("body").inner_text())
+        await pg.keyboard.press("Escape")
+        await pg.goto(B + "/paid"); await pg.wait_for_timeout(800)
+        ok("customers land on a thank-you page after paying", "Your payment is being confirmed" in await pg.locator("body").inner_text())
+        await pg.goto(B + "/")
 
         # Switch back to sample data.
         await pg.get_by_role("button", name=re.compile("Showing your real data")).click()

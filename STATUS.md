@@ -5,7 +5,7 @@ Generated from `src/app/status.ts` and `src/app/modules.ts` by `bun run status`.
 | Track | Progress | |
 | --- | ---: | --- |
 | **Frontend — Practice Mode** (every page and button works on sample data) | **100%** | `████████████████████` |
-| **Backend — Live** (works for real: auth, database, WhatsApp, AI) | **38%** | `████████░░░░░░░░░░░░` |
+| **Backend — Live** (works for real: auth, database, WhatsApp, AI) | **40%** | `████████░░░░░░░░░░░░` |
 
 Modules: 34 of 34 practice ready · 0 partly working · 0 planned.
 
@@ -77,7 +77,7 @@ Modules: 34 of 34 practice ready · 0 partly working · 0 planned.
 | --- | ---: | ---: | --- |
 | Phase 1 — Core communication | 30% | 8/10 | 82% |
 | Phase 2 — AI and automation | 22% | 2/9 | 22% |
-| Phase 3 — Sales and commerce | 22% | 3/9 | 30% |
+| Phase 3 — Sales and commerce | 22% | 4/9 | 40% |
 | Phase 4 — More channels | 11% | 1/5 | 14% |
 | Phase 5 — Intelligence and monetisation | 15% | 0/7 | 0% |
 
@@ -110,7 +110,7 @@ _Instant first replies from real catalogue data, and follow-ups that respect the
 - [ ] Consent records, opt-out keywords, suppression list
 - [ ] AI workflow planner (from repo 3) moved off Lovable's AI service onto our own AI key, with a screen in Automation Builder — Code is in src/server/ai; it only runs with a Lovable key today
 
-### Phase 3 — Sales and commerce — 30%
+### Phase 3 — Sales and commerce — 40%
 
 _Chats become confirmed, delivered, paid orders._
 
@@ -119,10 +119,10 @@ _Chats become confirmed, delivered, paid orders._
 - [ ] Conversational checkout with order summary and explicit confirmation
 - [ ] Orders: edit, cancel, history, receipts — Server rules done (status order, prices locked after dispatch, receipt numbers, history); screens switch from Practice data next
 - [x] Agents, partner delivery links and commission enforced on the server _(2026-11-06)_ — Orders shared on insert (least busy, round robin, by state), uncalled orders moved every 5 minutes, call records append-only, partner link (hashed token) via the delivery-link Edge Function, commission only on delivered and paid orders; tested end to end
-- [x] Live intake: website/store forms, public order form, Paystack/Flutterwave/Monnify payment notifications _(2026-11-06)_ — Supabase Edge Functions intake, order-form, payments-webhook — keys checked, signatures verified, prices from the database, each event applied once; tested end to end
+- [x] Live intake: website/store forms, public order form, Paystack/Flutterwave/Monnify payment notifications _(2026-11-06)_ — Supabase Edge Functions intake, order-form, payments-webhook — keys checked, signatures verified, prices from the database, each event applied once; tested end to end Payment links from the chat (Paystack/Flutterwave, payment-link function): paid order and request marked automatically, tested live.
 - [ ] COD verification and risk flags — Server already refuses to dispatch an unverified COD order; risk flags still to come
 - [x] Dispatch board and delivery outcomes _(2026-11-06)_ — Dispatch board on real data: confirmed orders get a delivery record, send to rider or partner with a private link, outcomes and cash recorded by the server
-- [ ] Order, dispatch and delivery notifications — Written and queued in the chat by the server (confirmation, dispatch, receipt, care guide); sending needs the WhatsApp number
+- [x] Order, dispatch and delivery notifications _(2026-11-06)_ — Written by the server (confirmation, dispatch, receipt, care guide, payment links) and sent by WhatsApp every minute or by email per Notifications settings. Tested live up to Meta and the email service; real delivery needs your connected number and email key
 
 ### Phase 4 — More channels — 14%
 

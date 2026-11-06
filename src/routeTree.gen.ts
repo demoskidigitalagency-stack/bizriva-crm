@@ -34,6 +34,7 @@ import { Route as KnowledgeRouteImport } from './routes/knowledge'
 import { Route as MediaRouteImport } from './routes/media'
 import { Route as OrderFormsRouteImport } from './routes/order-forms'
 import { Route as OrdersRouteImport } from './routes/orders'
+import { Route as PaidRouteImport } from './routes/paid'
 import { Route as PaymentsRouteImport } from './routes/payments'
 import { Route as ProductsRouteImport } from './routes/products'
 import { Route as ProgressRouteImport } from './routes/progress'
@@ -186,6 +187,11 @@ const OrderFormsRoute = OrderFormsRouteImport.update({
 const OrdersRoute = OrdersRouteImport.update({
   id: '/orders',
   path: '/orders',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PaidRoute = PaidRouteImport.update({
+  id: '/paid',
+  path: '/paid',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PaymentsRoute = PaymentsRouteImport.update({
@@ -355,6 +361,7 @@ export interface FileRoutesByFullPath {
   '/media': typeof MediaRoute
   '/order-forms': typeof OrderFormsRoute
   '/orders': typeof OrdersRoute
+  '/paid': typeof PaidRoute
   '/payments': typeof PaymentsRoute
   '/products': typeof ProductsRoute
   '/progress': typeof ProgressRoute
@@ -409,6 +416,7 @@ export interface FileRoutesByTo {
   '/media': typeof MediaRoute
   '/order-forms': typeof OrderFormsRoute
   '/orders': typeof OrdersRoute
+  '/paid': typeof PaidRoute
   '/payments': typeof PaymentsRoute
   '/products': typeof ProductsRoute
   '/progress': typeof ProgressRoute
@@ -465,6 +473,7 @@ export interface FileRoutesById {
   '/media': typeof MediaRoute
   '/order-forms': typeof OrderFormsRoute
   '/orders': typeof OrdersRoute
+  '/paid': typeof PaidRoute
   '/payments': typeof PaymentsRoute
   '/products': typeof ProductsRoute
   '/progress': typeof ProgressRoute
@@ -522,6 +531,7 @@ export interface FileRouteTypes {
     | '/media'
     | '/order-forms'
     | '/orders'
+    | '/paid'
     | '/payments'
     | '/products'
     | '/progress'
@@ -576,6 +586,7 @@ export interface FileRouteTypes {
     | '/media'
     | '/order-forms'
     | '/orders'
+    | '/paid'
     | '/payments'
     | '/products'
     | '/progress'
@@ -631,6 +642,7 @@ export interface FileRouteTypes {
     | '/media'
     | '/order-forms'
     | '/orders'
+    | '/paid'
     | '/payments'
     | '/products'
     | '/progress'
@@ -687,6 +699,7 @@ export interface RootRouteChildren {
   MediaRoute: typeof MediaRoute
   OrderFormsRoute: typeof OrderFormsRoute
   OrdersRoute: typeof OrdersRoute
+  PaidRoute: typeof PaidRoute
   PaymentsRoute: typeof PaymentsRoute
   ProductsRoute: typeof ProductsRoute
   ProgressRoute: typeof ProgressRoute
@@ -880,6 +893,13 @@ declare module '@tanstack/react-router' {
       path: '/orders'
       fullPath: '/orders'
       preLoaderRoute: typeof OrdersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/paid': {
+      id: '/paid'
+      path: '/paid'
+      fullPath: '/paid'
+      preLoaderRoute: typeof PaidRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/payments': {
@@ -1139,6 +1159,7 @@ const rootRouteChildren: RootRouteChildren = {
   MediaRoute: MediaRoute,
   OrderFormsRoute: OrderFormsRoute,
   OrdersRoute: OrdersRoute,
+  PaidRoute: PaidRoute,
   PaymentsRoute: PaymentsRoute,
   ProductsRoute: ProductsRoute,
   ProgressRoute: ProgressRoute,

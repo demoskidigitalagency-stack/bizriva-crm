@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EmptyState, KpiCard, Section, StatusBadge } from "@/components/app/primitives";
-import { useActions, useDb, useWorkspace } from "@/domain/store";
+import { useActions, useDb, useLive, useWorkspace } from "@/domain/store";
+import { PaymentConnect } from "@/components/app/PaymentConnect";
 import { ChatPayments } from "@/components/app/ChatPayments";
 import { fullName } from "@/domain/repositories";
 import { PAYMENT_STATUS_META, type PaymentMethod } from "@/domain/types";
@@ -22,6 +23,7 @@ function Payments() {
   const db = useDb();
   const ws = useWorkspace();
   const { markRemitted, recordPayment } = useActions();
+  const live = useLive();
   const [view, setView] = useState<"ledger" | "unpaid" | "all">("ledger");
   const [copied, setCopied] = useState<string | null>(null);
   const [method, setMethod] = useState<Record<string, PaymentMethod>>({});
@@ -47,7 +49,7 @@ function Payments() {
         <p className="mt-1 text-sm text-muted-foreground">Get paid inside the chat with instant confirmation, and keep track of cash collected on delivery.</p>
       </div>
 
-      <ChatPayments />
+      {live.on ? <PaymentConnect /> : <ChatPayments />}
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <KpiCard label="COD collected" value={formatCurrency(codCollected.reduce((s, p) => s + p.amount, 0), ws.currency, { compact: true })} tone="success" />

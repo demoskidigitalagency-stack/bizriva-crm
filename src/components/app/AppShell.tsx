@@ -313,7 +313,7 @@ function AccountMenu() {
 }
 
 /** Public marketing pages render without the app's sidebar and top bar. */
-const BARE = ["/welcome"];
+const BARE = ["/welcome", "/paid"];
 const isBare = (path: string) => BARE.includes(path) || path.startsWith("/f/") || path.startsWith("/d/");
 
 export function AppShell({ children }: { children: ReactNode }) {
