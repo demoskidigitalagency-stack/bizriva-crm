@@ -7,6 +7,7 @@ import { Section, StatusBadge } from "@/components/app/primitives";
 import { useActions, useDb, useLive, useWorkspace } from "@/domain/store";
 import { WhatsAppConnect } from "@/components/app/WhatsAppConnect";
 import { EmailConnect } from "@/components/app/EmailConnect";
+import { WebChatConnect } from "@/components/app/WebChatConnect";
 import type { IntegrationState } from "@/domain/types";
 import { relativeTime } from "@/lib/format";
 
@@ -24,7 +25,7 @@ const INFO: Record<IntegrationState["id"], { name: string; what: string; needs: 
   sms: { name: "SMS", what: "Order and delivery updates by SMS, and fallback when WhatsApp fails.", needs: ["SMS provider account", "Registered sender ID"], phase: "Later" },
   email: { name: "Email", what: "Receipts and notifications by email.", needs: ["Email sending domain with SPF and DKIM"], phase: "Later" },
   paystack: { name: "Payments (Paystack or similar)", what: "Real payment links and card payments.", needs: ["Payment provider business account", "API keys stored on the server"], phase: "Later" },
-  webchat: { name: "Website chat", what: "A chat bubble on your website that feeds the inbox.", needs: ["Paste one script tag on your site"], phase: "Later" },
+  webchat: { name: "Website chat", what: "A chat bubble on your website that feeds the inbox.", needs: ["Paste one script tag on your site"], phase: "Ready" },
   couriers: { name: "Delivery partners (GIG, Fez, Kwik, Topship)", what: "Book pickups and get tracking updates from courier companies on the dispatch board.", needs: ["Business account with each courier", "API keys stored on the server", "Pickup address and package sizes"], phase: "Later" },
   lead_form: { name: "Landing page or WordPress form", what: "Form submissions from your website arrive as new leads with a chat in the Inbox.", needs: ["Add the form link or webhook to your page or WordPress plugin", "A secret so only your site can post"], phase: "Later" },
 };
@@ -94,6 +95,7 @@ function Integrations() {
           const i = INFO[s.id];
           const sim = s.status === "simulated";
           if (s.id === "email" && live.on) return <div key={s.id} className="md:col-span-2"><EmailConnect /></div>;
+          if (s.id === "webchat" && live.on) return <div key={s.id} className="md:col-span-2"><WebChatConnect /></div>;
           if (s.id === "whatsapp" && live.on) {
             return (
               <Section key={s.id} title={i.name} description={i.what} className="md:col-span-2">

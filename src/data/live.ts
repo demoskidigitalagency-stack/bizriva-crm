@@ -101,6 +101,7 @@ export function liveSettings(w: Row, providers: Row[], meta: Row[]): BusinessSet
     whatsappNumber: "", setupDone: [], storeSlug: String(w["name"] ?? "store").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
     ...s,
     businessName: String(w["name"] ?? ""),
+    ...(w["webchat_key"] ? { webchatKey: String(w["webchat_key"]) } : {}),
     timezone: String(w["timezone"] ?? "Africa/Lagos"),
     plan: (["trial", "starter", "growth", "scale"].includes(String(w["plan"])) ? w["plan"] : "trial") as BusinessSettings["plan"],
     brief: { time: hhmm(w["brief_time"], "07:00"), channels: (w["brief_channels"] ?? ["app"]) as BusinessSettings["brief"]["channels"] },

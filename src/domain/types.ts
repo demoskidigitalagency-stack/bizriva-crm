@@ -681,6 +681,10 @@ export interface AgentConfig {
 
 export interface BusinessSettings {
   businessName: string;
+  /** Website chat bubble (real data): greeting, colour, ask for a phone number. */
+  webchat?: { greeting?: string; color?: string; askPhone?: boolean };
+  /** Website chat public key (real data); missing = turned off. */
+  webchatKey?: string;
   timezone: string;
   deliveryFee: number;
   freeDeliveryOver: number;

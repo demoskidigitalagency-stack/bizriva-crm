@@ -41,3 +41,8 @@ Choices made while finishing the backend unattended (6 Nov 2026). Each is easy t
 22. **An order can be changed until it's dispatched** (items, options, quantities, delivery fee, address) by the owner, a manager or the agent it's assigned to. Prices always come from the catalogue — the screen only sends product, option and quantity. The old version is kept in the history.
 23. **Only owners and managers can give a discount**, and a change can never bring the total below what the customer already paid.
 24. **Cancelling needs a reason**, kept in the order's history and notes.
+
+## Website chat
+25. **Visitors give their name (and phone, unless you switch it off) before chatting**, so every web chat is a real customer record — matched to an existing customer by phone.
+26. **A visitor only ever sees their own chat**, through a secret kept in their browser; clearing the browser starts a new chat. Limits: 20 messages a minute per visitor, 300 new visitors an hour per business.
+27. **The AI answers website chats exactly like WhatsApp** (same rules, prices check, checkout). There's no 24-hour window on the website.

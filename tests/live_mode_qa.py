@@ -117,6 +117,15 @@ async def handle(route):
     hdr = {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "*", "Access-Control-Allow-Methods": "*"}
     if req.method == "OPTIONS":
         return await route.fulfill(status=204, headers=hdr)
+    if path.startswith("/functions/v1/webchat"):
+        b = json.loads(req.post_data or "{}")
+        writes.append(("webchat", b.get("action"), b, ""))
+        if b.get("action") == "info":
+            return await route.fulfill(status=200, headers=hdr, body=json.dumps({"business": "Glow Naturals", "greeting": "Hi! Ask us anything.", "color": "#16a34a", "askPhone": True}))
+        if b.get("action") == "poll":
+            msgs = [{"id": "w1", "from": "you", "text": "Do you have shea butter?", "at": AGO(0.2)}, {"id": "w2", "from": "us", "text": "Yes! It's ₦6,000.", "at": AGO(0.1), "media": None}]
+            return await route.fulfill(status=200, headers=hdr, body=json.dumps({"ok": True, "messages": msgs if any(w[0] == "webchat" and w[1] == "send" for w in writes) else []}))
+        return await route.fulfill(status=200, headers=hdr, body=json.dumps({"ok": True}))
     if path.startswith("/functions/v1/payment-link"):
         if req.method == "OPTIONS":
             return await route.fulfill(status=204, headers=hdr)
@@ -427,6 +436,28 @@ async def main():
         ok("then it shows Connected, the latest emails and why one failed, never the key", "Connected" in t and "401 Key not found" in t and ("e" * 30) not in t)
         await pg.get_by_role("button", name="Send me a test email").click(); await pg.wait_for_timeout(800)
         ok("test email asks the server to send one", any(w[0] == "rpc" and w[1] == "send_test_email" for w in writes) and "Test email queued to ademola@shop.ng" in await pg.locator("main").inner_text())
+
+        wc = pg.get_by_role("form", name="Website chat")
+        ok("owner sees website chat on real data, off to start", await wc.count() == 1 and "Turn on website chat" in await wc.inner_text())
+        await wc.get_by_role("switch", name="Website chat on").click(); await pg.wait_for_timeout(800)
+        ok("turning it on asks the server for a key", any(w[0] == "rpc" and w[1] == "set_webchat" and w[2].get("p_on") is True for w in writes))
+        FIX["workspaces"]["webchat_key"] = "k" * 32
+        await ready("/integrations")
+        ok("then shows the script to paste and the chat link", "/webchat.js" in await pg.get_by_label("Website script").inner_text() and "/chat/" + "k" * 32 in await pg.get_by_label("Chat link").inner_text())
+
+        vis = await ctx.new_page()
+        await vis.goto(B + "/chat/" + "k" * 32); await vis.wait_for_timeout(1200)
+        ok("a visitor sees the business and its greeting", "Glow Naturals" in await vis.locator("body").inner_text() and "Hi! Ask us anything." in await vis.locator("body").inner_text())
+        await vis.get_by_label("Your name").fill("Bisi"); await vis.get_by_role("button", name="Start chat").click(); await vis.wait_for_timeout(300)
+        ok("a phone number is asked for before chatting", "phone number" in (await vis.locator("body").inner_text()).lower())
+        await vis.get_by_label("Phone number").fill("0803 123 4567"); await vis.get_by_role("button", name="Start chat").click(); await vis.wait_for_timeout(800)
+        st = [w for w in writes if w[0] == "webchat" and w[1] == "start"]
+        ok("starting makes a secret token in the visitor's browser", len(st) == 1 and len(st[0][2].get("token", "")) >= 32 and st[0][2].get("name") == "Bisi")
+        await vis.get_by_role("textbox", name="Message").fill("Do you have shea butter?"); await vis.get_by_role("button", name="Send").click(); await vis.wait_for_timeout(4000)
+        t = await vis.locator("body").inner_text()
+        ok("the visitor's message goes in and the reply comes back", any(w[0] == "webchat" and w[1] == "send" and w[2].get("text") == "Do you have shea butter?" for w in writes) and "Yes! It's ₦6,000." in t)
+        ok("the visitor page has no app menus", await vis.get_by_role("navigation").count() == 0)
+        await vis.close()
 
         await ready("/payments")
         pf = pg.get_by_role("form", name="Connect payments")

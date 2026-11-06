@@ -48,6 +48,7 @@ import { Route as TodayRouteImport } from './routes/today'
 import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as WorkflowHistoryRouteImport } from './routes/workflow-history'
 import { Route as AdsNewRouteImport } from './routes/ads_.new'
+import { Route as ChatKeyRouteImport } from './routes/chat.$key'
 import { Route as CrmIndexRouteImport } from './routes/crm/index'
 import { Route as CrmCustomersRouteImport } from './routes/crm/customers'
 import { Route as CrmDuplicatesRouteImport } from './routes/crm/duplicates'
@@ -259,6 +260,11 @@ const AdsNewRoute = AdsNewRouteImport.update({
   path: '/ads/new',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ChatKeyRoute = ChatKeyRouteImport.update({
+  id: '/chat/$key',
+  path: '/chat/$key',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CrmIndexRoute = CrmIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -375,6 +381,7 @@ export interface FileRoutesByFullPath {
   '/welcome': typeof WelcomeRoute
   '/workflow-history': typeof WorkflowHistoryRoute
   '/ads/new': typeof AdsNewRoute
+  '/chat/$key': typeof ChatKeyRoute
   '/crm/customers': typeof CrmCustomersRoute
   '/crm/duplicates': typeof CrmDuplicatesRoute
   '/crm/follow-ups': typeof CrmFollowUpsRoute
@@ -430,6 +437,7 @@ export interface FileRoutesByTo {
   '/welcome': typeof WelcomeRoute
   '/workflow-history': typeof WorkflowHistoryRoute
   '/ads/new': typeof AdsNewRoute
+  '/chat/$key': typeof ChatKeyRoute
   '/crm/customers': typeof CrmCustomersRoute
   '/crm/duplicates': typeof CrmDuplicatesRoute
   '/crm/follow-ups': typeof CrmFollowUpsRoute
@@ -487,6 +495,7 @@ export interface FileRoutesById {
   '/welcome': typeof WelcomeRoute
   '/workflow-history': typeof WorkflowHistoryRoute
   '/ads_/new': typeof AdsNewRoute
+  '/chat/$key': typeof ChatKeyRoute
   '/crm/customers': typeof CrmCustomersRoute
   '/crm/duplicates': typeof CrmDuplicatesRoute
   '/crm/follow-ups': typeof CrmFollowUpsRoute
@@ -545,6 +554,7 @@ export interface FileRouteTypes {
     | '/welcome'
     | '/workflow-history'
     | '/ads/new'
+    | '/chat/$key'
     | '/crm/customers'
     | '/crm/duplicates'
     | '/crm/follow-ups'
@@ -600,6 +610,7 @@ export interface FileRouteTypes {
     | '/welcome'
     | '/workflow-history'
     | '/ads/new'
+    | '/chat/$key'
     | '/crm/customers'
     | '/crm/duplicates'
     | '/crm/follow-ups'
@@ -656,6 +667,7 @@ export interface FileRouteTypes {
     | '/welcome'
     | '/workflow-history'
     | '/ads_/new'
+    | '/chat/$key'
     | '/crm/customers'
     | '/crm/duplicates'
     | '/crm/follow-ups'
@@ -713,6 +725,7 @@ export interface RootRouteChildren {
   WelcomeRoute: typeof WelcomeRoute
   WorkflowHistoryRoute: typeof WorkflowHistoryRoute
   AdsNewRoute: typeof AdsNewRoute
+  ChatKeyRoute: typeof ChatKeyRoute
   DTokenRoute: typeof DTokenRoute
   FFormIdRoute: typeof FFormIdRoute
   InviteTokenRoute: typeof InviteTokenRoute
@@ -993,6 +1006,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdsNewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/chat/$key': {
+      id: '/chat/$key'
+      path: '/chat/$key'
+      fullPath: '/chat/$key'
+      preLoaderRoute: typeof ChatKeyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/crm/': {
       id: '/crm/'
       path: '/'
@@ -1173,6 +1193,7 @@ const rootRouteChildren: RootRouteChildren = {
   WelcomeRoute: WelcomeRoute,
   WorkflowHistoryRoute: WorkflowHistoryRoute,
   AdsNewRoute: AdsNewRoute,
+  ChatKeyRoute: ChatKeyRoute,
   DTokenRoute: DTokenRoute,
   FFormIdRoute: FFormIdRoute,
   InviteTokenRoute: InviteTokenRoute,

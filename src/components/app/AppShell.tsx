@@ -314,7 +314,7 @@ function AccountMenu() {
 
 /** Public marketing pages render without the app's sidebar and top bar. */
 const BARE = ["/welcome", "/paid"];
-const isBare = (path: string) => BARE.includes(path) || path.startsWith("/f/") || path.startsWith("/d/");
+const isBare = (path: string) => BARE.includes(path) || path.startsWith("/f/") || path.startsWith("/d/") || path.startsWith("/chat/");
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);

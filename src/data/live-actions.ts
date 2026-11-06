@@ -181,14 +181,14 @@ export function liveWriter(sb: SupabaseClient, ws: string, getDb: () => Database
       // The email service and address are set by the owner through save_email_key (key in Vault); only the sender name is an everyday setting.
       if (businessName) cols["name"] = businessName;
       if (Object.keys(rest).length || email) {
-        const { meta: _m, payments: _p, plan: _pl, assignment: _a, commission: _c, brief: _b, afterDelivery: _d, partnerAcceptMinutes: _pa, ...everyday } = { ...cur, ...rest };
+        const { meta: _m, payments: _p, plan: _pl, assignment: _a, commission: _c, brief: _b, afterDelivery: _d, partnerAcceptMinutes: _pa, webchatKey: _wk, ...everyday } = { ...cur, ...rest };
         cols["settings"] = { ...everyday, agent: getDb().agent, ...(email ? { email: { fromName: email.fromName } } : {}) };
       }
       return fail((await sb.from("workspaces").update(cols).eq("id", ws)).error);
     },
     /** The AI agent's setup lives with the everyday settings, so the server's AI reads it. */
     async updateAgent(patch: Partial<AgentConfig>): Promise<Result> {
-      const { meta: _m, payments: _p, plan: _pl, assignment: _a, commission: _c, brief: _b, afterDelivery: _d, partnerAcceptMinutes: _pa, ...everyday } = getDb().settings;
+      const { meta: _m, payments: _p, plan: _pl, assignment: _a, commission: _c, brief: _b, afterDelivery: _d, partnerAcceptMinutes: _pa, webchatKey: _wk, ...everyday } = getDb().settings;
       return fail((await sb.from("workspaces").update({ settings: { ...everyday, agent: { ...getDb().agent, ...patch } } }).eq("id", ws)).error);
     },
     async setHandler(conversationId: ID, who: "ai" | "human"): Promise<Result> {
