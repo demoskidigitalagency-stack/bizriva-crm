@@ -16,6 +16,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EmptyState, KpiCard, Section, StatusBadge } from "@/components/app/primitives";
 import { useActions, useDb, useWorkspace } from "@/domain/store";
+import { useAuth } from "@/app/auth";
 import { NOW } from "@/domain/database";
 import { fullName } from "@/domain/repositories";
 import { agentScores, agentsOnDuty, isAgent, isOverdue, minutesUncalled, orderState, OUTCOME_LABEL, phoneDigits, workload } from "@/domain/ops";
@@ -280,7 +281,9 @@ function Calls() {
   const { v = "mine", as } = Route.useSearch();
   const navigate = Route.useNavigate();
   const agents = db.team.filter(isAgent);
-  const agentId = as && agents.some((m) => m.id === as) ? as : agents.find((m) => m.role === "sales_rep")?.id ?? agents[0]?.id ?? "";
+  const me = useAuth().session?.user.id;
+  // On live data you see your own list; supervisors can view anyone's.
+  const agentId = as && agents.some((m) => m.id === as) ? as : agents.find((m) => m.id === me)?.id ?? agents.find((m) => m.role === "sales_rep")?.id ?? agents[0]?.id ?? "";
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">

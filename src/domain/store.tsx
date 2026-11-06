@@ -8,7 +8,13 @@
 import { acceptsPayment, canMove } from "./rules";
 import { assignTo, deliveryLink, feeFor, newToken, OPEN_STATUSES, OUTCOME_LABEL, partnerFor, partnerMessage, payCommission as payOut, phoneDigits, recordAttempt, runAssignment, stateOf } from "./ops";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { createInitialDatabase, CURRENT_USER_ID, NOW, type Database } from "./database";
+import { createInitialDatabase, CURRENT_USER_ID, NOW, setNow, type Database } from "./database";
+import { useAuth } from "@/app/auth";
+import { supabase } from "@/lib/supabase";
+import { fetchRaw, toDatabase } from "@/data/live";
+import { liveWriter } from "@/data/live-actions";
+import { liveActions } from "@/data/live-bridge";
+import { NOW as PRACTICE_NOW } from "./seed";
 import { codRisk } from "./repositories";
 import * as practiceSeed from "./practice-seed";
 import { autoMap, flatten, normalise, PLATFORMS } from "./intake";
@@ -43,6 +49,9 @@ type EditableKey = keyof Editable;
  * version when the seed or types change shape — old saves are then ignored.
  */
 const PRACTICE_KEY = "bizriva.practice-db";
+const MODE_KEY = "bizriva.mode";
+/** Tables whose changes refresh the screens on live data. */
+const LIVE_TABLES = ["orders", "order_items", "deliveries", "payments", "payment_events", "messages", "conversations", "contacts", "leads", "order_contact_attempts", "products", "complaints", "workspace_members", "workspaces"];
 const PRACTICE_VERSION = 11; // v11: agents, call list, partners, commission, email campaigns
 
 function loadPractice(): { db: Database; workspaceId: ID } | null {
@@ -83,7 +92,7 @@ export interface CreateOrderInput {
   method: PaymentMethod;
 }
 
-interface StoreActions {
+export interface StoreActions {
   addContact: (input: CreateContactInput) => void;
   createOrder: (input: CreateOrderInput) => void;
   setLeadStage: (leadId: ID, stage: LeadStage) => void;
@@ -167,13 +176,15 @@ interface StoreActions {
   logAttempt: (orderId: ID, by: ID, via: "call" | "whatsapp", outcome: import("./types").AttemptOutcome, note?: string) => void;
   setOnDuty: (memberId: ID, onDuty: boolean) => void;
   /** Send a delivery to a rider or partner on WhatsApp. Returns the message and the WhatsApp link to open. */
-  sendToPartner: (deliveryId: ID, riderId?: ID) => { text: string; waUrl: string; link: string } | { error: string };
+  sendToPartner: (deliveryId: ID, riderId?: ID) => SendResult | Promise<SendResult>;
   /** What the rider/partner does from their private link. */
   partnerAction: (token: string, action: "accept" | "delivered" | "failed", opts?: { cash?: number; reason?: string }) => boolean;
   payCommission: (memberId: ID) => void;
   /** Message a customer in their chat, opening a WhatsApp chat if they don't have one. */
   messageContact: (contactId: ID, body: string) => void;
 }
+
+export type SendResult = { text: string; waUrl: string; link: string } | { error: string };
 
 export interface ChatImportInput {
   /** Existing contact, or details for a new one. */
@@ -199,6 +210,19 @@ interface StoreValue {
   db: Database;
   workspaceId: ID;
   actions: StoreActions;
+  /** Whether screens show the real business data or Practice Mode samples. */
+  live: LiveState;
+}
+
+export interface LiveState {
+  /** Signed in with a business, so real data is available. */
+  available: boolean;
+  on: boolean;
+  status: "off" | "loading" | "ready" | "error";
+  error?: string;
+  businessName?: string;
+  setMode: (mode: "practice" | "live") => void;
+  reload: () => Promise<void>;
 }
 
 const StoreContext = createContext<StoreValue | null>(null);
@@ -223,9 +247,57 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
     loaded.current = true;
   }, []);
+  // ─── live data (signed in with a business) ───
+  const auth = useAuth();
+  const [modePref, setModePref] = useState<"practice" | "live" | null>(null);
+  useEffect(() => { try { const m = localStorage.getItem(MODE_KEY); if (m === "practice" || m === "live") setModePref(m); } catch { /* blocked */ } }, []);
+  const wsId = auth.current?.workspaceId;
+  const available = !!auth.session && !!wsId && !!supabase();
+  const liveOn = available && modePref !== "practice";
+  const [liveStatus, setLiveStatus] = useState<{ status: LiveState["status"]; error?: string }>({ status: "off" });
+  const liveRef = useRef(false);
+  liveRef.current = liveOn;
+  const reload = useCallback(async () => {
+    const sb = supabase();
+    if (!sb || !wsId || !liveRef.current) return;
+    try {
+      const raw = await fetchRaw(sb, wsId);
+      if (!liveRef.current) return;
+      setNow(new Date());
+      setDb(toDatabase(raw));
+      setWorkspaceId(wsId);
+      setLiveStatus({ status: "ready" });
+    } catch (e) {
+      setLiveStatus({ status: "error", error: e instanceof Error ? e.message : "Couldn't load your data" });
+    }
+  }, [wsId]);
   useEffect(() => {
-    if (loaded.current) savePractice(db, workspaceId);
-  }, [db, workspaceId]);
+    if (liveOn) {
+      setLiveStatus({ status: "loading" });
+      void reload();
+      // Changes by teammates, customers, riders and payment providers show up by themselves.
+      const sb = supabase()!;
+      let t: ReturnType<typeof setTimeout> | undefined;
+      const ch = sb.channel(`ws-${wsId}`);
+      for (const table of LIVE_TABLES) ch.on("postgres_changes", { event: "*", schema: "public", table, filter: `workspace_id=eq.${wsId}` }, () => { clearTimeout(t); t = setTimeout(() => void reload(), 700); });
+      ch.subscribe();
+      return () => { clearTimeout(t); void sb.removeChannel(ch); };
+    }
+    if (liveStatus.status !== "off") {
+      // Back to Practice Mode: the sample data exactly as it was left.
+      setNow(PRACTICE_NOW);
+      const saved = loadPractice();
+      setDb(saved?.db ?? createInitialDatabase());
+      setWorkspaceId(saved?.workspaceId ?? "ws_luxe");
+      setLiveStatus({ status: "off" });
+    }
+    return undefined;
+  }, [liveOn, wsId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const setMode = useCallback((m: "practice" | "live") => { setModePref(m); try { localStorage.setItem(MODE_KEY, m); } catch { /* blocked */ } }, []);
+
+  useEffect(() => {
+    if (loaded.current && !liveRef.current && liveStatus.status === "off") savePractice(db, workspaceId);
+  }, [db, workspaceId, liveStatus.status]);
 
   const logActivity = (d: Database, contactId: ID, title: string, kind: "lead" | "note" | "task" | "conversation" | "order" | "system" = "system", description?: string): Database => ({
     ...d,
@@ -1461,12 +1533,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   // New orders from any source (chat, forms, websites, imports) go to an agent straight away.
   useEffect(() => {
-    if (!loaded.current) return;
+    if (!loaded.current || liveRef.current) return; // on live data the server shares orders
     if (db.orders.some((o) => OPEN_STATUSES.includes(o.status) && !o.assignedTo)) setDb((d) => runAssignment(d, new Date(), { move: false }).db);
   }, [db.orders]);
   // Every minute, orders left uncalled for twice the allowed time move to another agent on duty.
   useEffect(() => {
-    const t = setInterval(() => { if (loaded.current) runAssignmentNow(); }, 60_000);
+    const t = setInterval(() => { if (loaded.current && !liveRef.current) runAssignmentNow(); }, 60_000);
     return () => clearInterval(t);
   }, [runAssignmentNow]);
 
@@ -1480,11 +1552,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setWorkspaceId("ws_luxe");
   }, []);
 
-  const value = useMemo<StoreValue>(
-    () => ({
-      db,
-      workspaceId,
-      actions: {
+  const practiceActions: StoreActions = useMemo(() => ({
         addContact, createOrder, setLeadStage, setLeadOutcome, assignOwner, setLifecycle, completeTask, snoozeTask, addTask, addNote, logCall,
         sendReply, markNotificationsRead, setWorkspace: setWorkspaceId, setOrderStatus, recordCodCheck, setDeliveryStatus, markRemitted,
         saveProduct, adjustStock, mergeContacts, startLead, resetPracticeData, saveRecord, removeRecord, updateSettings, updateAgent,
@@ -1493,10 +1561,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
         submitOrderForm, trackForm, simulateFormTraffic, recordDeposit, requestBalance, issueInvoice, flagComplaint, resolveComplaint,
         toggleSetupStep, importProducts, addPolicyStarters, importChatHistory, saveFacts, removeFact, sendPaymentLink, receiveIntake, connectMeta, disconnectMeta, syncMeta, setCapi, publishAd, setAdStatus, connectPayments, disconnectPayments, updatePayments, requestPayment, simulatePayment, matchPayment, sendOrderMessage,
         assignOrders, runAssignmentNow, logAttempt, setOnDuty, sendToPartner, partnerAction, payCommission, messageContact,
-      },
-    }),
-    [db, workspaceId, addContact, createOrder, setLeadStage, setLeadOutcome, assignOwner, setLifecycle, completeTask, snoozeTask, addTask, addNote, logCall, sendReply, markNotificationsRead, setOrderStatus, recordCodCheck, setDeliveryStatus, markRemitted, saveProduct, adjustStock, mergeContacts, startLead, resetPracticeData, saveRecord, removeRecord, updateSettings, updateAgent, setIntegration, assignRider, moveStock, recordPayment, logRun, retryRun, sendBroadcast, addCampaignSpend, updateContactDetails, simulateIncoming, sendProductCard, updateWorkspace, submitLeadForm, submitOrderForm, trackForm, simulateFormTraffic, recordDeposit, requestBalance, issueInvoice, flagComplaint, resolveComplaint, toggleSetupStep, importProducts, addPolicyStarters, importChatHistory, saveFacts, removeFact, sendPaymentLink, receiveIntake, connectMeta, disconnectMeta, syncMeta, setCapi, publishAd, setAdStatus, connectPayments, disconnectPayments, updatePayments, requestPayment, simulatePayment, matchPayment, sendOrderMessage, assignOrders, runAssignmentNow, logAttempt, setOnDuty, sendToPartner, partnerAction, payCommission, messageContact],
-  );
+  }), [addContact, createOrder, setLeadStage, setLeadOutcome, assignOwner, setLifecycle, completeTask, snoozeTask, addTask, addNote, logCall, sendReply, markNotificationsRead, setOrderStatus, recordCodCheck, setDeliveryStatus, markRemitted, saveProduct, adjustStock, mergeContacts, startLead, resetPracticeData, saveRecord, removeRecord, updateSettings, updateAgent, setIntegration, assignRider, moveStock, recordPayment, logRun, retryRun, sendBroadcast, addCampaignSpend, updateContactDetails, simulateIncoming, sendProductCard, updateWorkspace, submitLeadForm, submitOrderForm, trackForm, simulateFormTraffic, recordDeposit, requestBalance, issueInvoice, flagComplaint, resolveComplaint, toggleSetupStep, importProducts, addPolicyStarters, importChatHistory, saveFacts, removeFact, sendPaymentLink, receiveIntake, connectMeta, disconnectMeta, syncMeta, setCapi, publishAd, setAdStatus, connectPayments, disconnectPayments, updatePayments, requestPayment, simulatePayment, matchPayment, sendOrderMessage, assignOrders, runAssignmentNow, logAttempt, setOnDuty, sendToPartner, partnerAction, payCommission, messageContact]);
+
+  const liveLayer = useMemo(() => {
+    const sb = supabase();
+    if (!liveOn || !sb || !wsId) return null;
+    return liveActions(liveWriter(sb, wsId, () => dbRef.current), () => dbRef.current, reload, auth.session?.user.id ?? "");
+  }, [liveOn, wsId, reload, auth.session?.user.id]);
+
+  const value = useMemo<StoreValue>(() => ({
+    db,
+    workspaceId,
+    actions: liveLayer ? { ...practiceActions, setWorkspace: (id: ID) => auth.selectWorkspace(id), ...liveLayer } : practiceActions,
+    live: { available, on: liveOn, status: liveOn ? (liveStatus.status === "off" ? "loading" : liveStatus.status) : "off", ...(liveStatus.error ? { error: liveStatus.error } : {}), ...(auth.current ? { businessName: auth.current.name } : {}), setMode, reload },
+  }), [db, workspaceId, practiceActions, liveLayer, available, liveOn, liveStatus, auth, setMode, reload]);
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }
@@ -1508,6 +1586,7 @@ function useStore() {
 }
 
 export const useDb = () => useStore().db;
+export const useLive = () => useStore().live;
 export const useActions = () => useStore().actions;
 export function useWorkspace() {
   const { db, workspaceId } = useStore();

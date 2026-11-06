@@ -93,7 +93,7 @@ function Card({ d, onFail }: { d: DeliverySummary; onFail: () => void }) {
         {(d.status === "not_scheduled" || d.status === "scheduled") && <Button size="sm" className="h-7 text-xs" onClick={() => setDeliveryStatus(d.id, "in_transit")}>Dispatch</Button>}
         {d.status === "failed" && <Button size="sm" className="h-7 text-xs" onClick={() => setDeliveryStatus(d.id, "scheduled")}>Reschedule</Button>}
         {["not_scheduled", "scheduled", "failed"].includes(d.status) && order && ["confirmed", "processing", "ready_for_dispatch", "dispatched", "in_transit"].includes(order.status) && (
-          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setSent(sendToPartner(d.id))}>
+          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={async () => setSent(await sendToPartner(d.id))}>
             <Send className="size-3" /> {d.sentAt ? "Send again" : `Send to ${rider?.name.split(" ")[0] ?? suggested?.name.split(" ")[0] ?? "rider"}`}
           </Button>
         )}

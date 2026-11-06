@@ -9,7 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import { relativeTime } from "@/lib/format";
-import { useActions, useDb, useWorkspace } from "@/domain/store";
+import { useActions, useDb, useLive, useWorkspace } from "@/domain/store";
 import { globalSearch, getTodayQueues } from "@/domain/repositories";
 import { currentUser } from "@/domain/seed";
 import { PersonAvatar } from "./primitives";
@@ -255,8 +255,31 @@ function AppearanceMenu() {
   );
 }
 
+/** Live business data or Practice Mode — always visible, one tap to switch. */
+function DataBadge() {
+  const live = useLive();
+  if (!live.available) return <span className="hidden rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground sm:inline" title="Sample data, saved in this browser">Practice</span>;
+  return (
+    <button type="button" onClick={() => live.setMode(live.on ? "practice" : "live")} aria-label={live.on ? "Showing your real data — switch to Practice Mode" : "Showing sample data — switch to your real data"}
+      className={cn("rounded-full px-2 py-0.5 text-xs font-medium", live.on ? "bg-success/15 text-success" : "bg-muted text-muted-foreground")}>
+      {live.on ? "● Live" : "Practice"}
+    </button>
+  );
+}
+
+function LiveStatusBar() {
+  const live = useLive();
+  if (!live.on || live.status === "ready") return null;
+  return (
+    <div role={live.status === "error" ? "alert" : "status"} className={cn("mb-4 flex flex-wrap items-center gap-2 rounded-lg border px-4 py-2 text-sm", live.status === "error" ? "border-destructive/40 bg-destructive/5" : "bg-muted/50")}>
+      {live.status === "error" ? <>Couldn't load {live.businessName ?? "your business"}: {live.error}. <Button size="sm" variant="outline" onClick={() => void live.reload()}>Try again</Button><Button size="sm" variant="ghost" onClick={() => live.setMode("practice")}>Use sample data</Button></> : <>Loading {live.businessName ?? "your business"}…</>}
+    </div>
+  );
+}
+
 function AccountMenu() {
   const auth = useAuth();
+  const live = useLive();
   if (auth.configured && auth.ready && !auth.session) {
     return <Button asChild size="sm" variant="outline" className="ml-1"><Link to="/account">Sign in</Link></Button>;
   }
@@ -273,6 +296,7 @@ function AccountMenu() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {auth.configured && <DropdownMenuItem asChild><Link to="/account">{auth.session ? "Account and team invites" : "Sign in"}</Link></DropdownMenuItem>}
+        {live.available && <DropdownMenuItem onSelect={() => live.setMode(live.on ? "practice" : "live")}>{live.on ? "Switch to Practice Mode (sample data)" : `Use ${auth.current?.name ?? "my business"}'s real data`}</DropdownMenuItem>}
         <DropdownMenuItem asChild><Link to="/settings">Workspace settings</Link></DropdownMenuItem>
         <DropdownMenuItem asChild><Link to="/welcome">Public website</Link></DropdownMenuItem>
         {auth.session && <DropdownMenuItem onSelect={() => void auth.signOut()}>Sign out</DropdownMenuItem>}
@@ -310,10 +334,11 @@ export function AppShell({ children }: { children: ReactNode }) {
             <QuickCreate />
             <AppearanceMenu />
             <Notifications />
+            <DataBadge />
             <AccountMenu />
           </div>
         </header>
-        <main className="mx-auto w-full max-w-[1400px] flex-1 px-3 py-5 sm:px-5 lg:px-8">{children}</main>
+        <main className="mx-auto w-full max-w-[1400px] flex-1 px-3 py-5 sm:px-5 lg:px-8"><LiveStatusBar />{children}</main>
       </div>
     </div>
   );

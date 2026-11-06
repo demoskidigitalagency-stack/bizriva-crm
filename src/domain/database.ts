@@ -251,5 +251,7 @@ export function createInitialDatabase(): Database {
   };
 }
 
-export const NOW = seed.NOW;
+/** "Today" for the screens: the sample data's own date in Practice Mode, the real clock on live data. */
+export let NOW: Date = seed.NOW;
+export function setNow(d: Date) { NOW = d; }
 export const CURRENT_USER_ID = seed.currentUser.id;

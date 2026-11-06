@@ -14,6 +14,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { DataProvider } from "@/domain/store";
 import { AuthProvider } from "@/app/auth";
+import { Toaster } from "@/components/ui/sonner";
 import { AppShell } from "@/components/app/AppShell";
 import { APPEARANCE_BOOT_SCRIPT, AppearanceProvider, DEFAULT_THEME } from "@/app/appearance";
 
@@ -138,6 +139,7 @@ function RootComponent() {
             {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
             <Outlet />
           </AppShell>
+          <Toaster richColors position="top-center" />
         </DataProvider>
         </AuthProvider>
       </AppearanceProvider>
