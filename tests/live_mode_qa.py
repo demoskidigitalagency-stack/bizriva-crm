@@ -179,6 +179,9 @@ async def handle(route):
         if fn == "ad_performance":
             return await route.fulfill(status=200, headers=hdr, body=json.dumps({"currency": "NGN", "lastSync": AGO(2), "unattributed": {"orders": 1, "delivered": 0},
                 "ads": [{"adId": "120200001", "ad": "Glow cream CTWA", "campaign": "November promo", "people": 2, "orders": 2, "delivered": 1, "lost": 0, "revenue": 20000, "spend": 5000, "clicks": 80, "roas": 4.0, "costPerDelivered": 5000}]}))
+        if fn == "response_times":
+            return await route.fulfill(status=200, headers=hdr, body=json.dumps({"callWithin": 120, "customerTurns": 3, "unanswered": 1, "overall": {"median": 5.5, "within5": 1, "answered": 2}, "ai": {"replies": 1, "median": 1.0}, "automatic": 0,
+                "people": [{"userId": CHIDI, "name": "Chidi Okafor", "role": "sales", "replies": 1, "median": 10.0, "average": 10.0, "within5": 0, "confirmed": 1, "confirmMedian": 45.0, "confirmOnTime": 1}]}))
         if fn == "admin_is":
             return await route.fulfill(status=200, headers=hdr, body="true")
         if fn == "admin_overview":
@@ -426,6 +429,8 @@ async def main():
 
         await ready("/analytics")
         t = await pg.locator("main").inner_text()
+        rt = pg.get_by_role("table", name="Response times by person")
+        ok("analytics shows real response times: AI, each agent, and time to confirm orders", await rt.count() == 1 and "10 min" in await rt.inner_text() and "45 min · 100% on time" in await rt.inner_text() and "6 min" in t + await pg.locator("main").inner_text())
         ok("analytics counts the real orders", "Luxe" not in t and ("26,500" in t or "₦26.5K" in t or "26.5K" in t), t[:400])
         await ready("/team")
         t = await pg.locator("main").inner_text()

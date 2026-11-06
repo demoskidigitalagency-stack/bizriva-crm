@@ -5,7 +5,7 @@ Generated from `src/app/status.ts` and `src/app/modules.ts` by `bun run status`.
 | Track | Progress | |
 | --- | ---: | --- |
 | **Frontend — Practice Mode** (every page and button works on sample data) | **100%** | `████████████████████` |
-| **Backend — Live** (works for real: auth, database, WhatsApp, AI) | **93%** | `███████████████████░` |
+| **Backend — Live** (works for real: auth, database, WhatsApp, AI) | **94%** | `███████████████████░` |
 
 Modules: 34 of 34 practice ready · 0 partly working · 0 planned.
 
@@ -79,7 +79,7 @@ Modules: 34 of 34 practice ready · 0 partly working · 0 planned.
 | Phase 2 — AI and automation | 22% | 8/9 | 83% |
 | Phase 3 — Sales and commerce | 22% | 9/9 | 100% |
 | Phase 4 — More channels | 11% | 5/5 | 100% |
-| Phase 5 — Intelligence and monetisation | 15% | 6/7 | 93% |
+| Phase 5 — Intelligence and monetisation | 15% | 7/7 | 100% |
 
 ### Phase 1 — Core communication — 91%
 
@@ -134,13 +134,13 @@ _The same inbox for Messenger, Instagram, SMS, email and web chat._
 - [x] Website chat
 - [x] Meta lead forms and ad referral data
 
-### Phase 5 — Intelligence and monetisation — 93%
+### Phase 5 — Intelligence and monetisation — 100%
 
 _Know which ad made the money; charge for the product._
 
 - [x] Analytics: created vs confirmed vs delivered
 - [x] Ad attribution, ROAS, cost per delivered order
-- [ ] Agent performance and response times — Leaderboard, commission and duty on real data; response-time figures still come from Practice data
+- [x] Agent performance and response times
 - [x] Riders, COD cash ledger, settlements
 - [x] Plans, billing and usage limits
 - [x] Super Admin console

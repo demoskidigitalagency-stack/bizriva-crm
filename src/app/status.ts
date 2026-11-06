@@ -117,7 +117,7 @@ export const PHASES: StatusPhase[] = [
     items: [
       { id: "p5-analytics", label: "Analytics: created vs confirmed vs delivered", weight: 2, done: true },
       { id: "p5-attribution", label: "Ad attribution, ROAS, cost per delivered order", weight: 2, done: true },
-      { id: "p5-agents", label: "Agent performance and response times", weight: 1, done: false, note: "Leaderboard, commission and duty on real data; response-time figures still come from Practice data" },
+      { id: "p5-agents", label: "Agent performance and response times", weight: 1, done: true },
       { id: "p5-riders", label: "Riders, COD cash ledger, settlements", weight: 2, done: true },
       { id: "p5-billing", label: "Plans, billing and usage limits", weight: 2, done: true },
       { id: "p5-superadmin", label: "Super Admin console", weight: 2, done: true },

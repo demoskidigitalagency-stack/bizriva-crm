@@ -74,3 +74,7 @@ Choices made while finishing the backend unattended (6 Nov 2026). Each is easy t
 43. **A customer is credited to the first ad that brought them** (click-to-WhatsApp, click-to-Messenger/Instagram, or an instant form). Later ads don't steal the credit.
 44. **ROAS and cost per order count delivered orders only** — with pay on delivery an order isn't money until it arrives. Cancelled, refused and returned orders are shown as "lost" for each ad.
 45. **Spend comes from the business's own Meta ad account every 4 hours** (last 7 days, per ad), shown in the ad account's currency. The token needs `ads_read`.
+
+## Response times
+46. **Response times are clock minutes, nights and weekends included** — that's what the customer feels. A customer's burst of messages counts as one wait, from their first message to our next reply; order updates and receipts don't count as replies.
+47. "On time" for confirming an order uses the business's own "call within" setting (default 2 hours).

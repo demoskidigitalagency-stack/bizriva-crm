@@ -2,7 +2,8 @@ import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { KpiCard, Section } from "@/components/app/primitives";
-import { useDb, useWorkspace } from "@/domain/store";
+import { useDb, useLive, useWorkspace } from "@/domain/store";
+import { ResponseTimes } from "@/components/app/ResponseTimes";
 import { NOW } from "@/domain/database";
 import { CHANNEL_LABELS, type Channel } from "@/domain/types";
 import { formatCurrency } from "@/lib/format";
@@ -29,6 +30,7 @@ function Bars({ rows, format }: { rows: { label: string; value: number; sub?: st
 
 function Analytics() {
   const db = useDb();
+  const live = useLive();
   const ws = useWorkspace();
   const [days, setDays] = useState<"7" | "30" | "90" | "all">("30");
   const since = days === "all" ? 0 : NOW.getTime() - Number(days) * 86_400_000;
@@ -133,8 +135,9 @@ function Analytics() {
             </tbody>
           </table>
         </div>
-        <p className="border-t px-4 py-2 text-xs text-muted-foreground">Response times and AI-versus-human handling appear once real conversations flow through the backend.</p>
+        {!live.on && <p className="border-t px-4 py-2 text-xs text-muted-foreground">Response times and AI-versus-human handling are measured from your real conversations — switch to your real data to see them.</p>}
       </Section>
+      {live.on && <ResponseTimes />}
     </div>
   );
 }
