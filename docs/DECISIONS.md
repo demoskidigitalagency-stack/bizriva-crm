@@ -65,3 +65,7 @@ Choices made while finishing the backend unattended (6 Nov 2026). Each is easy t
 38. **When a trial ends, or a paid plan is 3 days overdue, the AI assistant and broadcasts pause** until a plan is paid; inbox, orders and everything else keep working. Existing businesses got a 14-day trial counted from when they were created.
 39. **Plans are paid through Bizriva's own Paystack account** (`BIZRIVA_PAYSTACK_SECRET` and `APP_URL` as Edge Function secrets; Paystack webhook → `/functions/v1/billing/paystack`). Each payment adds 30 days. Only the owner pays.
 40. **Super Admins are added by hand** (`insert into platform_admins …` in the SQL editor). They see every business, set plans and trial days, and suspend (with a reason) or restore — each change is recorded in that business's history.
+
+## AI planner
+41. **The workflow planner runs on Claude** (moved off Lovable's AI service): the business's own Anthropic key when they've added one, otherwise Bizriva's (`ANTHROPIC_API_KEY` Edge Function secret). Model `claude-sonnet-5-5` unless `AI_PLANNER_MODEL` is set.
+42. **It only sees counts** (customers, consent, orders, chats, stock, connected channels) — never names, phone numbers or message text. 20 plans a day per business; it pauses with the AI when the plan has ended. Every plan is saved for the team.

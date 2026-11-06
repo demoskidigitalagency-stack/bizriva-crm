@@ -130,6 +130,10 @@ async def handle(route):
             msgs = [{"id": "w1", "from": "you", "text": "Do you have shea butter?", "at": AGO(0.2)}, {"id": "w2", "from": "us", "text": "Yes! It's ₦6,000.", "at": AGO(0.1), "media": None}]
             return await route.fulfill(status=200, headers=hdr, body=json.dumps({"ok": True, "messages": msgs if any(w[0] == "webchat" and w[1] == "send" for w in writes) else []}))
         return await route.fulfill(status=200, headers=hdr, body=json.dumps({"ok": True}))
+    if path.startswith("/functions/v1/ai-planner"):
+        writes.append(("fn", "ai-planner", json.loads(req.post_data or "{}"), req.headers.get("authorization", "")))
+        step = {"title": "Message lapsed buyers", "description": "Send the win-back template to the 12 customers.", "timing": "Day 1", "channel": "whatsapp", "ownerRole": "sales_rep", "target": "12 customers", "messageDraft": "Hi {{name}}, we miss you."}
+        return await route.fulfill(status=200, headers=hdr, body=json.dumps({"id": "p1", "plan": {"title": "Win back old buyers", "summary": "Two steps.", "trigger": "Every Monday", "steps": [step, {**step, "title": "Call the rest", "channel": "phone", "messageDraft": None}], "successMetrics": ["5 repeat orders"], "risks": ["Template not approved"]}}))
     if path.startswith("/functions/v1/billing"):
         writes.append(("fn", "billing", json.loads(req.post_data or "{}"), req.headers.get("authorization", "")))
         return await route.fulfill(status=200, headers=hdr, body=json.dumps({"url": B + "/paid", "reference": "BZP-ABC"}))
@@ -423,6 +427,14 @@ async def main():
         await ready("/team")
         t = await pg.locator("main").inner_text()
         ok("team shows the real agents", "Chidi" in t and "Musa Abdullahi" not in t)
+
+        await ready("/automation")
+        apf = pg.get_by_role("form", name="AI planner")
+        await apf.get_by_role("textbox").fill("Win back customers who haven't ordered in 60 days")
+        await apf.get_by_role("button", name="Make a plan").click(); await pg.wait_for_timeout(1200)
+        ap = [w for w in writes if w[0] == "fn" and w[1] == "ai-planner"]
+        t = await pg.get_by_role("article", name="Plan").inner_text()
+        ok("the AI planner asks the server with the goal, signed in, and shows the plan with drafts", len(ap) == 1 and ap[0][2].get("workspace_id") == WS and ap[0][3].startswith("Bearer ") and "Win back old buyers" in t and "Hi {{name}}, we miss you." in t and "Call the rest" in t)
 
         await ready("/billing")
         t = await pg.locator("main").inner_text()

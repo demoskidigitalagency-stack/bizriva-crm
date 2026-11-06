@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EmptyState, Section, StatusBadge } from "@/components/app/primitives";
 import { useActions, useDb } from "@/domain/store";
+import { AiPlanner } from "@/components/app/AiPlanner";
 import type { Workflow, WorkflowStep } from "@/domain/types";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -118,6 +119,7 @@ function Automation() {
         </div>
         <Button size="sm" onClick={add}><Plus className="size-4" /> New workflow</Button>
       </div>
+      <AiPlanner />
       <div className="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
         <Section title="Workflows">
           {db.workflows.length === 0 ? <EmptyState title="No workflows" /> : (
