@@ -6,6 +6,7 @@
  */
 
 import { acceptsPayment, canMove } from "./rules";
+import { assignTo, deliveryLink, feeFor, newToken, OPEN_STATUSES, OUTCOME_LABEL, partnerFor, partnerMessage, payCommission as payOut, phoneDigits, recordAttempt, runAssignment, stateOf } from "./ops";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createInitialDatabase, CURRENT_USER_ID, NOW, type Database } from "./database";
 import { codRisk } from "./repositories";
@@ -42,7 +43,7 @@ type EditableKey = keyof Editable;
  * version when the seed or types change shape — old saves are then ignored.
  */
 const PRACTICE_KEY = "bizriva.practice-db";
-const PRACTICE_VERSION = 10; // v10: order messages, receipts and care guides
+const PRACTICE_VERSION = 11; // v11: agents, call list, partners, commission, email campaigns
 
 function loadPractice(): { db: Database; workspaceId: ID } | null {
   try {
@@ -158,6 +159,20 @@ interface StoreActions {
   matchPayment: (eventId: ID, orderId: ID) => void;
   /** Send the receipt and/or care guide for an order into the customer's chat. */
   sendOrderMessage: (orderId: ID, what: "receipt" | "care") => boolean;
+  /** Give orders to an agent (or pick one by the sharing rule when memberId is missing). */
+  assignOrders: (orderIds: ID[], memberId?: ID) => void;
+  /** Share unassigned orders and move orders nobody called in time. */
+  runAssignmentNow: () => { assigned: number; moved: number };
+  /** One call or WhatsApp attempt on an order. */
+  logAttempt: (orderId: ID, by: ID, via: "call" | "whatsapp", outcome: import("./types").AttemptOutcome, note?: string) => void;
+  setOnDuty: (memberId: ID, onDuty: boolean) => void;
+  /** Send a delivery to a rider or partner on WhatsApp. Returns the message and the WhatsApp link to open. */
+  sendToPartner: (deliveryId: ID, riderId?: ID) => { text: string; waUrl: string; link: string } | { error: string };
+  /** What the rider/partner does from their private link. */
+  partnerAction: (token: string, action: "accept" | "delivered" | "failed", opts?: { cash?: number; reason?: string }) => boolean;
+  payCommission: (memberId: ID) => void;
+  /** Message a customer in their chat, opening a WhatsApp chat if they don't have one. */
+  messageContact: (contactId: ID, body: string) => void;
 }
 
 export interface ChatImportInput {
@@ -462,6 +477,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const order = d.orders.find((o) => o.id === orderId);
       if (!order) return d;
       const status: OrderStatus = result === "confirmed" ? "confirmed" : result === "cancelled" ? "cancelled" : order.status;
+      if (status !== order.status && !canMove(order.status, status)) return d;
       const title = result === "confirmed" ? `COD confirmed by customer for ${order.reference}` : result === "cancelled" ? `COD order ${order.reference} cancelled` : `COD check: customer unreachable for ${order.reference}`;
       const next: Database = {
         ...d,
@@ -645,10 +661,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const size = seg?.memberCount ?? 0;
       // Practice estimate: consent share from the whole contact base.
       const consentShare = d.contacts.length ? d.contacts.filter((c) => c.consentMarketing).length / d.contacts.length : 0;
-      const recipients = Math.round(size * consentShare);
+      // Email needs an email address as well as consent.
+      const emailShare = d.contacts.length ? d.contacts.filter((c) => c.consentMarketing && c.email).length / d.contacts.length : 0;
+      const recipients = Math.round(size * (bc.channel === "email" ? emailShare : consentShare));
+      // Practice results: the live version counts real deliveries, opens, clicks and orders that came from the campaign link.
+      const delivered = Math.round(recipients * 0.97);
+      const orders = Math.max(recipients ? 1 : 0, Math.round(delivered * (bc.channel === "email" ? 0.025 : 0.045)));
+      const avg = d.orders.length ? d.orders.reduce((n, o) => n + o.total, 0) / d.orders.length : 0;
+      const stats = bc.channel === "email"
+        ? { delivered, opened: Math.round(delivered * 0.42), clicked: Math.round(delivered * 0.11), orders, revenue: Math.round(orders * avg) }
+        : { delivered, orders, revenue: Math.round(orders * avg) };
       return {
         ...d,
-        broadcasts: d.broadcasts.map((b) => (b.id === broadcastId ? { ...b, status: "sent" as const, sentAt: new Date().toISOString(), recipients, skippedNoConsent: size - recipients } : b)),
+        broadcasts: d.broadcasts.map((b) => (b.id === broadcastId ? { ...b, status: "sent" as const, sentAt: new Date().toISOString(), recipients, skippedNoConsent: size - recipients, stats } : b)),
       };
     });
   }, []);
@@ -1355,6 +1380,96 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return true;
   }, []);
 
+  const assignOrders = useCallback((orderIds: ID[], memberId?: ID) => {
+    setDb((d) => {
+      let next = d;
+      for (const id of orderIds) {
+        const o = next.orders.find((x) => x.id === id);
+        if (!o || !OPEN_STATUSES.includes(o.status)) continue;
+        const who = memberId ?? runAssignment({ ...next, orders: next.orders.map((x) => (x.id === id ? (({ assignedTo: _a, ...r }) => r)(x) : x)) }).db.orders.find((x) => x.id === id)?.assignedTo;
+        const m = next.team.find((t) => t.id === who);
+        if (!m) continue;
+        next = logActivity(assignTo(next, id, m.id), o.contactId, `Order ${o.reference} given to ${m.name}`, "order");
+      }
+      return next;
+    });
+  }, []);
+
+  const runAssignmentNow = useCallback(() => {
+    const r = runAssignment(dbRef.current);
+    if (r.assigned || r.moved) {
+      setDb((d) => {
+        const again = runAssignment(d);
+        return again.moved ? notify(again.db, `${again.moved} uncalled order${again.moved > 1 ? "s" : ""} moved`, `Not called within ${d.settings.assignment.callWithinMinutes} minutes, so given to another agent on duty.`, "warning") : again.db;
+      });
+    }
+    return { assigned: r.assigned, moved: r.moved };
+  }, []);
+
+  const logAttempt = useCallback((orderId: ID, by: ID, via: "call" | "whatsapp", outcome: import("./types").AttemptOutcome, note?: string) => {
+    setDb((d) => {
+      const o = d.orders.find((x) => x.id === orderId);
+      if (!o) return d;
+      const who = d.team.find((t) => t.id === by)?.name ?? "Agent";
+      return logActivity(recordAttempt(d, orderId, by, via, outcome, note), o.contactId, `${via === "call" ? "Call" : "WhatsApp"} about ${o.reference}: ${OUTCOME_LABEL[outcome]}`, "conversation", `${who}${note ? ` — ${note}` : ""}`);
+    });
+  }, []);
+
+  const setOnDuty = useCallback((memberId: ID, onDuty: boolean) => {
+    setDb((d) => ({ ...d, team: d.team.map((m) => (m.id === memberId ? { ...m, onDuty } : m)) }));
+  }, []);
+
+  const sendToPartner = useCallback((deliveryId: ID, riderId?: ID) => {
+    const d0 = dbRef.current;
+    const del = d0.deliveries.find((x) => x.id === deliveryId);
+    if (!del) return { error: "Delivery not found" };
+    const order = d0.orders.find((o) => o.id === del.orderId);
+    if (order && !["ready_for_dispatch", "dispatched", "in_transit", "processing", "confirmed"].includes(order.status)) return { error: `Order ${order.reference} isn't confirmed yet — confirm it before sending to logistics.` };
+    const st = stateOf(del.city);
+    const rider = d0.riders.find((r) => r.id === (riderId ?? del.riderId)) ?? partnerFor(d0, st);
+    if (!rider) return { error: `No rider or partner covers ${st}. Add the state to one on the Riders page.` };
+    const token = newToken();
+    const updated = { ...del, riderId: rider.id, courier: rider.kind === "partner" ? rider.name : "In-house Rider", fee: feeFor(rider, st), linkToken: token, sentAt: new Date().toISOString(), status: del.status === "not_scheduled" ? ("scheduled" as const) : del.status };
+    const { acceptedAt: _a, ...clean } = updated;
+    const text = partnerMessage({ ...d0, deliveries: d0.deliveries.map((x) => (x.id === deliveryId ? clean : x)) }, clean, token, d0.workspaces[0]?.currency ?? "NGN");
+    setDb((d) => logActivity({ ...d, deliveries: d.deliveries.map((x) => (x.id === deliveryId ? clean : x)) }, del.contactId, `Sent to ${rider.name} on WhatsApp`, "system", `${st} · fee ${feeFor(rider, st)}`));
+    const waUrl = rider.whatsappGroup ? `https://wa.me/?text=${encodeURIComponent(text)}` : `https://wa.me/${phoneDigits(rider.phone)}?text=${encodeURIComponent(text)}`;
+    return { text, waUrl, link: deliveryLink(token) };
+  }, []);
+
+  const partnerAction = useCallback((token: string, action: "accept" | "delivered" | "failed", opts?: { cash?: number; reason?: string }) => {
+    const del = dbRef.current.deliveries.find((x) => x.linkToken === token);
+    if (!del || ["delivered", "returned"].includes(del.status)) return false;
+    const now = new Date().toISOString();
+    setDb((d) => ({ ...d, deliveries: d.deliveries.map((x) => (x.id === del.id ? { ...x, acceptedAt: x.acceptedAt ?? now, ...(action === "delivered" && opts?.cash !== undefined ? { cashCollected: opts.cash } : {}) } : x)) }));
+    if (action === "accept") {
+      const order = dbRef.current.orders.find((o) => o.id === del.orderId);
+      if (order && ["ready_for_dispatch", "confirmed", "processing"].includes(order.status) && canMove(order.status, "dispatched")) setOrderStatus(order.id, "dispatched");
+    }
+    if (action === "delivered") setDeliveryStatus(del.id, "delivered");
+    if (action === "failed") setDeliveryStatus(del.id, "failed", opts?.reason || "Customer unreachable");
+    return true;
+  }, [setDeliveryStatus, setOrderStatus]);
+
+  const messageContact = useCallback((contactId: ID, body: string) => {
+    setDb((d) => logActivity(postToCustomer(d, contactId, body), contactId, "Follow-up sent", "conversation", body.slice(0, 80)));
+  }, []);
+
+  const payCommission = useCallback((memberId: ID) => {
+    setDb((d) => notify(payOut(d, memberId), "Commission paid", `${d.team.find((m) => m.id === memberId)?.name ?? "Agent"}'s earned commission marked as paid.`, "success"));
+  }, []);
+
+  // New orders from any source (chat, forms, websites, imports) go to an agent straight away.
+  useEffect(() => {
+    if (!loaded.current) return;
+    if (db.orders.some((o) => OPEN_STATUSES.includes(o.status) && !o.assignedTo)) setDb((d) => runAssignment(d, new Date(), { move: false }).db);
+  }, [db.orders]);
+  // Every minute, orders left uncalled for twice the allowed time move to another agent on duty.
+  useEffect(() => {
+    const t = setInterval(() => { if (loaded.current) runAssignmentNow(); }, 60_000);
+    return () => clearInterval(t);
+  }, [runAssignmentNow]);
+
   const resetPracticeData = useCallback(() => {
     try {
       localStorage.removeItem(PRACTICE_KEY);
@@ -1377,9 +1492,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
         updateContactDetails, simulateIncoming, sendProductCard, updateWorkspace, submitLeadForm,
         submitOrderForm, trackForm, simulateFormTraffic, recordDeposit, requestBalance, issueInvoice, flagComplaint, resolveComplaint,
         toggleSetupStep, importProducts, addPolicyStarters, importChatHistory, saveFacts, removeFact, sendPaymentLink, receiveIntake, connectMeta, disconnectMeta, syncMeta, setCapi, publishAd, setAdStatus, connectPayments, disconnectPayments, updatePayments, requestPayment, simulatePayment, matchPayment, sendOrderMessage,
+        assignOrders, runAssignmentNow, logAttempt, setOnDuty, sendToPartner, partnerAction, payCommission, messageContact,
       },
     }),
-    [db, workspaceId, addContact, createOrder, setLeadStage, setLeadOutcome, assignOwner, setLifecycle, completeTask, snoozeTask, addTask, addNote, logCall, sendReply, markNotificationsRead, setOrderStatus, recordCodCheck, setDeliveryStatus, markRemitted, saveProduct, adjustStock, mergeContacts, startLead, resetPracticeData, saveRecord, removeRecord, updateSettings, updateAgent, setIntegration, assignRider, moveStock, recordPayment, logRun, retryRun, sendBroadcast, addCampaignSpend, updateContactDetails, simulateIncoming, sendProductCard, updateWorkspace, submitLeadForm, submitOrderForm, trackForm, simulateFormTraffic, recordDeposit, requestBalance, issueInvoice, flagComplaint, resolveComplaint, toggleSetupStep, importProducts, addPolicyStarters, importChatHistory, saveFacts, removeFact, sendPaymentLink, receiveIntake, connectMeta, disconnectMeta, syncMeta, setCapi, publishAd, setAdStatus, connectPayments, disconnectPayments, updatePayments, requestPayment, simulatePayment, matchPayment, sendOrderMessage],
+    [db, workspaceId, addContact, createOrder, setLeadStage, setLeadOutcome, assignOwner, setLifecycle, completeTask, snoozeTask, addTask, addNote, logCall, sendReply, markNotificationsRead, setOrderStatus, recordCodCheck, setDeliveryStatus, markRemitted, saveProduct, adjustStock, mergeContacts, startLead, resetPracticeData, saveRecord, removeRecord, updateSettings, updateAgent, setIntegration, assignRider, moveStock, recordPayment, logRun, retryRun, sendBroadcast, addCampaignSpend, updateContactDetails, simulateIncoming, sendProductCard, updateWorkspace, submitLeadForm, submitOrderForm, trackForm, simulateFormTraffic, recordDeposit, requestBalance, issueInvoice, flagComplaint, resolveComplaint, toggleSetupStep, importProducts, addPolicyStarters, importChatHistory, saveFacts, removeFact, sendPaymentLink, receiveIntake, connectMeta, disconnectMeta, syncMeta, setCapi, publishAd, setAdStatus, connectPayments, disconnectPayments, updatePayments, requestPayment, simulatePayment, matchPayment, sendOrderMessage, assignOrders, runAssignmentNow, logAttempt, setOnDuty, sendToPartner, partnerAction, payCommission, messageContact],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

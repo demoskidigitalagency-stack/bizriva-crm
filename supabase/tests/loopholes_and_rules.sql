@@ -2,7 +2,6 @@
 -- Runs inside a transaction that is rolled back: nothing is kept.
 -- Run with the Supabase SQL editor (or MCP execute_sql). The last statement
 -- reports the results as an error on purpose, which rolls everything back.
-begin;
 create temp table r(n serial, name text, ok boolean, info text);
 grant all on r to authenticated, service_role; grant all on sequence r_n_seq to authenticated, service_role;
 create temp table v(k text primary key, val text);
@@ -132,8 +131,8 @@ select pg_temp.chk('transfer into the customer''s account matches by itself',
   (public.svc_provider_payment(pg_temp.g('wsa'), 'paystack', 'T_1', 'transfer', 15000, 'BOLA ADE', '9912345678', null, '{}') ->> 'status') = 'matched');
 select pg_temp.chk('paid in full → order confirmed', (select status::text from orders where id = pg_temp.g('o2')) = 'confirmed');
 select pg_temp.chk('the same notification twice is applied once',
-  (public.svc_provider_payment(pg_temp.g('wsa'), 'paystack', 'T_1', 'transfer', 15000, 'BOLA ADE', '9912345678', null, '{}') ->> 'status') = 'duplicate'
-  and (select amount_paid from orders where id = pg_temp.g('o2')) = 15000);
+  (public.svc_provider_payment(pg_temp.g('wsa'), 'paystack', 'T_1', 'transfer', 15000, 'BOLA ADE', '9912345678', null, '{}') ->> 'status') = 'duplicate');
+select pg_temp.chk('…still paid once', (select amount_paid from orders where id = pg_temp.g('o2')) = 15000);
 select pg_temp.chk('payment receipt queued in the chat', exists (select 1 from messages where body like '%Payment received%RCPT-BZ-1002-01%'));
 select pg_temp.chk('unknown transfer stays unmatched for staff',
   (public.svc_provider_payment(pg_temp.g('wsa'), 'paystack', 'T_2', 'transfer', 7000, 'STRANGER', '0000000000', null, '{}') ->> 'status') = 'unmatched');

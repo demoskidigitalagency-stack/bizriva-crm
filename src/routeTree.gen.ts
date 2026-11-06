@@ -20,6 +20,7 @@ import { Route as BillingRouteImport } from './routes/billing'
 import { Route as BriefRouteImport } from './routes/brief'
 import { Route as BroadcastsRouteImport } from './routes/broadcasts'
 import { Route as CalendarRouteImport } from './routes/calendar'
+import { Route as CallsRouteImport } from './routes/calls'
 import { Route as CodRouteImport } from './routes/cod'
 import { Route as ConnectionsRouteImport } from './routes/connections'
 import { Route as CrmRouteImport } from './routes/crm'
@@ -56,6 +57,7 @@ import { Route as CrmPipelineRouteImport } from './routes/crm/pipeline'
 import { Route as CrmSegmentsRouteImport } from './routes/crm/segments'
 import { Route as CrmTasksRouteImport } from './routes/crm/tasks'
 import { Route as CrmWorkflowsRouteImport } from './routes/crm/workflows'
+import { Route as DTokenRouteImport } from './routes/d.$token'
 import { Route as FFormIdRouteImport } from './routes/f.$formId'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as CrmContactsIndexRouteImport } from './routes/crm/contacts/index'
@@ -114,6 +116,11 @@ const BroadcastsRoute = BroadcastsRouteImport.update({
 const CalendarRoute = CalendarRouteImport.update({
   id: '/calendar',
   path: '/calendar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CallsRoute = CallsRouteImport.update({
+  id: '/calls',
+  path: '/calls',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CodRoute = CodRouteImport.update({
@@ -296,6 +303,11 @@ const CrmWorkflowsRoute = CrmWorkflowsRouteImport.update({
   path: '/workflows',
   getParentRoute: () => CrmRoute,
 } as any)
+const DTokenRoute = DTokenRouteImport.update({
+  id: '/d/$token',
+  path: '/d/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FFormIdRoute = FFormIdRouteImport.update({
   id: '/f/$formId',
   path: '/f/$formId',
@@ -329,6 +341,7 @@ export interface FileRoutesByFullPath {
   '/brief': typeof BriefRoute
   '/broadcasts': typeof BroadcastsRoute
   '/calendar': typeof CalendarRoute
+  '/calls': typeof CallsRoute
   '/cod': typeof CodRoute
   '/connections': typeof ConnectionsRoute
   '/crm': typeof CrmRouteWithChildren
@@ -364,6 +377,7 @@ export interface FileRoutesByFullPath {
   '/crm/segments': typeof CrmSegmentsRoute
   '/crm/tasks': typeof CrmTasksRoute
   '/crm/workflows': typeof CrmWorkflowsRoute
+  '/d/$token': typeof DTokenRoute
   '/f/$formId': typeof FFormIdRoute
   '/invite/$token': typeof InviteTokenRoute
   '/crm/': typeof CrmIndexRoute
@@ -382,6 +396,7 @@ export interface FileRoutesByTo {
   '/brief': typeof BriefRoute
   '/broadcasts': typeof BroadcastsRoute
   '/calendar': typeof CalendarRoute
+  '/calls': typeof CallsRoute
   '/cod': typeof CodRoute
   '/connections': typeof ConnectionsRoute
   '/delivery': typeof DeliveryRoute
@@ -416,6 +431,7 @@ export interface FileRoutesByTo {
   '/crm/segments': typeof CrmSegmentsRoute
   '/crm/tasks': typeof CrmTasksRoute
   '/crm/workflows': typeof CrmWorkflowsRoute
+  '/d/$token': typeof DTokenRoute
   '/f/$formId': typeof FFormIdRoute
   '/invite/$token': typeof InviteTokenRoute
   '/crm': typeof CrmIndexRoute
@@ -435,6 +451,7 @@ export interface FileRoutesById {
   '/brief': typeof BriefRoute
   '/broadcasts': typeof BroadcastsRoute
   '/calendar': typeof CalendarRoute
+  '/calls': typeof CallsRoute
   '/cod': typeof CodRoute
   '/connections': typeof ConnectionsRoute
   '/crm': typeof CrmRouteWithChildren
@@ -470,6 +487,7 @@ export interface FileRoutesById {
   '/crm/segments': typeof CrmSegmentsRoute
   '/crm/tasks': typeof CrmTasksRoute
   '/crm/workflows': typeof CrmWorkflowsRoute
+  '/d/$token': typeof DTokenRoute
   '/f/$formId': typeof FFormIdRoute
   '/invite/$token': typeof InviteTokenRoute
   '/crm/': typeof CrmIndexRoute
@@ -490,6 +508,7 @@ export interface FileRouteTypes {
     | '/brief'
     | '/broadcasts'
     | '/calendar'
+    | '/calls'
     | '/cod'
     | '/connections'
     | '/crm'
@@ -525,6 +544,7 @@ export interface FileRouteTypes {
     | '/crm/segments'
     | '/crm/tasks'
     | '/crm/workflows'
+    | '/d/$token'
     | '/f/$formId'
     | '/invite/$token'
     | '/crm/'
@@ -543,6 +563,7 @@ export interface FileRouteTypes {
     | '/brief'
     | '/broadcasts'
     | '/calendar'
+    | '/calls'
     | '/cod'
     | '/connections'
     | '/delivery'
@@ -577,6 +598,7 @@ export interface FileRouteTypes {
     | '/crm/segments'
     | '/crm/tasks'
     | '/crm/workflows'
+    | '/d/$token'
     | '/f/$formId'
     | '/invite/$token'
     | '/crm'
@@ -595,6 +617,7 @@ export interface FileRouteTypes {
     | '/brief'
     | '/broadcasts'
     | '/calendar'
+    | '/calls'
     | '/cod'
     | '/connections'
     | '/crm'
@@ -630,6 +653,7 @@ export interface FileRouteTypes {
     | '/crm/segments'
     | '/crm/tasks'
     | '/crm/workflows'
+    | '/d/$token'
     | '/f/$formId'
     | '/invite/$token'
     | '/crm/'
@@ -649,6 +673,7 @@ export interface RootRouteChildren {
   BriefRoute: typeof BriefRoute
   BroadcastsRoute: typeof BroadcastsRoute
   CalendarRoute: typeof CalendarRoute
+  CallsRoute: typeof CallsRoute
   CodRoute: typeof CodRoute
   ConnectionsRoute: typeof ConnectionsRoute
   CrmRoute: typeof CrmRouteWithChildren
@@ -675,6 +700,7 @@ export interface RootRouteChildren {
   WelcomeRoute: typeof WelcomeRoute
   WorkflowHistoryRoute: typeof WorkflowHistoryRoute
   AdsNewRoute: typeof AdsNewRoute
+  DTokenRoute: typeof DTokenRoute
   FFormIdRoute: typeof FFormIdRoute
   InviteTokenRoute: typeof InviteTokenRoute
 }
@@ -756,6 +782,13 @@ declare module '@tanstack/react-router' {
       path: '/calendar'
       fullPath: '/calendar'
       preLoaderRoute: typeof CalendarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/calls': {
+      id: '/calls'
+      path: '/calls'
+      fullPath: '/calls'
+      preLoaderRoute: typeof CallsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cod': {
@@ -1010,6 +1043,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CrmWorkflowsRouteImport
       parentRoute: typeof CrmRoute
     }
+    '/d/$token': {
+      id: '/d/$token'
+      path: '/d/$token'
+      fullPath: '/d/$token'
+      preLoaderRoute: typeof DTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/f/$formId': {
       id: '/f/$formId'
       path: '/f/$formId'
@@ -1085,6 +1125,7 @@ const rootRouteChildren: RootRouteChildren = {
   BriefRoute: BriefRoute,
   BroadcastsRoute: BroadcastsRoute,
   CalendarRoute: CalendarRoute,
+  CallsRoute: CallsRoute,
   CodRoute: CodRoute,
   ConnectionsRoute: ConnectionsRoute,
   CrmRoute: CrmRouteWithChildren,
@@ -1111,6 +1152,7 @@ const rootRouteChildren: RootRouteChildren = {
   WelcomeRoute: WelcomeRoute,
   WorkflowHistoryRoute: WorkflowHistoryRoute,
   AdsNewRoute: AdsNewRoute,
+  DTokenRoute: DTokenRoute,
   FFormIdRoute: FFormIdRoute,
   InviteTokenRoute: InviteTokenRoute,
 }

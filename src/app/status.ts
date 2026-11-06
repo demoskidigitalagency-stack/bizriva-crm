@@ -48,6 +48,7 @@ export const FRONTEND_CHECKLIST: StatusItem[] = [
   { id: "f-pay", label: "Payments in the chat: customer account numbers, instant confirmation, receipts, matching, splits", weight: 2, done: true, doneOn: "2026-11-05", note: "Practice with Paystack/Flutterwave/Monnify simulated; payment tables applied to Supabase" },
   { id: "f-meta", label: "Meta Ads: connect, create ads (paused), start/pause, advice, sales back to Meta", weight: 2, done: true, doneOn: "2026-11-05", note: "Practice flow; meta_links, ad_drafts and capi_events applied to Supabase. Live needs the Meta app keys in Vercel" },
   { id: "f-connections", label: "Website & Forms: connect WordPress forms, WooCommerce, Shopify, Google Forms, Typeform, Jotform, Tally, Zapier", weight: 2, done: true, doneOn: "2026-11-05", note: "Practice intake with field matching and duplicate skipping; connections tables applied to Supabase" },
+  { id: "f-pod", label: "Pay-on-delivery operations: agent call list and sharing, logistics partners with per-state fees and a no-login link, partner statements, commission and leaderboard, bulk actions, true profit, order follow-ups, email campaigns, Money Brief read aloud", weight: 3, done: true, doneOn: "2026-11-06", note: "tests/practice_qa_pod.py 46/46; database rules: supabase/tests/pod_ops.sql 45/45 on the live database" },
   { id: "f-review", label: "Competitor and playbook review added (order forms, deposits, invoices, calendar, complaints, reply library, share kit, imports)", weight: 2, done: true, doneOn: "2026-11-04", note: "tests/practice_qa_review.py 43/43. Backend-dependent and parked ideas are listed on Coming Later" },
 ];
 
@@ -61,7 +62,7 @@ export const PHASES: StatusPhase[] = [
       { id: "p1-schema", label: "Database plan for every module, with row-level isolation tested on a local Postgres", weight: 2, done: true, doneOn: "2026-11-04", note: "supabase/migrations: foundation (21 tables) + review features (8 tables). Screens now use the agreed 13 lead stages and 10 order statuses" },
       { id: "p1-auth", label: "Sign-up, sign-in, invitations", weight: 2, done: true, doneOn: "2026-11-05", note: "Account page, business setup, invite links with roles; invite rules tested on the live database" },
       { id: "p1-tenancy", label: "Workspaces with row-level isolation applied and tested", weight: 3, done: true, doneOn: "2026-11-05", note: "31 tables applied; isolation tested on the live database; security advisor clean except the two intended sign-up functions" },
-      { id: "p1-roles", label: "Roles and permissions enforced on the server", weight: 2, done: true, doneOn: "2026-11-06", note: "Owners protected, owner-only owner invites, delete rights, append-only activity log, server-only money and webhook tables, same-business links. supabase/tests/loopholes_and_rules.sql 66/66 on the live database" },
+      { id: "p1-roles", label: "Roles and permissions enforced on the server", weight: 2, done: true, doneOn: "2026-11-06", note: "Owners protected, owner-only owner invites, delete rights, append-only activity log, server-only money and webhook tables, same-business links. supabase/tests/loopholes_and_rules.sql 68/68 on the live database" },
       { id: "p1-contacts", label: "Contacts, leads and conversations saved for real (no sample data)", weight: 2, done: false },
       { id: "p1-wa-connect", label: "WhatsApp Cloud API number connected", weight: 2, done: false, note: "Needs Meta Business verification" },
       { id: "p1-webhook", label: "Inbound webhook: signature checked, duplicates ignored", weight: 3, done: false },
@@ -92,6 +93,7 @@ export const PHASES: StatusPhase[] = [
       { id: "p3-scoring", label: "Lead scoring from real buying actions", weight: 2, done: false },
       { id: "p3-checkout", label: "Conversational checkout with order summary and explicit confirmation", weight: 3, done: false },
       { id: "p3-orders", label: "Orders: edit, cancel, history, receipts", weight: 2, done: false, note: "Server rules done (status order, prices locked after dispatch, receipt numbers, history); screens switch from Practice data next" },
+      { id: "p3-pod-rules", label: "Agents, partner delivery links and commission enforced on the server", weight: 2, done: true, doneOn: "2026-11-06", note: "Orders shared on insert (least busy, round robin, by state), uncalled orders moved every 5 minutes, call records append-only, partner link (hashed token) via the delivery-link Edge Function, commission only on delivered and paid orders; tested end to end" },
       { id: "p3-live-in", label: "Live intake: website/store forms, public order form, Paystack/Flutterwave/Monnify payment notifications", weight: 2, done: true, doneOn: "2026-11-06", note: "Supabase Edge Functions intake, order-form, payments-webhook — keys checked, signatures verified, prices from the database, each event applied once; tested end to end" },
       { id: "p3-cod", label: "COD verification and risk flags", weight: 3, done: false, note: "Server already refuses to dispatch an unverified COD order; risk flags still to come" },
       { id: "p3-delivery", label: "Dispatch board and delivery outcomes", weight: 2, done: false },
@@ -116,7 +118,7 @@ export const PHASES: StatusPhase[] = [
       { id: "p5-analytics", label: "Analytics: created vs confirmed vs delivered", weight: 2, done: false },
       { id: "p5-attribution", label: "Ad attribution, ROAS, cost per delivered order", weight: 2, done: false },
       { id: "p5-agents", label: "Agent performance and response times", weight: 1, done: false },
-      { id: "p5-riders", label: "Riders, COD cash ledger, settlements", weight: 2, done: false },
+      { id: "p5-riders", label: "Riders, COD cash ledger, settlements", weight: 2, done: false, note: "Partners, remittances and statements are in the database; screens switch from Practice data next" },
       { id: "p5-billing", label: "Plans, billing and usage limits", weight: 2, done: false },
       { id: "p5-superadmin", label: "Super Admin console", weight: 2, done: false },
       { id: "p5-tests", label: "All 15 acceptance tests pass end to end", weight: 3, done: false },

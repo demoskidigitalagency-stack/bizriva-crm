@@ -14,10 +14,15 @@ import type {
 const ago = (h: number) => new Date(NOW.getTime() - h * 3_600_000).toISOString();
 
 export const riders: Rider[] = [
-  { id: "r_musa", name: "Musa Abdullahi", phone: "+234 803 410 2291", zone: "Lagos Island & Lekki", vehicle: "bike", active: true },
-  { id: "r_kunle", name: "Kunle Adebayo", phone: "+234 806 552 1180", zone: "Ikeja & Mainland", vehicle: "bike", active: true },
-  { id: "r_emeka", name: "Emeka Obi", phone: "+234 813 220 9934", zone: "Abuja", vehicle: "car", active: true },
-  { id: "r_bisi", name: "Bisi Lawal", phone: "+234 902 771 4410", zone: "Ibadan", vehicle: "bike", active: false },
+  { id: "r_musa", name: "Musa Abdullahi", phone: "+234 803 410 2291", zone: "Lagos Island & Lekki", vehicle: "bike", active: true, kind: "rider", states: ["Lagos"], fees: { Lagos: 2500 }, failedFee: 1000 },
+  { id: "r_kunle", name: "Kunle Adebayo", phone: "+234 806 552 1180", zone: "Ikeja & Mainland", vehicle: "bike", active: true, kind: "rider", states: ["Lagos"], fees: { Lagos: 2800 }, failedFee: 1000 },
+  { id: "r_emeka", name: "Emeka Obi", phone: "+234 813 220 9934", zone: "Abuja", vehicle: "car", active: true, kind: "rider", states: ["FCT"], fees: { FCT: 3500 }, failedFee: 1500 },
+  { id: "r_bisi", name: "Bisi Lawal", phone: "+234 902 771 4410", zone: "Ibadan", vehicle: "bike", active: false, kind: "rider", states: ["Oyo"], fees: { Oyo: 3000 }, failedFee: 1000 },
+  { id: "r_swift", name: "Swift Dispatch NG", phone: "+234 809 300 4400", zone: "South-South & South-East", vehicle: "van", active: true, kind: "partner",
+    states: ["Rivers", "Edo", "Delta", "Enugu", "Anambra", "Imo", "Abia", "Akwa Ibom", "Cross River"], fees: { Rivers: 4500, Edo: 4000, Delta: 4500, Enugu: 4500, Anambra: 4500, Imo: 5000, Abia: 5000, "Akwa Ibom": 5000, "Cross River": 5500 }, failedFee: 2000,
+    whatsappGroup: "https://chat.whatsapp.com/SwiftDispatchLuxe" },
+  { id: "r_north", name: "Arewa Express", phone: "+234 816 900 1122", zone: "North", vehicle: "van", active: true, kind: "partner",
+    states: ["Kano", "Kaduna", "Plateau", "FCT", "Niger", "Kwara"], fees: { Kano: 5000, Kaduna: 4500, Plateau: 5000, FCT: 4000, Niger: 5000, Kwara: 4500 }, failedFee: 2000 },
 ];
 
 export const knowledge: KnowledgeEntry[] = [
@@ -96,11 +101,18 @@ export const followUpRules: FollowUpRule[] = [
   { id: "fu_2", name: "Asked the price, no reply", trigger: "no_reply_after_price", delayHours: 12, maxAttempts: 2, templateId: "tp_4", message: "Hi {{name}}, any questions about the price? We can also deliver and you pay on delivery.", quietStart: "21:00", quietEnd: "08:00", enabled: true },
   { id: "fu_3", name: "Checkout not finished", trigger: "checkout_abandoned", delayHours: 3, maxAttempts: 3, templateId: "tp_5", message: "Hi {{name}}, just need your delivery address to confirm your {{product}}.", quietStart: "21:00", quietEnd: "08:00", enabled: true },
   { id: "fu_4", name: "Worried about delivery", trigger: "delivery_concern", delayHours: 24, maxAttempts: 1, message: "Hi {{name}}, we deliver in Lagos in 1–2 days and you can pay on delivery. Shall I book yours?", quietStart: "21:00", quietEnd: "08:00", enabled: false },
+  { id: "fu_5", name: "Delivery failed — rebook", trigger: "delivery_failed", delayHours: 2, maxAttempts: 2, templateId: "tp_5", message: "Hi {{name}}, our rider couldn't reach you for your {{product}}. When is a good time today or tomorrow to deliver?", quietStart: "21:00", quietEnd: "08:00", enabled: true },
+  { id: "fu_6", name: "Couldn't reach them by phone", trigger: "unreachable", delayHours: 1, maxAttempts: 2, templateId: "tp_5", message: "Hi {{name}}, we tried calling to confirm your {{product}} order. Reply YES to confirm, or tell us a good time to call.", quietStart: "21:00", quietEnd: "08:00", enabled: true },
+  { id: "fu_7", name: "Cancelled order — win back", trigger: "order_cancelled", delayHours: 72, maxAttempts: 1, templateId: "tp_4", message: "Hi {{name}}, sorry your {{product}} order didn't work out. If you'd still like it, reply and we'll sort delivery — pay when it arrives.", quietStart: "21:00", quietEnd: "08:00", enabled: true },
+  { id: "fu_8", name: "Time to re-order", trigger: "reorder_due", delayHours: 0, maxAttempts: 1, templateId: "tp_4", message: "Hi {{name}}, your {{product}} is probably running low by now. Want us to send another one? Same price, pay on delivery.", quietStart: "21:00", quietEnd: "08:00", enabled: true },
 ];
 
 export const broadcasts: Broadcast[] = [
-  { id: "bc_1", name: "October promo — 3 bundles free kit", segmentId: "sg_1", templateId: "tp_4", status: "sent", sentAt: ago(240), recipients: 312, skippedNoConsent: 41 },
+  { id: "bc_1", name: "October promo — 3 bundles free kit", segmentId: "sg_1", templateId: "tp_4", status: "sent", sentAt: ago(240), recipients: 312, skippedNoConsent: 41, channel: "whatsapp", stats: { delivered: 305, orders: 14, revenue: 1_260_000 } },
   { id: "bc_2", name: "Restock: Body Wave 18\"", segmentId: "sg_2", templateId: "tp_4", status: "scheduled", scheduledFor: new Date(NOW.getTime() + 20 * 3_600_000).toISOString(), recipients: 0, skippedNoConsent: 0 },
+  { id: "bc_3", name: "September VIP email — early access", segmentId: "sg_1", templateId: "tp_4", status: "sent", sentAt: ago(400), recipients: 228, skippedNoConsent: 63, channel: "email",
+    subject: "Early access: new HD lace frontals 💛", body: "Hi {{name}},\n\nOur new HD lace frontals land this week and VIPs get first pick — plus free edge control with every order.\n\nShop now: {{link}}\n\nLuxe Hair Collective",
+    stats: { delivered: 221, opened: 97, clicked: 31, orders: 6, revenue: 498000 } },
 ];
 
 export const workflows: Workflow[] = [
@@ -223,6 +235,10 @@ export const settings: BusinessSettings = {
     splits: [],
   },
   afterDelivery: { receipt: true, careGuide: true },
+  assignment: { mode: "least_busy", callWithinMinutes: 120, moveUncalled: true },
+  commission: { perOrder: 500 },
+  partnerAcceptMinutes: 60,
+  email: { provider: "none", fromName: "Luxe Hair Collective", fromEmail: "hello@luxehair.co" },
 };
 
 /** Policy starters a business can add to its Knowledge Base and edit. */

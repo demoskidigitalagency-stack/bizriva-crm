@@ -28,8 +28,9 @@ const LEAKS = [
   { n: "01", title: "Chats wait, buyers cool off", body: "Hundreds of ad chats land on one or two phones. By the time someone replies, the buyer has moved on to the next seller." },
   { n: "02", title: "\"How much?\" — then silence", body: "People ask the price and go quiet. Nobody follows up, so leads you paid for never become orders." },
   { n: "03", title: "Fake COD orders", body: "Unserious orders burn delivery fees and rider trips. You only find out at the gate." },
-  { n: "04", title: "Cash stuck with riders", body: "Delivered doesn't mean paid. Without a ledger, money arrives late or not at all." },
-  { n: "05", title: "Ads you can't read", body: "Ads Manager counts chats and form fills. You need to know which ad brought orders that were actually delivered." },
+  { n: "04", title: "Orders nobody calls", body: "An order lands at 9pm and sits in a shared sheet. Agents pick the easy ones; the rest go cold before anyone rings." },
+  { n: "05", title: "Cash stuck with logistics", body: "Delivered doesn't mean paid. Partners hold your money, and nobody knows how much, for which orders, or since when." },
+  { n: "06", title: "Ads you can't read", body: "Ads Manager counts chats and form fills. You need to know which ad brought orders that were actually delivered." },
 ];
 
 const JOURNEY = [
@@ -47,7 +48,12 @@ const FEATURES = [
   { t: "AI sales agent that doesn't make things up", d: "Replies, sells and sends payment links — only from your products and knowledge base. Hands over to a person when it isn't sure." },
   { t: "COD verification", d: "A confirmation queue with risk scores from history, city and order value. High-risk orders alert you before dispatch." },
   { t: "Order forms that never lose an order", d: "Buy 1 / 2 / 3 packages, free gifts, a live total. Saved the moment it's placed, with the ad source and region." },
-  { t: "Delivery, riders and cash", d: "Dispatch board, rider phone view, failed attempts with reasons, and how much cash each rider is holding." },
+  { t: "A call list for every agent", d: "New orders are shared to agents on duty — least busy, round robin or by state. One-tap call and WhatsApp, every attempt recorded, and orders nobody called move to someone else." },
+  { t: "Riders and logistics partners on WhatsApp", d: "The right partner for each state, with their fee. One tap sends the order to the rider or the partner's group with a private link — they accept, deliver and record cash without an app or login." },
+  { t: "Who owes you what", d: "A running account per rider and partner: cash collected, delivery fees, failed-delivery charges and what's been handed in." },
+  { t: "Commission only on paid orders", d: "Agents earn per closed order once it's delivered and paid — with targets, progress rings and a leaderboard. Finance marks it paid." },
+  { t: "True profit, by state", d: "Profit after product cost, delivery fees, failed deliveries, commission and ads — and delivery success by state, so you spend on ads where orders actually arrive." },
+  { t: "WhatsApp and email campaigns", d: "Win back cancelled orders, rebook failed deliveries, remind people when a product runs out, and email any customer group — with opens, clicks, orders and revenue per campaign." },
   { t: "Follow-ups that respect the rules", d: "Nudges quiet buyers inside WhatsApp's 24-hour window, with approved templates, consent and quiet hours." },
   { t: "Deposits, balances, invoices", d: "Record a deposit, send a balance request into the chat, print an invoice." },
   { t: "Customer 360", d: "Every chat, order, payment, note and address for one person. Import your old WhatsApp chats so history isn't lost." },
@@ -61,6 +67,9 @@ const COMPARE: { row: string; cells: [Cell, Cell, Cell, Cell, Cell] }[] = [
   { row: "COD confirmation and risk check", cells: ["yes", "no", "no", "part", "no"] },
   { row: "Order forms with packages and gifts", cells: ["yes", "no", "part", "yes", "no"] },
   { row: "Riders, deliveries and cash remitted", cells: ["yes", "no", "no", "no", "no"] },
+  { row: "Orders shared to agents, none left uncalled", cells: ["yes", "no", "no", "no", "no"] },
+  { row: "Logistics partners update by link — no app", cells: ["yes", "no", "no", "no", "no"] },
+  { row: "Agent commission on delivered, paid orders", cells: ["yes", "no", "no", "no", "no"] },
   { row: "AI replies from your own catalogue", cells: ["yes", "no", "no", "no", "part"] },
   { row: "Return on ads from delivered orders", cells: ["yes", "no", "no", "part", "part"] },
   { row: "Create Facebook and Instagram ads", cells: ["yes", "no", "part", "no", "yes"] },
@@ -85,7 +94,11 @@ const FAQ = [
   { q: "What happens to my old WhatsApp chats?", a: "Export any chat from WhatsApp and import it into Bizriva. It lands in that customer's history, and duplicates are skipped. Some numbers can also keep using the WhatsApp Business app alongside Bizriva." },
   { q: "How do you count revenue on cash-on-delivery?", a: "Created, confirmed and delivered are counted separately. Cash-on-delivery only counts as revenue once it's delivered — so your numbers match your bank, not your hopes." },
   { q: "Will the AI agent say something wrong to my customers?", a: "It only answers from your product list and the answers you write in the knowledge base. It won't invent prices or promises, and it hands over to a person when asked or unsure." },
-  { q: "Can my riders and staff use it?", a: "Yes. Six roles — owner, manager, sales, support, dispatcher and finance — each see what they need. Riders get a simple phone view to mark drops delivered." },
+  { q: "Can my riders and staff use it?", a: "Yes. Six roles — owner, manager, sales, support, dispatcher and finance — each see what they need. Agents get a call list on their phone; riders get a simple phone view to mark drops delivered." },
+  { q: "Do my logistics partners need to install anything?", a: "No. Orders reach them on WhatsApp — the rider's number or the partner's group — with a private link. They open it to accept, mark delivered or failed, and record the cash. No app, no login, and the link only works for that one delivery." },
+  { q: "Can it handle several logistics partners and states?", a: "Yes. Add as many riders and partners as you need, set the states each covers and their fee per state. Confirmed orders go to the cheapest one for the customer's state, and you can pick another." },
+  { q: "How is agent commission worked out?", a: "You set an amount per closed order. It's earned only when the order is delivered and paid, so nobody is paid for fake orders. Each agent sees their earnings and target; finance marks it paid." },
+  { q: "What happens if an order isn't called?", a: "Supervisors get an alert once an order waits past your limit (two hours by default). At twice that time it moves automatically to another agent on duty, and the history shows who had it." },
   { q: "Is my data separate from other businesses?", a: "Every record belongs to one business and is locked to its team at the database level. Other businesses can never see it." },
   { q: "Is it only for product sellers?", a: "It's built for cash-on-delivery commerce — fashion, hair, beauty, skincare, gadgets, home goods. Service businesses can use the inbox, CRM, follow-ups and payments too." },
 ];
@@ -152,7 +165,7 @@ function Faq() {
 
 function Welcome() {
   const [nav, setNav] = useState(false);
-  const links = [["#problem", "Why"], ["#how", "How it works"], ["#features", "Features"], ["#brief", "Money Brief"], ["#pay", "Payments"], ["#compare", "Compare"], ["#pricing", "Pricing"], ["#faq", "FAQ"]] as const;
+  const links = [["#problem", "Why"], ["#how", "How it works"], ["#features", "Features"], ["#team", "Order to cash"], ["#brief", "Money Brief"], ["#pay", "Payments"], ["#compare", "Compare"], ["#pricing", "Pricing"], ["#faq", "FAQ"]] as const;
   return (
     <div className="lp">
       <style>{CSS}</style>
@@ -206,7 +219,7 @@ function Welcome() {
           <div className="lp-wrap py-20">
             <p className="lp-kicker lp-kicker-light">Where the money leaks</p>
             <h2 className="lp-display mt-3 max-w-3xl text-4xl font-extrabold leading-tight sm:text-5xl">You don't lose sales at the ad. You lose them between the ad and the doorstep.</h2>
-            <ol className="mt-12 grid gap-px overflow-hidden rounded-2xl bg-white/10 sm:grid-cols-2 lg:grid-cols-5">
+            <ol className="mt-12 grid gap-px overflow-hidden rounded-2xl bg-white/10 sm:grid-cols-2 lg:grid-cols-3">
               {LEAKS.map((l) => (
                 <li key={l.n} className="bg-[var(--ink)] p-6">
                   <p className="lp-mono text-sm text-[var(--danfo)]">{l.n}</p>
@@ -250,7 +263,7 @@ function Welcome() {
                   </li>
                 ))}
                 <li className="flex flex-col justify-between gap-4 bg-[var(--ink)] p-6 text-white">
-                  <p className="lp-display text-lg font-bold">See all 31 modules working on sample data.</p>
+                  <p className="lp-display text-lg font-bold">See every module working on sample data.</p>
                   <Link to="/" className="lp-btn lp-btn-danfo self-start">Open the demo <ArrowRight className="size-4" /></Link>
                 </li>
               </ul>
@@ -319,6 +332,26 @@ function Welcome() {
               <p className="lp-bubble lp-out mt-2" style={{ animation: "none", opacity: 1, color: "#14201b" }}>✅ <b>Payment received — thank you!</b><br />₦185,000 for order BZ-1184 · RCPT-1184-001</p>
             </div>
           </div>
+        </section>
+
+        {/* Order to cash */}
+        <section id="team" className="lp-wrap py-20">
+          <p className="lp-kicker">From order to money in your account</p>
+          <h2 className="lp-display mt-3 max-w-3xl text-4xl font-extrabold leading-tight sm:text-5xl">Every pay-on-delivery order called, delivered and paid for.</h2>
+          <ol className="mt-10 grid gap-px overflow-hidden rounded-2xl border border-[var(--rule)] bg-[var(--rule)] md:grid-cols-4">
+            {[
+              ["Orders come in by themselves", "From WhatsApp, your order forms, WooCommerce, Elementor or any website. Duplicates are skipped and risky COD orders flagged."],
+              ["Agents call and confirm", "Each order goes to an agent on duty, who calls or WhatsApps in one tap. Orders not called in time move to someone else."],
+              ["Logistics gets it in one tap", "Confirmed orders go to the right partner for the state, on the rider's WhatsApp or the partner's group, with a link to accept and update."],
+              ["Delivered, paid, settled", "Delivery and cash are recorded, partner balances update, transfers confirm themselves, and agents earn their commission."],
+            ].map(([t, d], i) => (
+              <li key={t} className="bg-[var(--paper)] p-6">
+                <p className="lp-mono text-xs text-[var(--ink-soft)]">0{i + 1}</p>
+                <p className="lp-display mt-2 text-lg font-bold">{t}</p>
+                <p className="mt-2 text-sm text-[var(--ink-soft)]">{d}</p>
+              </li>
+            ))}
+          </ol>
         </section>
 
         {/* Connect */}

@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { EmptyState, KpiCard, Section, StatusBadge } from "@/components/app/primitives";
 import { useActions, useDb } from "@/domain/store";
 import { fullName } from "@/domain/repositories";
-import { FOLLOWUP_WORKFLOW_ID, followUpQueue, inQuietHours } from "@/domain/followups";
+import { FOLLOWUP_WORKFLOW_ID, followUpQueue, inQuietHours, NEW_CHAT } from "@/domain/followups";
 import type { FollowUpRule } from "@/domain/types";
 
 export const Route = createFileRoute("/follow-ups")({
@@ -25,6 +25,10 @@ const TRIGGERS: Record<FollowUpRule["trigger"], string> = {
   no_reply_after_price: "Asked the price, then went quiet",
   checkout_abandoned: "Started an order but didn't confirm",
   delivery_concern: "Worried about delivery",
+  delivery_failed: "Delivery failed — rebook it",
+  unreachable: "Agents couldn't reach them by phone",
+  order_cancelled: "Cancelled an order (win back)",
+  reorder_due: "Product usually runs out (re-order)",
 };
 
 function RuleDialog({ rule, onClose }: { rule: FollowUpRule | "new"; onClose: () => void }) {
@@ -72,7 +76,7 @@ function RuleDialog({ rule, onClose }: { rule: FollowUpRule | "new"; onClose: ()
 
 function FollowUps() {
   const db = useDb();
-  const { sendReply, logRun, saveRecord } = useActions();
+  const { sendReply, logRun, saveRecord, messageContact } = useActions();
   const [view, setView] = useState<"due" | "later" | "rules">("due");
   const [editing, setEditing] = useState<FollowUpRule | "new" | null>(null);
   const queue = followUpQueue(db);
@@ -87,7 +91,7 @@ function FollowUps() {
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-primary">Automation</p>
           <h1 className="text-2xl font-bold">Follow-ups</h1>
-          <p className="mt-1 text-sm text-muted-foreground">People who stopped replying, and the right next message — within WhatsApp's rules, consent and your limits.</p>
+          <p className="mt-1 text-sm text-muted-foreground">People who stopped replying, failed deliveries to rebook, customers agents couldn't reach, cancelled orders to win back and re-order reminders — within WhatsApp's rules, consent and your limits.</p>
         </div>
         <Button size="sm" onClick={() => setEditing("new")}><Plus className="size-4" /> New rule</Button>
       </div>
@@ -113,7 +117,8 @@ function FollowUps() {
                 <li key={q.conversation.id} className="space-y-2 px-4 py-3 text-sm">
                   <div className="flex flex-wrap items-center gap-2">
                     <Link to="/crm/contacts/$contactId" params={{ contactId: q.contact.id }} className="font-medium hover:underline">{fullName(q.contact)}</Link>
-                    <span className="text-xs text-muted-foreground">quiet for {q.hoursWaiting >= 48 ? `${Math.round(q.hoursWaiting / 24)} days` : `${Math.round(q.hoursWaiting)} hours`} · {q.rule.name} · attempt {q.attempts + 1} of {q.rule.maxAttempts}</span>
+                    {q.reason && <StatusBadge tone="info">{q.reason}</StatusBadge>}
+                    <span className="text-xs text-muted-foreground">{q.reason ? "since" : "quiet for"} {q.hoursWaiting >= 48 ? `${Math.round(q.hoursWaiting / 24)} days` : `${Math.round(q.hoursWaiting)} hours`} · {q.rule.name} · attempt {q.attempts + 1} of {q.rule.maxAttempts}</span>
                     <StatusBadge tone={q.windowOpen ? "success" : "warning"}>{q.windowOpen ? "Inside 24 hours" : "Over 24 hours"}</StatusBadge>
                     {view === "later" && <StatusBadge tone="info">Due in {Math.ceil(q.dueInHours)}h</StatusBadge>}
                   </div>
@@ -121,12 +126,12 @@ function FollowUps() {
                   <div className="flex flex-wrap items-center gap-2">
                     {q.send.ok ? (
                       <Button size="sm" disabled={view === "later"} onClick={() => {
-                        sendReply(q.conversation.id, q.text);
+                        if (q.conversation.id.startsWith(NEW_CHAT)) messageContact(q.contact.id, q.text); else sendReply(q.conversation.id, q.text);
                         logRun({ workflowId: FOLLOWUP_WORKFLOW_ID, contactId: q.contact.id, status: "succeeded", detail: `${q.rule.name}: sent ${q.send.ok && q.send.via === "template" ? `template ${q.send.template?.name}` : "free text"}` });
                       }}>Send {q.send.via === "template" ? "template" : "message"}</Button>
                     ) : <span className="text-xs font-medium text-destructive">{q.send.reason}</span>}
                     <Button size="sm" variant="outline" onClick={() => logRun({ workflowId: FOLLOWUP_WORKFLOW_ID, contactId: q.contact.id, status: "skipped", detail: `${q.rule.name}: skipped by a teammate` })}>Skip</Button>
-                    <Link to="/inbox" search={{ c: q.conversation.id }} className="text-xs text-primary hover:underline">Open chat</Link>
+                    {!q.conversation.id.startsWith(NEW_CHAT) && <Link to="/inbox" search={{ c: q.conversation.id }} className="text-xs text-primary hover:underline">Open chat</Link>}
                   </div>
                 </li>
               ))}

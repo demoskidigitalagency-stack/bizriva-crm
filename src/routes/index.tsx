@@ -10,9 +10,9 @@ import { KpiCard, PageHeader, Section, StatusBadge } from "@/components/app/prim
 import { ContactDialog } from "@/components/app/dialogs";
 import { useDb, useWorkspace } from "@/domain/store";
 import { getDashboard } from "@/domain/repositories";
-import { buildBrief } from "@/domain/brief";
+import { buildBrief, briefText } from "@/domain/brief";
 import { NOW } from "@/domain/database";
-import { BriefActions } from "./brief";
+import { BriefActions, ListenButton } from "./brief";
 import { LIFECYCLE_META, SOURCE_LABELS, type ActivityKind } from "@/domain/types";
 import { formatCurrency, formatNumber, formatPercent, relativeTime } from "@/lib/format";
 import type { CurrencyCode } from "@/lib/format";
@@ -81,10 +81,11 @@ function BarRow({ label, value, max, right, tone = "primary" }: { label: string;
 
 function MorningBrief() {
   const db = useDb();
+  const ws = useWorkspace();
   const b = useMemo(() => buildBrief(db, NOW), [db]);
   if (!db.settings.brief.channels.includes("app")) return null;
   return (
-    <Section title="☀️ Morning Money Brief" description={b.headline} className="mb-4" action={<Button asChild size="sm" variant="outline"><Link to="/brief">Open brief</Link></Button>}>
+    <Section title="☀️ Morning Money Brief" description={b.headline} className="mb-4" action={<div className="flex gap-2"><ListenButton text={briefText(b, ws.name, (n) => formatCurrency(n, ws.currency))} /><Button asChild size="sm" variant="outline"><Link to="/brief">Open brief</Link></Button></div>}>
       <BriefActions actions={b.actions.slice(0, 3)} />
     </Section>
   );

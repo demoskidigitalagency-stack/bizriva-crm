@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, Cake, Copy, Sunrise } from "lucide-react";
+import { ArrowRight, Cake, Copy, Square, Sunrise, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -16,6 +16,44 @@ export const Route = createFileRoute("/brief")({
 });
 
 const TONE = { danger: "danger", warning: "warning", info: "info", success: "success" } as const;
+
+/** Turn the WhatsApp text into something pleasant to hear: no stars or emoji, money said in naira. */
+export function spokenBrief(text: string): string {
+  return text
+    .replace(/[*_~]/g, "")
+    .replace(/₦\s?([\d,.]+)(\s?[kKmM])?/g, (_m, n: string, unit?: string) => `${n}${unit ? (/[mM]/.test(unit) ? " million" : " thousand") : ""} naira`)
+    .replace(/\p{Extended_Pictographic}|\uFE0F/gu, "")
+    .replace(/\n+/g, ". ")
+    .replace(/(\.\s*){2,}/g, ". ")
+    .trim();
+}
+
+/** Reads the Money Brief aloud with the phone or computer's own voice (no recording leaves the device). */
+export function ListenButton({ text, size = "sm" }: { text: string; size?: "sm" | "default" }) {
+  const [speaking, setSpeaking] = useState(false);
+  const [supported, setSupported] = useState(true);
+  useEffect(() => { setSupported(typeof window !== "undefined" && "speechSynthesis" in window); return () => { try { window.speechSynthesis?.cancel(); } catch { /* none */ } }; }, []);
+  const play = () => {
+    const synth = window.speechSynthesis;
+    if (speaking) { synth.cancel(); setSpeaking(false); return; }
+    const u = new SpeechSynthesisUtterance(spokenBrief(text));
+    const voices = synth.getVoices();
+    const voice = voices.find((v) => v.lang === "en-NG") ?? voices.find((v) => v.lang === "en-GB") ?? voices.find((v) => v.lang.startsWith("en"));
+    if (voice) u.voice = voice;
+    u.rate = 0.98;
+    u.onend = () => setSpeaking(false);
+    u.onerror = () => setSpeaking(false);
+    synth.cancel();
+    synth.speak(u);
+    setSpeaking(true);
+  };
+  if (!supported) return null;
+  return (
+    <Button size={size} variant="outline" onClick={play} aria-pressed={speaking}>
+      {speaking ? <Square className="size-4" /> : <Volume2 className="size-4" />} {speaking ? "Stop" : "Listen"}
+    </Button>
+  );
+}
 
 export function BriefActions({ actions }: { actions: BriefAction[] }) {
   if (!actions.length) return <p className="p-4 text-sm text-muted-foreground">Nothing urgent. A good day to plan your next ad.</p>;
@@ -55,7 +93,10 @@ function Brief() {
           <h1 className="flex items-center gap-2 text-2xl font-bold"><Sunrise className="size-6 text-warning" aria-hidden="true" /> Morning Money Brief</h1>
           <p className="mt-1 text-sm text-muted-foreground">{NOW.toLocaleDateString("en-NG", { weekday: "long", day: "numeric", month: "long", year: "numeric" })} · revenue counts only delivered orders</p>
         </div>
-        <Button size="sm" variant="outline" onClick={async () => { try { await navigator.clipboard.writeText(text); } catch { /* blocked */ } setCopied(true); }}><Copy className="size-4" /> {copied ? "Copied" : "Copy as WhatsApp message"}</Button>
+        <div className="flex flex-wrap gap-2">
+          <ListenButton text={text} />
+          <Button size="sm" variant="outline" onClick={async () => { try { await navigator.clipboard.writeText(text); } catch { /* blocked */ } setCopied(true); }}><Copy className="size-4" /> {copied ? "Copied" : "Copy as WhatsApp message"}</Button>
+        </div>
       </div>
 
       <Section>

@@ -6,6 +6,7 @@ import { useDb, useWorkspace } from "@/domain/store";
 import { NOW } from "@/domain/database";
 import { CHANNEL_LABELS, type Channel } from "@/domain/types";
 import { formatCurrency } from "@/lib/format";
+import { deliveryByState, trueProfit } from "@/domain/ops";
 
 export const Route = createFileRoute("/analytics")({
   head: () => ({ meta: [{ title: "Analytics · Bizriva CRM" }] }),
@@ -107,6 +108,20 @@ function Analytics() {
           <Bars format={money} rows={[...channels.entries()].sort((a, b) => b[1] - a[1]).map(([c, v]) => ({ label: CHANNEL_LABELS[c], value: v }))} />
         </Section>
       </div>
+      <TrueProfitSection />
+      <Section title="Delivery success by state" description="Where orders arrive and where they come back — use it to decide where to spend on ads">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[520px] text-sm">
+            <thead className="text-left text-xs uppercase tracking-wider text-muted-foreground"><tr><th className="px-4 py-2">State</th><th className="px-4 py-2 text-right">Orders</th><th className="px-4 py-2 text-right">Delivered</th><th className="px-4 py-2 text-right">Refused or returned</th><th className="px-4 py-2 text-right">Success</th><th className="px-4 py-2 text-right">Delivered revenue</th></tr></thead>
+            <tbody className="divide-y">
+              {deliveryByState(db).slice(0, 12).map((r) => (
+                <tr key={r.state} aria-label={`State ${r.state}`}><td className="px-4 py-2">{r.state}</td><td className="num px-4 py-2 text-right">{r.orders}</td><td className="num px-4 py-2 text-right">{r.delivered}</td><td className="num px-4 py-2 text-right">{r.failed}</td>
+                  <td className={`num px-4 py-2 text-right font-semibold ${r.delivered + r.failed && r.rate < 0.7 ? "text-destructive" : ""}`}>{r.delivered + r.failed ? `${Math.round(r.rate * 100)}%` : "—"}</td><td className="num px-4 py-2 text-right">{money(r.revenue)}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Section>
       <Section title="Sales team" description="Leads owned, wins and delivered revenue from their customers">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[520px] text-sm">
@@ -121,5 +136,25 @@ function Analytics() {
         <p className="border-t px-4 py-2 text-xs text-muted-foreground">Response times and AI-versus-human handling appear once real conversations flow through the backend.</p>
       </Section>
     </div>
+  );
+}
+
+/** Profit after everything a pay-on-delivery order really costs. */
+function TrueProfitSection() {
+  const db = useDb();
+  const ws = useWorkspace();
+  const p = trueProfit(db);
+  const money = (n: number) => formatCurrency(n, ws.currency);
+  const rows: [string, number][] = [
+    ["Delivered revenue", p.deliveredRevenue], ["Product cost", -p.productCost], ["Delivery fees", -p.deliveryFees],
+    ["Failed-delivery charges", -p.failedCharges], ["Agent commission", -p.commission], ["Ad spend", -p.adSpend],
+  ];
+  return (
+    <Section title="True profit" description={`Delivered orders only (${p.orders}), after product cost, delivery fees, failed deliveries, commission and ads`}>
+      <dl className="grid gap-x-6 gap-y-1.5 p-4 text-sm sm:grid-cols-2">
+        {rows.map(([k, v]) => <div key={k} className="flex justify-between"><dt className="text-muted-foreground">{k}</dt><dd className={`num ${v < 0 ? "" : "font-medium"}`}>{v < 0 ? `−${money(-v)}` : money(v)}</dd></div>)}
+        <div className="flex justify-between border-t pt-1.5 sm:col-span-2"><dt className="font-semibold">Profit</dt><dd className={`num text-lg font-bold ${p.profit < 0 ? "text-destructive" : "text-success"}`} data-testid="true-profit">{p.profit < 0 ? `−${money(-p.profit)}` : money(p.profit)}</dd></div>
+      </dl>
+    </Section>
   );
 }

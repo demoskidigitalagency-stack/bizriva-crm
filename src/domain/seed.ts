@@ -88,10 +88,10 @@ export const workspaces: Workspace[] = [
 
 export const team: TeamMember[] = [
   { id: "u_ade", name: "Ademola Adeniran", email: "ademola@luxehair.co", role: "owner", avatarColor: "brand", active: true },
-  { id: "u_zainab", name: "Zainab Bello", email: "zainab@luxehair.co", role: "manager", avatarColor: "info", active: true },
-  { id: "u_chidi", name: "Chidi Okeke", email: "chidi@luxehair.co", role: "sales_rep", avatarColor: "success", active: true },
-  { id: "u_amaka", name: "Amaka Nwosu", email: "amaka@luxehair.co", role: "sales_rep", avatarColor: "purple", active: true },
-  { id: "u_tobi", name: "Tobi Familusi", email: "tobi@luxehair.co", role: "support", avatarColor: "warning", active: true },
+  { id: "u_zainab", name: "Zainab Bello", email: "zainab@luxehair.co", role: "manager", avatarColor: "info", active: true, onDuty: false },
+  { id: "u_chidi", name: "Chidi Okeke", email: "chidi@luxehair.co", role: "sales_rep", avatarColor: "success", active: true, onDuty: true, states: ["Lagos", "Ogun", "Oyo"], monthlyTarget: 40 },
+  { id: "u_amaka", name: "Amaka Nwosu", email: "amaka@luxehair.co", role: "sales_rep", avatarColor: "purple", active: true, onDuty: true, states: ["FCT", "Rivers", "Edo", "Enugu", "Kano"], monthlyTarget: 40 },
+  { id: "u_tobi", name: "Tobi Familusi", email: "tobi@luxehair.co", role: "support", avatarColor: "warning", active: true, onDuty: true, states: ["Lagos"], monthlyTarget: 20 },
   { id: "u_seyi", name: "Seyi Ogunleye", email: "seyi@luxehair.co", role: "fulfilment", avatarColor: "info", active: true },
   { id: "u_nkechi", name: "Nkechi Eze", email: "nkechi@luxehair.co", role: "finance", avatarColor: "brand", active: true },
 ];

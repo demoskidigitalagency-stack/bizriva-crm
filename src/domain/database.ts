@@ -166,6 +166,46 @@ function withRiders(deliveries: DeliverySummary[]): DeliverySummary[] {
   });
 }
 
+const REORDER_DAYS: Record<string, number> = { "Hair Care": 45, Accessories: 120, Extensions: 150, "Hair Bundles": 180 };
+const AGENTS = ["u_chidi", "u_amaka", "u_tobi"];
+
+/**
+ * Practice orders get a customer agent and a call history, so the Call list,
+ * commission and leaderboard have real-looking work. A few new orders are left
+ * uncalled (assigned 2–3 hours ago by the real clock) to show the alert.
+ */
+function withAgents(orders: OrderSummary[]): OrderSummary[] {
+  const open = ["pending_verification", "confirmed", "processing", "ready_for_dispatch", "dispatched", "in_transit", "delivered", "refused", "returned"];
+  let pending = 0;
+  return orders.map((o, i) => {
+    if (!open.includes(o.status)) return o;
+    const by = AGENTS[i % AGENTS.length]!;
+    const placed = new Date(o.placedAt).getTime();
+    const at = (min: number) => new Date(placed + min * 60_000).toISOString();
+    if (o.status === "pending_verification") {
+      const n = pending++;
+      if (n < 3) return { ...o, assignedTo: by, assignedAt: new Date(Date.now() - (140 + n * 25) * 60_000).toISOString() };
+      return { ...o, assignedTo: by, assignedAt: o.placedAt, contactAttempts: [{ at: at(25), by, via: n % 2 ? "whatsapp" : "call", outcome: n % 3 ? "no_answer" : "call_back" }, ...(n % 3 === 1 ? [{ at: at(140), by, via: "call" as const, outcome: "no_answer" as const }] : [])] };
+    }
+    const attempts = [{ at: at(18), by, via: "call" as const, outcome: "reached" as const }];
+    return { ...o, assignedTo: by, assignedAt: o.placedAt, contactAttempts: attempts, ...(o.status === "delivered" && Math.floor(i / 3) % 2 === 0 ? { commissionPaidAt: at(60 * 24 * 7) } : {}) };
+  });
+}
+
+/** Partner deliveries carry their fee; a couple were sent on WhatsApp and one isn't accepted yet. */
+function withPartnerLinks(deliveries: DeliverySummary[]): DeliverySummary[] {
+  let sent = 0;
+  return deliveries.map((d, i) => {
+    if (!d.riderId) return d;
+    if (d.status === "scheduled" && sent < 3) {
+      const k = sent++;
+      const sentAt = new Date(Date.now() - (k === 0 ? 95 : 300 + k * 30) * 60_000).toISOString();
+      return { ...d, linkToken: `prac${(i * 7919).toString(16)}t${k}`, sentAt, ...(k === 0 ? {} : { acceptedAt: new Date(new Date(sentAt).getTime() + 12 * 60_000).toISOString() }) };
+    }
+    return d;
+  });
+}
+
 export function createInitialDatabase(): Database {
   return {
     workspaces: seed.workspaces,
@@ -180,10 +220,10 @@ export function createInitialDatabase(): Database {
     conversations: withComplaints(withFactMessages(withDetailMessages(seed.conversations, seed.contacts))),
     productInterests: seed.productInterests,
     segments: seed.segments,
-    orders: withDeposits(seed.orders),
-    deliveries: withRecentDeliveries(withRiders(seed.deliveries)),
+    orders: withAgents(withDeposits(seed.orders)),
+    deliveries: withPartnerLinks(withRecentDeliveries(withRiders(seed.deliveries))),
     payments: seed.payments,
-    products: seed.products.map((p) => ({ ...p, active: true, description: practice.productDescriptions[p.id] ?? "", ...(CARE_STARTERS[p.category] ? { careGuide: CARE_STARTERS[p.category] } : {}) })),
+    products: seed.products.map((p) => ({ ...p, active: true, description: practice.productDescriptions[p.id] ?? "", ...(CARE_STARTERS[p.category] ? { careGuide: CARE_STARTERS[p.category] } : {}), ...(REORDER_DAYS[p.category] ? { reorderDays: REORDER_DAYS[p.category] } : {}) })),
     campaigns: seed.campaigns,
     notifications: seed.notifications,
     revenueTrend: seed.revenueTrend,

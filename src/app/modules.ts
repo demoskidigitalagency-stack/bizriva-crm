@@ -12,7 +12,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   BarChart3, BookOpen, Boxes, Bot, CalendarCheck, CreditCard, FileText, HelpCircle, Images, LayoutDashboard,
   Megaphone, MessageSquare, Package, Plug, Send, Settings, ShieldCheck, ShoppingBag, Store, Truck, Users,
-  UsersRound, Wallet, Workflow, History, ListChecks, Bike, Building2, ClipboardList, CalendarDays, Telescope, Sunrise,
+  UsersRound, Wallet, Workflow, History, ListChecks, Bike, Building2, ClipboardList, CalendarDays, Telescope, Sunrise, PhoneCall,
 } from "lucide-react";
 
 /** How real a module is today. Shown honestly in the UI — never overstated. */
@@ -24,7 +24,7 @@ export type BuildState =
 
 export type Phase = "Foundation" | "MVP" | "Later";
 
-export type Source = "Sandala" | "Kobolink" | "Bizriva" | "Prompt" | "Review 2026-11-04" | "Review 2026-11-05";
+export type Source = "Sandala" | "Kobolink" | "Bizriva" | "Prompt" | "Review 2026-11-04" | "Review 2026-11-05" | "Review 2026-11-06";
 
 export interface ModuleDef {
   id: string;
@@ -72,6 +72,9 @@ export const MODULES: ModuleDef[] = [
   { id: "orders", label: "Orders", path: "/orders", icon: ShoppingBag, group: "Sales", phase: "MVP", state: "practice", sources: ["Kobolink", "Prompt"], decision: "Agreed",
     submenus: ["All orders by status", "Order detail and next step", "New order for any contact", "Cancellations and returns", "Conversational checkout (with AI agent)", "Deposits and balances", "Request balance in chat", "Invoices (print or PDF)"],
     summary: "Orders captured from conversations, linked to the original lead and chat." },
+  { id: "calls", label: "Call List", path: "/calls", icon: PhoneCall, group: "Sales", phase: "MVP", state: "practice", sources: ["Review 2026-11-06"], decision: "Agreed",
+    submenus: ["Orders shared to agents on duty: least busy, round robin or by state", "One-tap call and WhatsApp, every attempt recorded", "Not-called alerts; uncalled orders move to another agent", "Commission earned only when delivered and paid", "Targets, progress rings and leaderboard"],
+    summary: "Every pay-on-delivery order called fast, by the right agent, with commission that's only earned on paid orders." },
   { id: "cod", label: "COD Verification", path: "/cod", icon: ShieldCheck, group: "Sales", phase: "MVP", state: "practice", sources: ["Sandala", "Prompt"], decision: "Agreed",
     submenus: ["Pending verification", "Risk flags", "Human review", "Confirmation log"],
     summary: "Confirm name, phone, address, amount and COD terms before any courier run." },

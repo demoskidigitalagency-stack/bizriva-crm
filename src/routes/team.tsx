@@ -80,7 +80,10 @@ function Team() {
           <h1 className="text-2xl font-bold">Team and Roles</h1>
           <p className="mt-1 text-sm text-muted-foreground">Who's on the team and what each role can do. With the backend, the server enforces these — not just the screens.</p>
         </div>
-        <Button size="sm" onClick={() => setInviting(true)}><UserPlus className="size-4" /> Invite</Button>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild size="sm" variant="outline"><Link to="/calls" search={{ v: "board" }}>Leaderboard and commission</Link></Button>
+          <Button size="sm" onClick={() => setInviting(true)}><UserPlus className="size-4" /> Invite</Button>
+        </div>
       </div>
       <Section title="Members">
         <ul className="divide-y">

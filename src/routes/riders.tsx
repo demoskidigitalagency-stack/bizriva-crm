@@ -5,11 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EmptyState, Section, StatusBadge } from "@/components/app/primitives";
 import { useActions, useDb, useWorkspace } from "@/domain/store";
 import { fullName } from "@/domain/repositories";
+import { partnerStatement, stateOf } from "@/domain/ops";
 import type { Rider } from "@/domain/types";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -36,12 +38,21 @@ function useRiderLedger(riderId: string) {
 
 function RiderDialog({ rider, onClose }: { rider: Rider | "new"; onClose: () => void }) {
   const { saveRecord } = useActions();
-  const init: Omit<Rider, "id"> & { id?: string } = rider === "new" ? { name: "", phone: "", zone: "", vehicle: "bike", active: true } : rider;
+  const init: Omit<Rider, "id"> & { id?: string } = rider === "new" ? { name: "", phone: "", zone: "", vehicle: "bike", active: true, kind: "rider", states: [], fees: {}, failedFee: 0 } : rider;
   const [r, setR] = useState(init);
+  const [fees, setFees] = useState(Object.entries(init.fees ?? {}).map(([k, v]) => `${k}: ${v}`).join("\n"));
   const [error, setError] = useState("");
   const save = () => {
     if (!r.name.trim() || r.phone.replace(/\D/g, "").length < 10) return setError("Enter a name and a full phone number.");
-    saveRecord("riders", { ...r, name: r.name.trim(), zone: r.zone.trim() || "Unassigned" });
+    const parsed: Record<string, number> = {};
+    for (const line of fees.split(/\n|,(?=\s*[A-Za-z])/).map((x) => x.trim()).filter(Boolean)) {
+      const m = /^(.+?)\s*[:=-]\s*₦?\s*([\d,]+)$/.exec(line);
+      if (!m) return setError(`Write each fee as "State: amount" — couldn't read "${line}".`);
+      parsed[stateOf(m[1]!)] = Number(m[2]!.replace(/,/g, ""));
+    }
+    if (r.whatsappGroup && !/^https:\/\/chat\.whatsapp\.com\//.test(r.whatsappGroup)) return setError("A WhatsApp group link starts with https://chat.whatsapp.com/");
+    const states = Object.keys(parsed).length ? Object.keys(parsed) : (r.states ?? []);
+    saveRecord("riders", { ...r, name: r.name.trim(), zone: r.zone.trim() || states.join(", ") || "Unassigned", fees: parsed, states });
     onClose();
   };
   return (
@@ -51,7 +62,21 @@ function RiderDialog({ rider, onClose }: { rider: Rider | "new"; onClose: () => 
         <div className="grid gap-3">
           <div className="space-y-1.5"><Label htmlFor="rn">Name</Label><Input id="rn" value={r.name} onChange={(e) => setR({ ...r, name: e.target.value })} /></div>
           <div className="space-y-1.5"><Label htmlFor="rp">Phone</Label><Input id="rp" value={r.phone} onChange={(e) => setR({ ...r, phone: e.target.value })} placeholder="+234 803 000 0000" /></div>
+          <div className="space-y-1.5"><Label>Type</Label>
+            <Select value={r.kind ?? "rider"} onValueChange={(v) => setR({ ...r, kind: v as "rider" | "partner" })}>
+              <SelectTrigger aria-label="Type"><SelectValue>{r.kind === "partner" ? "Logistics partner (company)" : "Own rider"}</SelectValue></SelectTrigger>
+              <SelectContent><SelectItem value="rider">Own rider</SelectItem><SelectItem value="partner">Logistics partner (company)</SelectItem></SelectContent>
+            </Select>
+          </div>
           <div className="space-y-1.5"><Label htmlFor="rz">Zone</Label><Input id="rz" value={r.zone} onChange={(e) => setR({ ...r, zone: e.target.value })} placeholder="Lekki & VI" /></div>
+          <div className="space-y-1.5"><Label htmlFor="rf">States covered and fee per delivery</Label>
+            <Textarea id="rf" rows={3} value={fees} onChange={(e) => setFees(e.target.value)} placeholder={"Lagos: 2500\nOgun: 3500"} />
+            <p className="text-xs text-muted-foreground">One state per line. Confirmed orders for these states go to the cheapest active rider or partner who covers them.</p>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5"><Label htmlFor="rff">Failed-delivery charge</Label><Input id="rff" inputMode="numeric" value={String(r.failedFee ?? 0)} onChange={(e) => setR({ ...r, failedFee: Number(e.target.value.replace(/\D/g, "")) || 0 })} /></div>
+            <div className="space-y-1.5"><Label htmlFor="rg">WhatsApp group link (optional)</Label><Input id="rg" value={r.whatsappGroup ?? ""} onChange={(e) => { const v = e.target.value.trim(); const { whatsappGroup: _g, ...rest } = r; setR(v ? { ...rest, whatsappGroup: v } : rest); }} placeholder="https://chat.whatsapp.com/…" /></div>
+          </div>
           <div className="space-y-1.5"><Label>Vehicle</Label>
             <Select value={r.vehicle} onValueChange={(v) => setR({ ...r, vehicle: v as Rider["vehicle"] })}>
               <SelectTrigger aria-label="Vehicle"><SelectValue>{r.vehicle}</SelectValue></SelectTrigger>
@@ -77,7 +102,9 @@ function RiderRow({ r, selected, onSelect, onEdit }: { r: Rider; selected: boole
       <button type="button" onClick={onSelect} className="min-w-0 flex-1 basis-40 text-left">
         <span className="block font-medium hover:underline">{r.name}</span>
         <span className="block text-xs text-muted-foreground">{r.zone} · {r.phone}</span>
+        {r.fees && Object.keys(r.fees).length > 0 && <span className="block text-xs text-muted-foreground">{Object.entries(r.fees).slice(0, 4).map(([k, v]) => `${k} ${formatCurrency(v, ws.currency)}`).join(" · ")}{Object.keys(r.fees).length > 4 ? ` · +${Object.keys(r.fees).length - 4} states` : ""}</span>}
       </button>
+      {r.kind === "partner" && <StatusBadge tone="info">Partner</StatusBadge>}
       {!r.active && <StatusBadge>Inactive</StatusBadge>}
       <span className="text-xs text-muted-foreground"><span className="num font-semibold text-foreground">{l.open.length}</span> open · {l.delivered} delivered · {l.failed} failed</span>
       <StatusBadge tone={l.cashHeld ? "warning" : "success"}>{l.cashHeld ? `${formatCurrency(l.cashHeld, ws.currency)} to hand in` : "No cash held"}</StatusBadge>
@@ -121,6 +148,37 @@ function PhoneView({ rider }: { rider: Rider }) {
   );
 }
 
+/** Running account per rider/partner: cash collected, their fees, failed charges, what's been handed in. */
+function Statements() {
+  const db = useDb();
+  const ws = useWorkspace();
+  const money = (n: number) => formatCurrency(n, ws.currency);
+  const rows = db.riders.map((r) => partnerStatement(db, r)).filter((s) => s.delivered || s.failed || s.rider.active);
+  return (
+    <Section title="Who owes you what" description="Cash collected on delivery, minus each partner's delivery fees and failed-delivery charges, minus what they've already handed in.">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[680px] text-sm">
+          <thead className="text-left text-xs text-muted-foreground"><tr><th className="px-4 py-2">Rider or partner</th><th>Delivered</th><th>Cash collected</th><th>Their fees</th><th>Failed charges</th><th>Handed in</th><th className="pr-4 text-right">Owes you</th></tr></thead>
+          <tbody className="divide-y">
+            {rows.map((s) => (
+              <tr key={s.rider.id} aria-label={`Statement ${s.rider.name}`}>
+                <td className="px-4 py-2 font-medium">{s.rider.name}{s.rider.kind === "partner" ? <span className="ml-1 text-xs text-muted-foreground">partner</span> : null}</td>
+                <td className="num">{s.delivered}{s.failed ? <span className="text-xs text-muted-foreground"> · {s.failed} failed</span> : null}</td>
+                <td className="num">{money(s.cashCollected)}</td>
+                <td className="num">−{money(s.fees)}</td>
+                <td className="num">−{money(s.failedCharges)}</td>
+                <td className="num">−{money(s.remitted)}</td>
+                <td className={cn("num pr-4 text-right font-semibold", s.owes > 0 ? "text-warning-foreground dark:text-warning" : s.owes < 0 ? "text-success" : "")}>{s.owes < 0 ? `You owe ${money(-s.owes)}` : money(s.owes)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="border-t px-4 py-2 text-xs text-muted-foreground">Mark handed-in cash on the <a href="/payments" className="underline">Payments</a> page (COD ledger). Partners record cash from their private delivery link.</p>
+    </Section>
+  );
+}
+
 function Riders() {
   const db = useDb();
   const [editing, setEditing] = useState<Rider | "new" | null>(null);
@@ -132,8 +190,8 @@ function Riders() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-primary">Delivery</p>
-          <h1 className="text-2xl font-bold">Riders</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Your own riders, their open drops and the cash they're holding. Assign deliveries from the dispatch board.</p>
+          <h1 className="text-2xl font-bold">Riders and logistics partners</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Your own riders and delivery companies: the states they cover, their fee per state, their open drops and the cash they're holding. Send deliveries from the dispatch board.</p>
         </div>
         <Button size="sm" onClick={() => setEditing("new")}><Plus className="size-4" /> Add rider</Button>
       </div>
@@ -148,6 +206,7 @@ function Riders() {
           {rider ? <PhoneView rider={rider} /> : <EmptyState title="Pick a rider" />}
         </div>
       </div>
+      <Statements />
       {editing && <RiderDialog rider={editing} onClose={() => setEditing(null)} />}
     </div>
   );

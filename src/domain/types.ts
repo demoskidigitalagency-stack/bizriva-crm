@@ -127,6 +127,12 @@ export interface TeamMember {
   role: "owner" | "manager" | "sales_rep" | "support" | "fulfilment" | "finance";
   avatarColor: string;
   active: boolean;
+  /** Taking new orders right now (customer agents). Missing means on duty. */
+  onDuty?: boolean;
+  /** States this agent covers when orders are shared by state. */
+  states?: string[];
+  /** Closed orders to aim for this month. */
+  monthlyTarget?: number;
 }
 
 export interface ChannelIdentity {
@@ -303,7 +309,19 @@ export interface OrderSummary {
   invoiceNo?: string;
   /** Order Form that created this order, if any. */
   formId?: ID;
+  /** Customer agent responsible for calling and confirming. */
+  assignedTo?: ID;
+  assignedAt?: string;
+  /** Agents it was moved away from because it wasn't called in time. */
+  movedFrom?: ID[];
+  /** Every call or WhatsApp attempt, newest last. */
+  contactAttempts?: ContactAttempt[];
+  /** When the agent's commission for this order was paid out. */
+  commissionPaidAt?: string;
 }
+
+export type AttemptOutcome = "reached" | "no_answer" | "busy" | "wrong_number" | "call_back";
+export interface ContactAttempt { at: string; by: ID; via: "call" | "whatsapp"; outcome: AttemptOutcome; note?: string }
 
 export interface DeliverySummary {
   id: ID;
@@ -318,6 +336,14 @@ export interface DeliverySummary {
   city: string;
   failureReason?: string;
   riderId?: ID;
+  /** Sent to the rider or partner on WhatsApp with a private link (no login). */
+  linkToken?: string;
+  sentAt?: string;
+  acceptedAt?: string;
+  /** What the partner charges for this delivery (from their fee for the state). */
+  fee?: number;
+  /** Cash the rider or partner says they collected. */
+  cashCollected?: number;
 }
 
 export interface PaymentSummary {
@@ -357,6 +383,8 @@ export interface Product {
   deposit?: number;
   /** "How to use and care" guide sent to the customer after delivery. */
   careGuide?: string;
+  /** Days a customer usually takes to finish it — drives re-order reminders. */
+  reorderDays?: number;
 }
 
 export interface Campaign {
@@ -499,6 +527,16 @@ export interface Rider {
   zone: string;
   vehicle: "bike" | "car" | "van";
   active: boolean;
+  /** Own rider, or a logistics company. Missing means own rider. */
+  kind?: "rider" | "partner";
+  /** States they cover; orders for these states route to them. */
+  states?: string[];
+  /** Fee per delivery, by state. */
+  fees?: Record<string, number>;
+  /** Charged when a delivery fails. */
+  failedFee?: number;
+  /** Partner's WhatsApp group invite link, if orders go to a group. */
+  whatsappGroup?: string;
 }
 
 export interface KnowledgeEntry {
@@ -529,7 +567,7 @@ export interface MessageTemplate {
 export interface FollowUpRule {
   id: ID;
   name: string;
-  trigger: "no_reply_after_details" | "no_reply_after_price" | "checkout_abandoned" | "delivery_concern";
+  trigger: "no_reply_after_details" | "no_reply_after_price" | "checkout_abandoned" | "delivery_concern" | "delivery_failed" | "unreachable" | "order_cancelled" | "reorder_due";
   delayHours: number;
   maxAttempts: number;
   templateId?: ID;
@@ -549,6 +587,12 @@ export interface Broadcast {
   sentAt?: string;
   recipients: number;
   skippedNoConsent: number;
+  /** WhatsApp (default) or email. */
+  channel?: "whatsapp" | "email";
+  subject?: string;
+  body?: string;
+  /** Results tracked per campaign. Opens and clicks are tracked for email. */
+  stats?: { delivered: number; opened?: number; clicked?: number; orders: number; revenue: number };
 }
 
 export interface WorkflowStep {
@@ -640,6 +684,23 @@ export interface BusinessSettings {
   payments: PaymentSetup;
   /** After an order is delivered: what the customer receives. */
   afterDelivery: { receipt: boolean; careGuide: boolean };
+  /** How new orders are shared between customer agents. */
+  assignment: AssignmentSettings;
+  /** Agent commission per closed order — earned only when delivered and paid. */
+  commission: { perOrder: number };
+  /** Alert when a rider or partner hasn't accepted an order sent to them. */
+  partnerAcceptMinutes: number;
+  /** Email service for campaigns (Practice Mode simulates it). */
+  email: { provider: "none" | "brevo" | "mailgun" | "ses" | "smtp"; fromName: string; fromEmail: string };
+}
+
+export interface AssignmentSettings {
+  mode: "least_busy" | "round_robin" | "by_state";
+  /** Alert supervisors and move the order if it isn't called within this many minutes. */
+  callWithinMinutes: number;
+  moveUncalled: boolean;
+  /** Round robin: who got the last order. */
+  lastAssigned?: ID;
 }
 
 /* ===================================================================

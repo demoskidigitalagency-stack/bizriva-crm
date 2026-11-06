@@ -5,9 +5,9 @@ Generated from `src/app/status.ts` and `src/app/modules.ts` by `bun run status`.
 | Track | Progress | |
 | --- | ---: | --- |
 | **Frontend — Practice Mode** (every page and button works on sample data) | **100%** | `████████████████████` |
-| **Backend — Live** (works for real: auth, database, WhatsApp, AI) | **17%** | `███░░░░░░░░░░░░░░░░░` |
+| **Backend — Live** (works for real: auth, database, WhatsApp, AI) | **19%** | `████░░░░░░░░░░░░░░░░` |
 
-Modules: 33 of 33 practice ready · 0 partly working · 0 planned.
+Modules: 34 of 34 practice ready · 0 partly working · 0 planned.
 
 ## Frontend track
 
@@ -24,6 +24,7 @@ Modules: 33 of 33 practice ready · 0 partly working · 0 planned.
 | ✅ | Customers | Inbox | MVP | Practice ready | Sandala, Kobolink, Prompt |
 | ✅ | Customers | CRM | MVP | Practice ready | Bizriva, Sandala, Prompt |
 | ✅ | Sales | Orders | MVP | Practice ready | Kobolink, Prompt |
+| ✅ | Sales | Call List | MVP | Practice ready | Review 2026-11-06 |
 | ✅ | Sales | COD Verification | MVP | Practice ready | Sandala, Prompt |
 | ✅ | Sales | Order Forms | MVP | Practice ready | Review 2026-11-04 |
 | ✅ | Commerce | Products | MVP | Practice ready | Sandala, Kobolink, Prompt |
@@ -67,6 +68,7 @@ Modules: 33 of 33 practice ready · 0 partly working · 0 planned.
 - [x] Payments in the chat: customer account numbers, instant confirmation, receipts, matching, splits _(2026-11-05)_ — Practice with Paystack/Flutterwave/Monnify simulated; payment tables applied to Supabase
 - [x] Meta Ads: connect, create ads (paused), start/pause, advice, sales back to Meta _(2026-11-05)_ — Practice flow; meta_links, ad_drafts and capi_events applied to Supabase. Live needs the Meta app keys in Vercel
 - [x] Website & Forms: connect WordPress forms, WooCommerce, Shopify, Google Forms, Typeform, Jotform, Tally, Zapier _(2026-11-05)_ — Practice intake with field matching and duplicate skipping; connections tables applied to Supabase
+- [x] Pay-on-delivery operations: agent call list and sharing, logistics partners with per-state fees and a no-login link, partner statements, commission and leaderboard, bulk actions, true profit, order follow-ups, email campaigns, Money Brief read aloud _(2026-11-06)_ — tests/practice_qa_pod.py 46/46; database rules: supabase/tests/pod_ops.sql 45/45 on the live database
 - [x] Competitor and playbook review added (order forms, deposits, invoices, calendar, complaints, reply library, share kit, imports) _(2026-11-04)_ — tests/practice_qa_review.py 43/43. Backend-dependent and parked ideas are listed on Coming Later
 
 ## Backend track
@@ -75,7 +77,7 @@ Modules: 33 of 33 practice ready · 0 partly working · 0 planned.
 | --- | ---: | ---: | --- |
 | Phase 1 — Core communication | 30% | 5/10 | 50% |
 | Phase 2 — AI and automation | 22% | 0/9 | 0% |
-| Phase 3 — Sales and commerce | 22% | 1/8 | 11% |
+| Phase 3 — Sales and commerce | 22% | 2/9 | 20% |
 | Phase 4 — More channels | 11% | 0/5 | 0% |
 | Phase 5 — Intelligence and monetisation | 15% | 0/7 | 0% |
 
@@ -87,7 +89,7 @@ _Real WhatsApp messages land in a shared, saved inbox for several agents._
 - [x] Database plan for every module, with row-level isolation tested on a local Postgres _(2026-11-04)_ — supabase/migrations: foundation (21 tables) + review features (8 tables). Screens now use the agreed 13 lead stages and 10 order statuses
 - [x] Sign-up, sign-in, invitations _(2026-11-05)_ — Account page, business setup, invite links with roles; invite rules tested on the live database
 - [x] Workspaces with row-level isolation applied and tested _(2026-11-05)_ — 31 tables applied; isolation tested on the live database; security advisor clean except the two intended sign-up functions
-- [x] Roles and permissions enforced on the server _(2026-11-06)_ — Owners protected, owner-only owner invites, delete rights, append-only activity log, server-only money and webhook tables, same-business links. supabase/tests/loopholes_and_rules.sql 66/66 on the live database
+- [x] Roles and permissions enforced on the server _(2026-11-06)_ — Owners protected, owner-only owner invites, delete rights, append-only activity log, server-only money and webhook tables, same-business links. supabase/tests/loopholes_and_rules.sql 68/68 on the live database
 - [ ] Contacts, leads and conversations saved for real (no sample data)
 - [ ] WhatsApp Cloud API number connected — Needs Meta Business verification
 - [ ] Inbound webhook: signature checked, duplicates ignored
@@ -108,7 +110,7 @@ _Instant first replies from real catalogue data, and follow-ups that respect the
 - [ ] Consent records, opt-out keywords, suppression list
 - [ ] AI workflow planner (from repo 3) moved off Lovable's AI service onto our own AI key, with a screen in Automation Builder — Code is in src/server/ai; it only runs with a Lovable key today
 
-### Phase 3 — Sales and commerce — 11%
+### Phase 3 — Sales and commerce — 20%
 
 _Chats become confirmed, delivered, paid orders._
 
@@ -116,6 +118,7 @@ _Chats become confirmed, delivered, paid orders._
 - [ ] Lead scoring from real buying actions
 - [ ] Conversational checkout with order summary and explicit confirmation
 - [ ] Orders: edit, cancel, history, receipts — Server rules done (status order, prices locked after dispatch, receipt numbers, history); screens switch from Practice data next
+- [x] Agents, partner delivery links and commission enforced on the server _(2026-11-06)_ — Orders shared on insert (least busy, round robin, by state), uncalled orders moved every 5 minutes, call records append-only, partner link (hashed token) via the delivery-link Edge Function, commission only on delivered and paid orders; tested end to end
 - [x] Live intake: website/store forms, public order form, Paystack/Flutterwave/Monnify payment notifications _(2026-11-06)_ — Supabase Edge Functions intake, order-form, payments-webhook — keys checked, signatures verified, prices from the database, each event applied once; tested end to end
 - [ ] COD verification and risk flags — Server already refuses to dispatch an unverified COD order; risk flags still to come
 - [ ] Dispatch board and delivery outcomes
@@ -138,7 +141,7 @@ _Know which ad made the money; charge for the product._
 - [ ] Analytics: created vs confirmed vs delivered
 - [ ] Ad attribution, ROAS, cost per delivered order
 - [ ] Agent performance and response times
-- [ ] Riders, COD cash ledger, settlements
+- [ ] Riders, COD cash ledger, settlements — Partners, remittances and statements are in the database; screens switch from Practice data next
 - [ ] Plans, billing and usage limits
 - [ ] Super Admin console
 - [ ] All 15 acceptance tests pass end to end

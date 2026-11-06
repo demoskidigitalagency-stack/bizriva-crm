@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -8,7 +9,8 @@ import { KpiCard, StatusBadge } from "@/components/app/primitives";
 import { useActions, useDb, useWorkspace } from "@/domain/store";
 import { fullName } from "@/domain/repositories";
 import { DELIVERY_STATUS_META, type DeliveryStatus, type DeliverySummary } from "@/domain/types";
-import { formatCurrency, formatDate } from "@/lib/format";
+import { formatCurrency, formatDate, relativeTime } from "@/lib/format";
+import { APP_ORIGIN, minutesNotAccepted, partnerFor, stateOf } from "@/domain/ops";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/delivery")({
@@ -54,7 +56,10 @@ function FailDialog({ delivery, onClose }: { delivery: DeliverySummary; onClose:
 function Card({ d, onFail }: { d: DeliverySummary; onFail: () => void }) {
   const db = useDb();
   const ws = useWorkspace();
-  const { setDeliveryStatus, assignRider } = useActions();
+  const { setDeliveryStatus, assignRider, sendToPartner } = useActions();
+  const [sent, setSent] = useState<{ text: string; waUrl: string; link: string } | { error: string } | null>(null);
+  const suggested = partnerFor(db, stateOf(d.city));
+  const waiting = minutesNotAccepted(d);
   const c = db.contacts.find((x) => x.id === d.contactId);
   const order = db.orders.find((o) => o.id === d.orderId);
   const rider = db.riders.find((r) => r.id === d.riderId);
@@ -72,18 +77,26 @@ function Card({ d, onFail }: { d: DeliverySummary; onFail: () => void }) {
       {order && <p className="num text-xs">{formatCurrency(order.total, ws.currency)}{order.paymentMethod === "cash_on_delivery" ? " to collect" : " · prepaid"}</p>}
       <p className="text-xs text-muted-foreground">{d.courier}{rider ? ` · ${rider.name}` : ""} · {formatDate(d.deliveredAt ?? d.scheduledFor)}{d.attempts ? ` · ${d.attempts} attempt${d.attempts > 1 ? "s" : ""}` : ""}</p>
       {d.failureReason && <p className="text-xs text-destructive">{d.failureReason}</p>}
+      {d.sentAt && (d.acceptedAt
+        ? <p className="text-xs text-success">Accepted by {rider?.name ?? "partner"} {relativeTime(d.acceptedAt)}</p>
+        : waiting !== null && <p className={`text-xs ${waiting >= db.settings.partnerAcceptMinutes ? "font-semibold text-destructive" : "text-muted-foreground"}`}>Sent on WhatsApp {relativeTime(d.sentAt)} · not accepted yet</p>)}
       {(d.status === "not_scheduled" || d.status === "scheduled" || d.status === "failed") && (
         <Select value={d.riderId ?? "none"} onValueChange={(v) => assignRider(d.id, v === "none" ? undefined : v)}>
           <SelectTrigger className="h-8 text-xs" aria-label="Rider"><SelectValue>{rider ? rider.name : "Assign rider"}</SelectValue></SelectTrigger>
           <SelectContent>
             <SelectItem value="none">No rider (courier)</SelectItem>
-            {activeRiders.map((r) => <SelectItem key={r.id} value={r.id}>{r.name} · {r.zone}</SelectItem>)}
+            {activeRiders.map((r) => <SelectItem key={r.id} value={r.id}>{r.name}{r.id === suggested?.id ? " (best for this state)" : ""} · {r.fees?.[stateOf(d.city)] ? formatCurrency(r.fees[stateOf(d.city)]!, ws.currency) : r.zone}</SelectItem>)}
           </SelectContent>
         </Select>
       )}
       <div className="flex flex-wrap gap-1.5">
         {(d.status === "not_scheduled" || d.status === "scheduled") && <Button size="sm" className="h-7 text-xs" onClick={() => setDeliveryStatus(d.id, "in_transit")}>Dispatch</Button>}
         {d.status === "failed" && <Button size="sm" className="h-7 text-xs" onClick={() => setDeliveryStatus(d.id, "scheduled")}>Reschedule</Button>}
+        {["not_scheduled", "scheduled", "failed"].includes(d.status) && order && ["confirmed", "processing", "ready_for_dispatch", "dispatched", "in_transit"].includes(order.status) && (
+          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setSent(sendToPartner(d.id))}>
+            <Send className="size-3" /> {d.sentAt ? "Send again" : `Send to ${rider?.name.split(" ")[0] ?? suggested?.name.split(" ")[0] ?? "rider"}`}
+          </Button>
+        )}
         {(d.status === "picked_up" || d.status === "in_transit") && (
           <>
             <Button size="sm" className="h-7 text-xs" onClick={() => setDeliveryStatus(d.id, "delivered")}>Delivered</Button>
@@ -92,6 +105,23 @@ function Card({ d, onFail }: { d: DeliverySummary; onFail: () => void }) {
         )}
         {d.status === "failed" && <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setDeliveryStatus(d.id, "returned", d.failureReason)}>Return to store</Button>}
       </div>
+      {sent && (
+        <Dialog open onOpenChange={(o) => !o && setSent(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader><DialogTitle>{"error" in sent ? "Can't send yet" : "Send on WhatsApp"}</DialogTitle><DialogDescription>{"error" in sent ? sent.error : "Opens WhatsApp with the full order. The rider or partner accepts and updates it from the private link — no app or login."}</DialogDescription></DialogHeader>
+            {!("error" in sent) && (
+              <>
+                <pre aria-label="Message to the rider" className="max-h-60 overflow-y-auto whitespace-pre-wrap rounded-md bg-muted p-3 text-xs">{sent.text}</pre>
+                <DialogFooter className="gap-2 sm:justify-start">
+                  <Button asChild><a href={sent.waUrl} target="_blank" rel="noreferrer"><Send className="size-4" /> Open WhatsApp</a></Button>
+                  <Button variant="outline" onClick={() => { void navigator.clipboard?.writeText(sent.text).catch(() => {}); }}>Copy message</Button>
+                  <Button asChild variant="ghost"><a href={sent.link.replace(APP_ORIGIN, "")} target="_blank" rel="noreferrer">Preview their link</a></Button>
+                </DialogFooter>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
     </li>
   );
 }
@@ -128,6 +158,23 @@ function Delivery() {
         <KpiCard label="Failed attempts" value={String(rows.filter((d) => d.status === "failed").length)} tone="danger" />
         <KpiCard label="Delivery success" value={finished ? `${Math.round((done / finished) * 100)}%` : "—"} tone="success" />
       </div>
+
+      {(() => {
+        const late = db.deliveries.filter((d) => (minutesNotAccepted(d) ?? -1) >= db.settings.partnerAcceptMinutes);
+        if (!late.length) return null;
+        return (
+          <div role="alert" className="rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm">
+            <p className="font-semibold">{late.length} sent but not accepted in {db.settings.partnerAcceptMinutes} minutes</p>
+            <ul className="mt-1 space-y-0.5 text-xs">
+              {late.map((d) => {
+                const r = db.riders.find((x) => x.id === d.riderId);
+                const o = db.orders.find((x) => x.id === d.orderId);
+                return <li key={d.id}>{o?.reference ?? d.trackingRef} · {r?.name ?? d.courier} · sent {relativeTime(d.sentAt!)} — call them or send it to someone else.</li>;
+              })}
+            </ul>
+          </div>
+        );
+      })()}
 
       <div className="scroll-thin relative -mx-3 flex gap-3 overflow-x-auto px-3 pb-3 sm:mx-0 sm:px-0">
         {COLUMNS.map((col) => {
