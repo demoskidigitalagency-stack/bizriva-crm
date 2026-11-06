@@ -267,6 +267,13 @@ function DataBadge() {
   );
 }
 
+/** On real data, screens wait for it — no sample data flashing, no "not found" for a link opened directly. */
+function LiveGate({ children }: { children: ReactNode }) {
+  const live = useLive();
+  if (live.on && live.status !== "ready") return null;
+  return <>{children}</>;
+}
+
 function LiveStatusBar() {
   const live = useLive();
   if (!live.on || live.status === "ready") return null;
@@ -338,7 +345,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <AccountMenu />
           </div>
         </header>
-        <main className="mx-auto w-full max-w-[1400px] flex-1 px-3 py-5 sm:px-5 lg:px-8"><LiveStatusBar />{children}</main>
+        <main className="mx-auto w-full max-w-[1400px] flex-1 px-3 py-5 sm:px-5 lg:px-8"><LiveStatusBar /><LiveGate>{children}</LiveGate></main>
       </div>
     </div>
   );

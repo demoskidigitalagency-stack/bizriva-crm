@@ -51,7 +51,7 @@ type EditableKey = keyof Editable;
 const PRACTICE_KEY = "bizriva.practice-db";
 const MODE_KEY = "bizriva.mode";
 /** Tables whose changes refresh the screens on live data. */
-const LIVE_TABLES = ["orders", "order_items", "deliveries", "payments", "payment_events", "messages", "conversations", "contacts", "leads", "order_contact_attempts", "products", "complaints", "workspace_members", "workspaces"];
+const LIVE_TABLES = ["orders", "order_items", "deliveries", "payments", "payment_events", "messages", "conversations", "contacts", "leads", "order_contact_attempts", "products", "complaints", "workspace_members", "workspaces", "tasks", "activity_log"];
 const PRACTICE_VERSION = 11; // v11: agents, call list, partners, commission, email campaigns
 
 function loadPractice(): { db: Database; workspaceId: ID } | null {

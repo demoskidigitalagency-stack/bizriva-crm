@@ -15,7 +15,7 @@ import { stateOf } from "@/domain/ops";
 import type {
   AcquisitionSource, AttemptOutcome, BusinessSettings, Channel, Contact, Conversation, CustomerFact, DeliveryStatus, DeliverySummary, FollowUpRule,
   KnowledgeEntry, Lead, LeadStage, Lifecycle, MessageTemplate, OrderStatus, OrderSummary, PaymentMethod, PaymentStatus, PaymentSummary, Product,
-  Rider, TeamMember,
+  Rider, TeamMember, Activity, ActivityKind, LeadOutcome, Task, TaskStatus, TaskPriority,
 } from "@/domain/types";
 
 type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -27,6 +27,7 @@ export interface RawData {
   products: Row[]; orders: Row[]; items: Row[]; attempts: Row[]; deliveries: Row[]; payments: Row[]; partners: Row[];
   templates: Row[]; knowledge: Row[]; rules: Row[]; forms: Row[]; connections: Row[]; events: Row[]; paymentEvents: Row[];
   campaigns: Row[]; campaignResults: Row[]; providers: Row[]; meta: Row[];
+  tasks: Row[]; log: Row[];
 }
 
 const TABLES: Record<Exclude<keyof RawData, "workspace" | "team">, { table: string; order?: string; limit?: number }> = {
@@ -38,6 +39,7 @@ const TABLES: Record<Exclude<keyof RawData, "workspace" | "team">, { table: stri
   templates: { table: "message_templates" }, knowledge: { table: "knowledge_entries" }, rules: { table: "followup_rules" },
   forms: { table: "order_forms" }, connections: { table: "connections" }, events: { table: "calendar_events" }, paymentEvents: { table: "payment_events", order: "received_at", limit: 1000 },
   campaigns: { table: "campaigns" }, campaignResults: { table: "campaign_results" }, providers: { table: "payment_providers" }, meta: { table: "meta_links" },
+  tasks: { table: "tasks", order: "due_at", limit: 2000 }, log: { table: "activity_log", order: "created_at", limit: 2000 },
 };
 
 /** Read everything for one business. Throws with a plain message if the database refuses. */
@@ -137,6 +139,9 @@ export function toDatabase(raw: RawData, now = new Date()): Database {
   const attemptsByOrder = new Map<string, Row[]>();
   [...raw.attempts].sort((a, b) => String(a["at"]).localeCompare(String(b["at"]))).forEach((a) => attemptsByOrder.set(a["order_id"], [...(attemptsByOrder.get(a["order_id"]) ?? []), a]));
   const convChannel = new Map(raw.conversations.map((c) => [c["id"], c["channel"]]));
+  const contactLog = (raw.log ?? []).filter((a) => a["entity"] === "contact" && a["entity_id"]);
+  const notesByContact = new Map<string, number>();
+  contactLog.filter((a) => a["action"] === "note").forEach((a) => notesByContact.set(a["entity_id"], (notesByContact.get(a["entity_id"]) ?? 0) + 1));
 
   const orders: OrderSummary[] = raw.orders.map((o) => {
     const items = itemsByOrder.get(o["id"]) ?? [];
@@ -185,7 +190,7 @@ export function toDatabase(raw: RawData, now = new Date()): Database {
       contributionProfit: delivered.reduce((n, o) => n + o.total - o.cogs - o.shippingFee, 0),
       outstandingBalance: live.filter((o) => o.status !== "delivered").reduce((n, o) => n + Math.max(0, o.total - (o.amountPaid ?? 0)), 0),
       ...(delivered.length ? { lastPurchaseAt: delivered.map((o) => o.placedAt).sort().at(-1)! } : {}),
-      consentMarketing: consent ? !!consent["granted"] : false, notesCount: 0,
+      consentMarketing: consent ? !!consent["granted"] : false, notesCount: notesByContact.get(c["id"]) ?? 0,
       ...(c["address"] ? { address: c["address"] } : {}), ...(c["landmark"] ? { landmark: c["landmark"] } : {}),
       ...(facts.length ? { facts } : {}),
       ...(acct ? { virtualAccount: { bank: acct["bank_name"], number: acct["account_number"], name: acct["account_name"], provider: acct["provider"] } } : {}),
@@ -197,6 +202,7 @@ export function toDatabase(raw: RawData, now = new Date()): Database {
     ...(l["ad_campaign_name"] ? { campaign: l["ad_campaign_name"] } : {}), ownerId: l["assigned_to"] ?? owner, score: num(l["score"]),
     value: (ordersByContact.get(l["contact_id"]) ?? []).filter((o) => !["cancelled", "delivered"].includes(o.status)).reduce((n, o) => n + o.total, 0),
     slaStatus: l["stage"] === "converted" ? "met" : "on_track", createdAt: iso(l["created_at"]), updatedAt: iso(l["last_activity_at"] ?? l["created_at"]),
+    ...(l["outcome"] ? { outcome: l["outcome"] as LeadOutcome } : {}),
   }));
 
   const conversations: Conversation[] = raw.conversations.map((c) => {
@@ -267,9 +273,20 @@ export function toDatabase(raw: RawData, now = new Date()): Database {
     return { date: day(d), revenue: todays.reduce((n, o) => n + o.total, 0), deliveredRevenue: del.reduce((n, o) => n + o.total, 0), profit: del.reduce((n, o) => n + o.total - o.cogs - o.shippingFee, 0), adSpend: 0 };
   }) as Database["revenueTrend"];
 
+  const LOG_TITLE: Record<string, string> = { note: "Note added", call: "Call logged", merged: "Merged duplicate records" };
+  const activities: Activity[] = contactLog.filter((a) => LOG_TITLE[a["action"]]).map((a) => ({
+    id: a["id"], contactId: a["entity_id"], kind: (a["action"] === "note" ? "note" : "system") as ActivityKind, title: LOG_TITLE[a["action"]]!, at: iso(a["created_at"]),
+    ...(a["actor"] ? { actorId: a["actor"] } : {}),
+    ...(a["detail"]?.["text"] ? { description: String(a["detail"]["text"]) } : a["action"] === "merged" && Array.isArray(a["detail"]?.["names"]) ? { description: a["detail"]["names"].join(", ") } : {}),
+  }));
+  const tasks: Task[] = (raw.tasks ?? []).map((t) => ({
+    id: t["id"], ...(t["contact_id"] ? { contactId: t["contact_id"] } : {}), title: t["title"], dueAt: iso(t["due_at"]), status: t["status"] as TaskStatus,
+    priority: t["priority"] as TaskPriority, assigneeId: t["assigned_to"] ?? owner, type: t["type"] as Task["type"], createdAt: iso(t["created_at"]),
+  }));
+
   return {
     workspaces: [{ id: w["id"], name: w["name"], handle: String(w["name"]).toLowerCase().replace(/[^a-z0-9]+/g, "-"), industry: "", currency: w["currency"] ?? "NGN", country: "NG", plan: w["plan"] ?? "trial" }],
-    team, contacts, channelIdentities: [], attributions: [], leads, opportunities: [], activities: [], tasks: [], conversations, productInterests: [],
+    team, contacts, channelIdentities: [], attributions: [], leads, opportunities: [], activities, tasks, conversations, productInterests: [],
     segments: [{ id: "all", name: "Everyone who agreed to marketing", description: "Customers with marketing consent", type: "smart", memberCount: consenting, updatedAt: now.toISOString(), rulesSummary: "Marketing consent = yes" }],
     orders, deliveries, payments, products, campaigns: [], notifications: [], revenueTrend, riders, knowledge, templates, followUpRules,
     broadcasts: raw.campaigns.map((c) => {

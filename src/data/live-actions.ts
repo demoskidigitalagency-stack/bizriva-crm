@@ -219,6 +219,26 @@ export function liveWriter(sb: SupabaseClient, ws: string, getDb: () => Database
       if (!fresh.length) return {};
       return fail((await sb.from("knowledge_entries").insert(fresh.map((e) => ({ workspace_id: ws, ...e })))).error);
     },
+    // Tasks, notes, calls, lead outcomes, merging and product import.
+    addTask: async (t: { contactId?: ID; title: string; dueAt: string; priority: string; assigneeId: ID; type: string }): Promise<Result> =>
+      fail((await sb.from("tasks").insert({ workspace_id: ws, contact_id: isUuid(t.contactId) ? t.contactId : null, title: t.title, due_at: t.dueAt, priority: t.priority, type: t.type, assigned_to: isUuid(t.assigneeId) ? t.assigneeId : null })).error),
+    completeTask: async (id: ID): Promise<Result> => fail((await sb.from("tasks").update({ status: "done" }).eq("id", id)).error),
+    async snoozeTask(id: ID, days: number): Promise<Result> {
+      const t = getDb().tasks.find((x) => x.id === id);
+      const due = new Date(Math.max(t ? Date.parse(t.dueAt) : 0, Date.now()) + days * 86_400_000).toISOString();
+      return fail((await sb.from("tasks").update({ due_at: due, status: "open" }).eq("id", id)).error);
+    },
+    logContact: async (contactId: ID, action: "note" | "call", text: string): Promise<Result> =>
+      fail((await sb.from("activity_log").insert({ workspace_id: ws, entity: "contact", entity_id: contactId, action, detail: { text: text.slice(0, 4000) } })).error),
+    setLeadOutcome: async (leadId: ID, outcome: string | undefined): Promise<Result> => fail((await sb.from("leads").update({ outcome: outcome ?? null }).eq("id", leadId)).error),
+    async mergeContacts(keepId: ID, mergeIds: ID[]): Promise<Result> {
+      const r = await sb.rpc("merge_contacts", { p_workspace: ws, p_keep: keepId, p_merge: mergeIds.filter(isUuid) });
+      return fail(r.error);
+    },
+    async importProducts(rows: CreateLike["product"][]): Promise<Result> {
+      if (!rows.length) return {};
+      return fail((await sb.from("products").insert(rows.map((p) => ({ workspace_id: ws, name: p.name, category: p.category, price: p.price, cost: p.cost, stock: p.stock, reorder_level: p.reorderLevel, description: p.description ?? null, active: p.active !== false })))).error);
+    },
   };
 }
 

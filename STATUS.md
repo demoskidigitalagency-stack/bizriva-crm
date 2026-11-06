@@ -5,7 +5,7 @@ Generated from `src/app/status.ts` and `src/app/modules.ts` by `bun run status`.
 | Track | Progress | |
 | --- | ---: | --- |
 | **Frontend — Practice Mode** (every page and button works on sample data) | **100%** | `████████████████████` |
-| **Backend — Live** (works for real: auth, database, WhatsApp, AI) | **19%** | `████░░░░░░░░░░░░░░░░` |
+| **Backend — Live** (works for real: auth, database, WhatsApp, AI) | **27%** | `█████░░░░░░░░░░░░░░░` |
 
 Modules: 34 of 34 practice ready · 0 partly working · 0 planned.
 
@@ -75,13 +75,13 @@ Modules: 34 of 34 practice ready · 0 partly working · 0 planned.
 
 | Phase | Share | Done | Progress |
 | --- | ---: | ---: | --- |
-| Phase 1 — Core communication | 30% | 5/10 | 50% |
-| Phase 2 — AI and automation | 22% | 0/9 | 0% |
-| Phase 3 — Sales and commerce | 22% | 2/9 | 20% |
+| Phase 1 — Core communication | 30% | 6/10 | 59% |
+| Phase 2 — AI and automation | 22% | 1/9 | 11% |
+| Phase 3 — Sales and commerce | 22% | 3/9 | 30% |
 | Phase 4 — More channels | 11% | 0/5 | 0% |
 | Phase 5 — Intelligence and monetisation | 15% | 0/7 | 0% |
 
-### Phase 1 — Core communication — 50%
+### Phase 1 — Core communication — 59%
 
 _Real WhatsApp messages land in a shared, saved inbox for several agents._
 
@@ -90,19 +90,19 @@ _Real WhatsApp messages land in a shared, saved inbox for several agents._
 - [x] Sign-up, sign-in, invitations _(2026-11-05)_ — Account page, business setup, invite links with roles; invite rules tested on the live database
 - [x] Workspaces with row-level isolation applied and tested _(2026-11-05)_ — 31 tables applied; isolation tested on the live database; security advisor clean except the two intended sign-up functions
 - [x] Roles and permissions enforced on the server _(2026-11-06)_ — Owners protected, owner-only owner invites, delete rights, append-only activity log, server-only money and webhook tables, same-business links. supabase/tests/loopholes_and_rules.sql 68/68 on the live database
-- [ ] Contacts, leads and conversations saved for real (no sample data)
+- [x] Contacts, leads and conversations saved for real (no sample data) _(2026-11-06)_ — Signed in, every screen reads and writes your real business (customers, leads, chats, orders, tasks, notes, merges); one tap back to Practice Mode. tests/live_mode_qa.py 23/23, supabase/tests/tasks_notes_merge.sql 19/19
 - [ ] WhatsApp Cloud API number connected — Needs Meta Business verification
 - [ ] Inbound webhook: signature checked, duplicates ignored
 - [ ] Send replies, media and templates from the inbox
 - [ ] Inbox updates live; assignment and transfer
 
-### Phase 2 — AI and automation — 0%
+### Phase 2 — AI and automation — 11%
 
 _Instant first replies from real catalogue data, and follow-ups that respect the rules._
 
 - [ ] Products with variants, prices and stock
 - [ ] Media library in cloud storage
-- [ ] Knowledge base
+- [x] Knowledge base _(2026-11-06)_ — Knowledge entries saved to the database with keywords; policy starters add in one tap
 - [ ] AI agent answers only from catalogue and knowledge base
 - [ ] Human takeover pauses AI; hand back to AI
 - [ ] Template management (WhatsApp-approved)
@@ -110,7 +110,7 @@ _Instant first replies from real catalogue data, and follow-ups that respect the
 - [ ] Consent records, opt-out keywords, suppression list
 - [ ] AI workflow planner (from repo 3) moved off Lovable's AI service onto our own AI key, with a screen in Automation Builder — Code is in src/server/ai; it only runs with a Lovable key today
 
-### Phase 3 — Sales and commerce — 20%
+### Phase 3 — Sales and commerce — 30%
 
 _Chats become confirmed, delivered, paid orders._
 
@@ -121,7 +121,7 @@ _Chats become confirmed, delivered, paid orders._
 - [x] Agents, partner delivery links and commission enforced on the server _(2026-11-06)_ — Orders shared on insert (least busy, round robin, by state), uncalled orders moved every 5 minutes, call records append-only, partner link (hashed token) via the delivery-link Edge Function, commission only on delivered and paid orders; tested end to end
 - [x] Live intake: website/store forms, public order form, Paystack/Flutterwave/Monnify payment notifications _(2026-11-06)_ — Supabase Edge Functions intake, order-form, payments-webhook — keys checked, signatures verified, prices from the database, each event applied once; tested end to end
 - [ ] COD verification and risk flags — Server already refuses to dispatch an unverified COD order; risk flags still to come
-- [ ] Dispatch board and delivery outcomes
+- [x] Dispatch board and delivery outcomes _(2026-11-06)_ — Dispatch board on real data: confirmed orders get a delivery record, send to rider or partner with a private link, outcomes and cash recorded by the server
 - [ ] Order, dispatch and delivery notifications — Written and queued in the chat by the server (confirmation, dispatch, receipt, care guide); sending needs the WhatsApp number
 
 ### Phase 4 — More channels — 0%

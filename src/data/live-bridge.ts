@@ -25,15 +25,11 @@ const NOT_YET: Partial<Record<keyof StoreActions, string>> = {
   connectPayments: "Add your payment provider's secret key in Account to connect payments.",
   disconnectPayments: "Payments are managed from Account.", updatePayments: "Payment options are saved once your provider is connected.",
   requestPayment: "Payment requests in the chat need your payment provider's key.", sendPaymentLink: "Payment links need your payment provider's key.",
-  importProducts: "Product import on live data comes next — add products one by one for now.",
   importChatHistory: "Chat import on live data comes next.",
-  mergeContacts: "Merging customers on live data comes next.",
-  completeTask: "Tasks on live data come next.", snoozeTask: "Tasks on live data come next.", addTask: "Tasks on live data come next.",
-  addNote: "Notes on live data come next.", logCall: "Use the Call list to record calls on live data.",
   setLifecycle: "On live data the stage follows the customer's orders.",
   updateAgent: "AI agent settings are saved once the AI is connected.", setIntegration: "Channels connect for real from Integrations once their keys are in place.",
   addCampaignSpend: "Ad spend comes from Meta once it's connected.", sendProductCard: "Product cards are sent once WhatsApp is connected.",
-  setLeadOutcome: "Lead outcomes on live data come next.", saveRecord: "", removeRecord: "",
+  saveRecord: "", removeRecord: "",
 };
 
 export function liveActions(w: LiveWriter, getDb: () => Database, reload: () => Promise<void>, me: string): Partial<StoreActions> {
@@ -109,6 +105,14 @@ export function liveActions(w: LiveWriter, getDb: () => Database, reload: () => 
     payCommission: (id) => run(w.payCommission(id), "Commission marked paid"),
     matchPayment: (eventId, orderId) => run(w.matchPayment(eventId, orderId), "Payment matched"),
     sendBroadcast: (id) => run(w.sendBroadcast(id), "Queued — it sends once your WhatsApp or email sender is connected"),
+    addTask: (t) => run(w.addTask(t), "Task added"),
+    completeTask: (id) => run(w.completeTask(id), "Task done"),
+    snoozeTask: (id, days) => run(w.snoozeTask(id, days), `Snoozed ${days} day${days === 1 ? "" : "s"}`),
+    addNote: (contactId, text) => run(w.logContact(contactId, "note", text), "Note saved"),
+    logCall: (contactId, summary) => run(w.logContact(contactId, "call", summary), "Call logged"),
+    setLeadOutcome: (leadId, outcome) => run(w.setLeadOutcome(leadId, outcome)),
+    mergeContacts: (keepId, ids) => run(w.mergeContacts(keepId, ids), "Customers merged"),
+    importProducts: (rows) => { run(w.importProducts(rows), `${rows.length} product${rows.length === 1 ? "" : "s"} imported`); return rows.length; },
     resetPracticeData: () => toast.info("You're on your real data. Switch to Practice Mode from the account menu to use sample data."),
   };
 }
