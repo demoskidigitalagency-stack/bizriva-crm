@@ -69,3 +69,8 @@ Choices made while finishing the backend unattended (6 Nov 2026). Each is easy t
 ## AI planner
 41. **The workflow planner runs on Claude** (moved off Lovable's AI service): the business's own Anthropic key when they've added one, otherwise Bizriva's (`ANTHROPIC_API_KEY` Edge Function secret). Model `claude-sonnet-5-5` unless `AI_PLANNER_MODEL` is set.
 42. **It only sees counts** (customers, consent, orders, chats, stock, connected channels) — never names, phone numbers or message text. 20 plans a day per business; it pauses with the AI when the plan has ended. Every plan is saved for the team.
+
+## Ad attribution
+43. **A customer is credited to the first ad that brought them** (click-to-WhatsApp, click-to-Messenger/Instagram, or an instant form). Later ads don't steal the credit.
+44. **ROAS and cost per order count delivered orders only** — with pay on delivery an order isn't money until it arrives. Cancelled, refused and returned orders are shown as "lost" for each ad.
+45. **Spend comes from the business's own Meta ad account every 4 hours** (last 7 days, per ad), shown in the ad account's currency. The token needs `ads_read`.

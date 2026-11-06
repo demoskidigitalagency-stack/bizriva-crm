@@ -77,6 +77,7 @@ Deno.serve(async (req) => {
     const { data: r } = await db.rpc("svc_meta_inbound", { p_workspace: k.workspace_id, p_channel: d.channel, p_sender: d.sender, p_name: null, p_mid: d.mid, p_body: d.text, p_at: d.at });
     if (r?.status !== "saved") continue;
     saved++;
+    if (d.ad) await db.rpc("svc_attribute_ad", { p_workspace: k.workspace_id, p_contact: r.contact, p_ad_id: d.ad.id, p_headline: d.ad.headline, p_url: null, p_channel: d.channel });
     const { data: c } = await db.from("contacts").select("name").eq("id", r.contact).single();
     if (c && / customer$/.test(String(c.name))) { const n = await nameFor(k, d); if (n) await db.from("contacts").update({ name: n.slice(0, 120) }).eq("id", r.contact); }
     for (const f of d.files.slice(0, 1)) await saveFile(k.workspace_id, r.message, f);

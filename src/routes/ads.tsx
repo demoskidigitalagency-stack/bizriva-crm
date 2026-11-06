@@ -11,7 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { KpiCard, Section, StatusBadge } from "@/components/app/primitives";
-import { useActions, useDb, useWorkspace } from "@/domain/store";
+import { useActions, useDb, useLive, useWorkspace } from "@/domain/store";
+import { LiveAds } from "@/components/app/LiveAds";
 import { SOURCE_LABELS, type AcquisitionSource, type Campaign } from "@/domain/types";
 import { formatCurrency } from "@/lib/format";
 
@@ -160,6 +161,19 @@ function Ads() {
     const cs = db.contacts.filter((c) => c.source === s);
     return { s, people: cs.length, buyers: cs.filter((c) => c.totalOrders > 0).length, revenue: cs.reduce((x, c) => x + c.deliveredRevenue, 0) };
   }).filter((x) => x.people).sort((a, b) => b.revenue - a.revenue);
+  const live = useLive();
+  if (live.on) {
+    return (
+      <div className="space-y-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-primary">Growth</p>
+          <h1 className="text-2xl font-bold">Ads and Attribution</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Which ads bring sales that are actually delivered and paid.</p>
+        </div>
+        <LiveAds />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

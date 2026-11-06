@@ -104,9 +104,13 @@ Deno.serve(async (req) => {
         p_workspace: k.workspace_id, p_wa_id: String(m.from ?? ""), p_name: names.get(String(m.from)) ?? null, p_msg_id: String(m.id ?? ""),
         p_body: textOf(m), p_type: String(m.type ?? "message"), p_at: m.timestamp ? new Date(Number(m.timestamp) * 1000).toISOString() : null,
       });
-      const saved = data as { status?: string; message?: string } | null;
+      const saved = data as { status?: string; message?: string; contact?: string } | null;
       if (saved?.status === "saved") {
         out.saved++;
+        // Click-to-WhatsApp ad: credit this customer to the ad (first touch only).
+        if (m.referral?.source_type === "ad" && saved.contact) {
+          await db.rpc("svc_attribute_ad", { p_workspace: k.workspace_id, p_contact: saved.contact, p_ad_id: String(m.referral.source_id ?? ""), p_headline: m.referral.headline ?? null, p_url: m.referral.source_url ?? null, p_channel: "whatsapp" });
+        }
         const f = mediaOf(m);
         if (f && saved.message) downloads.push(saveFile(k.workspace_id, k.token, saved.message, f));
       } else out.duplicates++;

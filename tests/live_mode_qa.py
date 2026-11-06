@@ -176,6 +176,9 @@ async def handle(route):
         if fn == "plan_usage":
             return await route.fulfill(status=200, headers=hdr, body=json.dumps({"plan": "trial", "name": "Trial", "price": 0, "trialEndsAt": AGO(-24 * 5), "renewsAt": None, "active": True, "suspended": False, "suspendedReason": None,
                 "limits": {"contacts": 500, "seats": 3, "messages": 1000, "storageMb": 200}, "used": {"contacts": 3, "seats": 2, "messages": 40, "storageMb": 0.1}}))
+        if fn == "ad_performance":
+            return await route.fulfill(status=200, headers=hdr, body=json.dumps({"currency": "NGN", "lastSync": AGO(2), "unattributed": {"orders": 1, "delivered": 0},
+                "ads": [{"adId": "120200001", "ad": "Glow cream CTWA", "campaign": "November promo", "people": 2, "orders": 2, "delivered": 1, "lost": 0, "revenue": 20000, "spend": 5000, "clicks": 80, "roas": 4.0, "costPerDelivered": 5000}]}))
         if fn == "admin_is":
             return await route.fulfill(status=200, headers=hdr, body="true")
         if fn == "admin_overview":
@@ -427,6 +430,14 @@ async def main():
         await ready("/team")
         t = await pg.locator("main").inner_text()
         ok("team shows the real agents", "Chidi" in t and "Musa Abdullahi" not in t)
+
+        await ready("/ads")
+        t = await pg.locator("main").inner_text()
+        ok("ads show results per ad: delivered revenue, spend, ROAS and cost per delivered order", "Glow cream CTWA" in t and "4.00×" in t and "₦20,000" in t and "₦5,000" in t and "Not from an ad: 1 orders" in t)
+        laf = pg.get_by_role("form", name="Link Meta ad account")
+        await laf.get_by_label("Ad account ID").fill("1234567890"); await laf.get_by_label(re.compile("Access token")).fill("EAAB" + "t" * 40)
+        await laf.get_by_role("button", name="Link").click(); await pg.wait_for_timeout(800)
+        ok("linking the ad account sends act_ id and token to the server", any(w[0] == "rpc" and w[1] == "save_meta_token" and w[2].get("p_ad_account") == "act_1234567890" for w in writes) and ("t" * 40) not in await pg.locator("main").inner_text())
 
         await ready("/automation")
         apf = pg.get_by_role("form", name="AI planner")

@@ -25,3 +25,10 @@ describe("our replies", () => {
   test("photo then caption", () => { const r = sendBody({ ...job, media_path: "w/out/x.jpg", media_kind: "image" }, "https://signed"); expect("body" in r && r.body.length).toBe(2); });
   test("after 24 hours it's refused with the reason", () => expect(sendBody({ ...job, in_window: false })).toMatchObject({ error: expect.stringContaining("24-hour") }));
 });
+
+describe("ads", () => {
+  test("a click-to-Messenger ad comes with the first message", () => {
+    const r = parse({ object: "page", entry: [{ id: "111", messaging: [{ sender: { id: "999" }, timestamp: 1, referral: { source: "ADS", type: "OPEN_THREAD", ad_id: "120200001", ads_context_data: { ad_title: "Glow promo" } }, message: { mid: "m9", text: "Is this available?" } }] }] });
+    expect(r.dms[0]?.ad).toEqual({ id: "120200001", headline: "Glow promo" });
+  });
+});
