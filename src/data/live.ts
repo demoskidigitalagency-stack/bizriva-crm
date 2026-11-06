@@ -17,6 +17,7 @@ import type {
   KnowledgeEntry, Lead, LeadStage, Lifecycle, MessageTemplate, OrderStatus, OrderSummary, PaymentMethod, PaymentStatus, PaymentSummary, Product,
   MediaAsset, ProductVariant, Rider, TeamMember, Activity, ActivityKind, LeadOutcome, Task, TaskStatus, TaskPriority,
 } from "@/domain/types";
+import { ORDER_STATUS_META } from "@/domain/types";
 
 type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -303,6 +304,24 @@ export function toDatabase(raw: RawData, now = new Date()): Database {
     ...(a["actor"] ? { actorId: a["actor"] } : {}),
     ...(a["detail"]?.["text"] ? { description: String(a["detail"]["text"]) } : a["action"] === "merged" && Array.isArray(a["detail"]?.["names"]) ? { description: a["detail"]["names"].join(", ") } : {}),
   }));
+  // Order history: what the server logged for each order (placed, status changes, edits, cancellations, moves).
+  const orderRef = new Map(raw.orders.map((o) => [o["id"], o]));
+  const memberName = (id?: string) => team.find((m) => m.id === id)?.name;
+  for (const a of (raw.log ?? []).filter((x) => x["entity"] === "order" && orderRef.has(x["entity_id"]))) {
+    const o = orderRef.get(a["entity_id"])!;
+    const ref = String(o["ref"]); const act = String(a["action"]); const d = a["detail"] ?? {};
+    const title = act === "created" ? `Order ${ref} placed`
+      : act.startsWith("status:") ? `Order ${ref}: ${ORDER_STATUS_META[act.slice(7) as OrderStatus]?.label ?? act.slice(7).replace(/_/g, " ")}`
+      : act === "ai_checkout" ? `Order ${ref} placed in the chat by the AI assistant`
+      : act === "moved_uncalled" ? `Order ${ref} moved to another agent — not called in time`
+      : act === "edited" ? `Order ${ref} changed${d["before"]?.["total"] !== undefined ? ` (total was ${Number(d["before"]["total"]).toLocaleString("en-NG")})` : ""}`
+      : act === "cancel_reason" ? `Order ${ref} cancelled: ${d["reason"] ?? ""}`
+      : null;
+    if (!title) continue;
+    const who = memberName(a["actor"]);
+    activities.push({ id: a["id"], contactId: o["contact_id"], kind: "system" as ActivityKind, title: who ? `${title} — ${who}` : title, at: iso(a["created_at"]), ...(a["actor"] ? { actorId: a["actor"] } : {}) });
+  }
+  activities.sort((x, y) => (x.at < y.at ? 1 : -1));
   const tasks: Task[] = (raw.tasks ?? []).map((t) => ({
     id: t["id"], ...(t["contact_id"] ? { contactId: t["contact_id"] } : {}), title: t["title"], dueAt: iso(t["due_at"]), status: t["status"] as TaskStatus,
     priority: t["priority"] as TaskPriority, assigneeId: t["assigned_to"] ?? owner, type: t["type"] as Task["type"], createdAt: iso(t["created_at"]),

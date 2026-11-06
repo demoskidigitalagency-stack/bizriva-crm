@@ -81,7 +81,9 @@ FIX = {
     "knowledge_entries": [{**W, "id": str(uuid.uuid4()), "topic": "delivery", "answer": "Lagos 1–2 days, other states 3–5 days.", "keywords": ["delivery", "how long"], "question": "How long is delivery?", "updated_at": AGO(48)}],
     "followup_rules": [{**W, "id": str(uuid.uuid4()), "name": "Delivery failed — rebook", "enabled": True, "message": "Hi {{name}}, when can we deliver?", "trigger": "delivery_failed", "delay_hours": 2, "max_attempts": 2, "template_name": "order_confirm"}],
     "tasks": [{**W, "id": "7a5c0c1e-0b5e-4c38-9a4e-0d3b8f1a2c01", "contact_id": C2, "title": "Confirm Abuja delivery day", "type": "delivery_check", "priority": "high", "status": "open", "due_at": AGO(1), "assigned_to": OWNER, "created_by": OWNER, "created_at": AGO(5)}],
-    "activity_log": [{**W, "id": str(uuid.uuid4()), "actor": CHIDI, "entity": "contact", "entity_id": C1, "action": "note", "detail": {"text": "Prefers evening deliveries"}, "created_at": AGO(10)}],
+    "activity_log": [{**W, "id": str(uuid.uuid4()), "actor": CHIDI, "entity": "contact", "entity_id": C1, "action": "note", "detail": {"text": "Prefers evening deliveries"}, "created_at": AGO(10)},
+        {**W, "id": str(uuid.uuid4()), "actor": None, "entity": "order", "entity_id": O2, "action": "created", "detail": {"ref": "BZ-1002"}, "created_at": AGO(30)},
+        {**W, "id": str(uuid.uuid4()), "actor": CHIDI, "entity": "order", "entity_id": O2, "action": "status:confirmed", "detail": {"ref": "BZ-1002", "from": "pending_verification", "to": "confirmed"}, "created_at": AGO(29)}],
     "email_outbox": [{"id": str(uuid.uuid4()), "kind": "order", "to_email": "ada@example.com", "subject": "Your order BZ-1001 is confirmed", "status": "failed", "error": "401 Key not found", "created_at": AGO(1)}],
     "followup_jobs": [
         {"id": str(uuid.uuid4()), "state": "scheduled", "cancel_reason": None, "run_at": AGO(-2), "sent_at": None, "attempt": 1, "rule_id": "__RULE__", "conversation_id": V2},
@@ -225,6 +227,10 @@ async def main():
         t = await pg.locator("main").inner_text()
         ok("orders are the real ones", all(r in t for r in ["BZ-1001", "BZ-1002", "BZ-1003"]) and "BZ-1250" not in t)
         ok("real customers and agent show", "Ada Obi" in t and "Chidi" in t)
+        await pg.get_by_text("BZ-1002").first.click(); await pg.wait_for_timeout(500)
+        h = await pg.get_by_role("dialog").inner_text()
+        ok("an order's history comes from the server's log, with who did it", "Order BZ-1002 placed" in h and "Order BZ-1002: Confirmed — Chidi" in h, h[-300:])
+        await pg.keyboard.press("Escape")
 
         await ready("/calls")
         t = await pg.locator("main").inner_text()
