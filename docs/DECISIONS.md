@@ -8,3 +8,13 @@ Choices made while finishing the backend unattended (6 Nov 2026). Each is easy t
 3. **AI orders are always pay on delivery and start as "pending verification"**, so an agent still calls to confirm before dispatch, like every other order.
 4. **A summary expires after 24 hours**; a late "yes" hands the chat to the team instead of ordering.
 5. Out-of-stock or unknown products are refused politely; the customer is asked to choose something else.
+
+## Follow-ups
+6. **STOP blocks every follow-up**, including service ones (failed delivery, couldn't reach you) — safer than guessing. Order emails and confirmations still go out.
+7. **One follow-up per customer per day**, across all rules (`followUpDailyCap` in settings, default 1).
+8. **When a teammate takes over a chat, chat follow-ups stop**; order follow-ups (rebook delivery, couldn't reach you) still run.
+9. **Over 24 hours with no approved template = not sent**, recorded as "held back" with the reason, so you can see which rules need a template.
+10. The reminder clock starts at our first message after the customer's last one, so our own reminders never restart it.
+
+## Broadcasts
+11. WhatsApp broadcasts go to customers whose **latest** marketing choice is yes (a later STOP wins). Customers inside 24 hours get the text; everyone else gets the campaign's template.

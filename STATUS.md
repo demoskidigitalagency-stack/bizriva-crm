@@ -5,7 +5,7 @@ Generated from `src/app/status.ts` and `src/app/modules.ts` by `bun run status`.
 | Track | Progress | |
 | --- | ---: | --- |
 | **Frontend — Practice Mode** (every page and button works on sample data) | **100%** | `████████████████████` |
-| **Backend — Live** (works for real: auth, database, WhatsApp, AI) | **40%** | `████████░░░░░░░░░░░░` |
+| **Backend — Live** (works for real: auth, database, WhatsApp, AI) | **46%** | `█████████░░░░░░░░░░░` |
 
 Modules: 34 of 34 practice ready · 0 partly working · 0 planned.
 
@@ -76,7 +76,7 @@ Modules: 34 of 34 practice ready · 0 partly working · 0 planned.
 | Phase | Share | Done | Progress |
 | --- | ---: | ---: | --- |
 | Phase 1 — Core communication | 30% | 8/10 | 82% |
-| Phase 2 — AI and automation | 22% | 2/9 | 22% |
+| Phase 2 — AI and automation | 22% | 4/9 | 50% |
 | Phase 3 — Sales and commerce | 22% | 4/9 | 40% |
 | Phase 4 — More channels | 11% | 1/5 | 14% |
 | Phase 5 — Intelligence and monetisation | 15% | 0/7 | 0% |
@@ -96,7 +96,7 @@ _Real WhatsApp messages land in a shared, saved inbox for several agents._
 - [x] Send replies, media and templates from the inbox _(2026-11-06)_ — Replies, photos, videos, voice notes and documents (paperclip in the Inbox, private storage per business, 1-hour link for Meta) and approved templates outside 24 hours; customers' files are saved into the chat. Storage rules 9/9 on the live project; sending reached Meta in testing
 - [ ] Inbox updates live; assignment and transfer
 
-### Phase 2 — AI and automation — 22%
+### Phase 2 — AI and automation — 50%
 
 _Instant first replies from real catalogue data, and follow-ups that respect the rules._
 
@@ -106,8 +106,8 @@ _Instant first replies from real catalogue data, and follow-ups that respect the
 - [ ] AI agent answers only from catalogue and knowledge base — Built and deployed (ai-reply): this business's data only, price check, handover rules, owner's own key in Vault. Tested live up to the AI service; answers for real once you add your Anthropic key
 - [x] Human takeover pauses AI; hand back to AI _(2026-11-06)_ — Inbox: Take over / Let AI answer; the AI only answers chats it handles; asking for a person, complaints or doubt hand over and flag the chat. Tested on the live project
 - [ ] Template management (WhatsApp-approved)
-- [ ] Follow-up engine: 24-hour window, caps, quiet hours, stop on reply
-- [ ] Consent records, opt-out keywords, suppression list
+- [x] Follow-up engine: 24-hour window, caps, quiet hours, stop on reply _(2026-11-06)_ — Server engine every 5 minutes (private.followups_tick): quiet chats, failed deliveries, unreachable customers, cancelled orders, re-order reminders; 24-hour window → template, one per customer a day, quiet hours, stops on reply/opt-out/takeover, never twice. supabase/tests/followups.sql 11/11 on the live project
+- [x] Consent records, opt-out keywords, suppression list _(2026-11-06)_ — Consent records; STOP and your opt-out words record a marketing opt-out; opted-out customers are left out of follow-ups, WhatsApp and email broadcasts; email unsubscribe link. WhatsApp broadcasts 6/6 on the live project
 - [ ] AI workflow planner (from repo 3) moved off Lovable's AI service onto our own AI key, with a screen in Automation Builder — Code is in src/server/ai; it only runs with a Lovable key today
 
 ### Phase 3 — Sales and commerce — 40%

@@ -82,9 +82,14 @@ FIX = {
     "tasks": [{**W, "id": "7a5c0c1e-0b5e-4c38-9a4e-0d3b8f1a2c01", "contact_id": C2, "title": "Confirm Abuja delivery day", "type": "delivery_check", "priority": "high", "status": "open", "due_at": AGO(1), "assigned_to": OWNER, "created_by": OWNER, "created_at": AGO(5)}],
     "activity_log": [{**W, "id": str(uuid.uuid4()), "actor": CHIDI, "entity": "contact", "entity_id": C1, "action": "note", "detail": {"text": "Prefers evening deliveries"}, "created_at": AGO(10)}],
     "email_outbox": [{"id": str(uuid.uuid4()), "kind": "order", "to_email": "ada@example.com", "subject": "Your order BZ-1001 is confirmed", "status": "failed", "error": "401 Key not found", "created_at": AGO(1)}],
+    "followup_jobs": [
+        {"id": str(uuid.uuid4()), "state": "scheduled", "cancel_reason": None, "run_at": AGO(-2), "sent_at": None, "attempt": 1, "rule_id": "__RULE__", "conversation_id": V2},
+        {"id": str(uuid.uuid4()), "state": "sent", "cancel_reason": None, "run_at": AGO(3), "sent_at": AGO(3), "attempt": 1, "rule_id": "__RULE__", "conversation_id": V1},
+        {"id": str(uuid.uuid4()), "state": "cancelled", "cancel_reason": "replied", "run_at": AGO(1), "sent_at": None, "attempt": 2, "rule_id": "__RULE__", "conversation_id": V3}],
     "order_forms": [], "connections": [], "calendar_events": [], "payment_events": [], "campaigns": [], "campaign_results": [], "payment_providers": [], "meta_links": [],
 }
 
+FIX["followup_jobs"] = [{**j, "rule_id": FIX["followup_rules"][0]["id"]} for j in FIX["followup_jobs"]]
 writes = []
 
 
@@ -331,6 +336,12 @@ async def main():
         ok("attaching uploads into this business's out/ folder", len(up) == 1 and up[0][1].startswith(f"chat-media/{WS}/out/") and up[0][1].endswith("-glow-cream.png"), up[-1:] )
         ok("and queues it with the typed caption", wrote("POST", "messages", lambda b: b.get("media_kind") == "image" and b.get("body") == "Here is the cream" and str(b.get("media_path", "")).startswith(f"{WS}/out/")))
         ok("AI-written messages are labelled", "ai reply" in (await pg.locator("main").inner_text()).lower())
+
+        await ready("/follow-ups")
+        fu = pg.get_by_role("tablist", name="Follow-ups from the server")
+        ok("Follow-ups shows what the server scheduled", await fu.count() == 1 and "Musa" in await pg.get_by_role("list", name="Follow-ups scheduled").inner_text())
+        await fu.get_by_role("tab", name=re.compile("Held back")).click()
+        ok("and what it held back, with the reason", "Customer replied" in await pg.get_by_role("list", name="Follow-ups held").inner_text())
 
         await ready("/integrations")
         emf = pg.get_by_role("form", name="Connect email")

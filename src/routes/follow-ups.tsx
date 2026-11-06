@@ -10,8 +10,9 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EmptyState, KpiCard, Section, StatusBadge } from "@/components/app/primitives";
-import { useActions, useDb } from "@/domain/store";
+import { useActions, useDb, useLive } from "@/domain/store";
 import { fullName } from "@/domain/repositories";
+import { LiveFollowUps } from "@/components/app/LiveFollowUps";
 import { FOLLOWUP_WORKFLOW_ID, followUpQueue, inQuietHours, NEW_CHAT } from "@/domain/followups";
 import type { FollowUpRule } from "@/domain/types";
 
@@ -76,6 +77,7 @@ function RuleDialog({ rule, onClose }: { rule: FollowUpRule | "new"; onClose: ()
 
 function FollowUps() {
   const db = useDb();
+  const live = useLive();
   const { sendReply, logRun, saveRecord, messageContact } = useActions();
   const [view, setView] = useState<"due" | "later" | "rules">("due");
   const [editing, setEditing] = useState<FollowUpRule | "new" | null>(null);
@@ -109,7 +111,7 @@ function FollowUps() {
         </TabsList>
       </Tabs>
 
-      {view !== "rules" ? (
+      {view !== "rules" && live.on ? <LiveFollowUps /> : view !== "rules" ? (
         <Section>
           {shown.length === 0 ? <EmptyState title={view === "due" ? "Nobody to follow up right now" : "Nothing scheduled"} /> : (
             <ul className="divide-y">
