@@ -388,6 +388,13 @@ async def main():
         ok("a product card goes out with its photo, price and options", wrote("POST", "messages", lambda b: b.get("media_path") == f"{WS}/out/media/abc-glow.jpg" and "Glow Body Cream" in (b.get("body") or "") and "500ml" in (b.get("body") or "")))
         ok("AI-written messages are labelled", "ai reply" in (await pg.locator("main").inner_text()).lower())
 
+        await ready("/analytics")
+        t = await pg.locator("main").inner_text()
+        ok("analytics counts the real orders", "Luxe" not in t and ("26,500" in t or "₦26.5K" in t or "26.5K" in t), t[:400])
+        await ready("/team")
+        t = await pg.locator("main").inner_text()
+        ok("team shows the real agents", "Chidi" in t and "Musa Abdullahi" not in t)
+
         await ready("/templates")
         t = await pg.locator("main").inner_text()
         ok("templates show Meta's reason for a rejection", "doesn't match the chosen type" in t)
