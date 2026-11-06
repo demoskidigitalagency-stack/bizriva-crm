@@ -9,7 +9,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EmptyState, PersonAvatar, Section, StatusBadge } from "@/components/app/primitives";
 import { OrderDialog, PickCustomer } from "@/components/app/dialogs";
-import { useActions, useDb, useWorkspace } from "@/domain/store";
+import { EDITABLE_STATUSES, useActions, useDb, useWorkspace } from "@/domain/store";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { fullName } from "@/domain/repositories";
 import { CHANNEL_LABELS, DELIVERY_STATUS_META, ORDER_STATUS_META, PAYMENT_STATUS_META, type OrderStatus, type OrderSummary, type PaymentMethod } from "@/domain/types";
 import { formatCurrency, formatDateTime, relativeTime } from "@/lib/format";
@@ -51,6 +53,95 @@ const NEXT: Record<OrderStatus, { to: OrderStatus; label: string; variant?: "out
   returned: [],
   cancelled: [],
 };
+
+/** Lines of an order; older sample orders only have names like "2× Glow Body Cream". */
+function linesOf(db: ReturnType<typeof useDb>, order: OrderSummary) {
+  if (order.lines?.length) return order.lines.map((l) => ({ productId: l.productId, variantId: l.variantId ?? "", quantity: String(l.quantity) }));
+  return order.productNames.map((n) => {
+    const m = /^(\d+)×\s*(.+)$/.exec(n);
+    const p = db.products.find((x) => x.name === (m?.[2] ?? n).trim());
+    return p ? { productId: p.id, variantId: "", quantity: m?.[1] ?? "1" } : null;
+  }).filter((x): x is { productId: string; variantId: string; quantity: string } => !!x);
+}
+
+function EditOrder({ order, onClose }: { order: OrderSummary; onClose: () => void }) {
+  const db = useDb();
+  const ws = useWorkspace();
+  const { editOrder } = useActions();
+  const [lines, setLines] = useState(() => linesOf(db, order));
+  const [fee, setFee] = useState(String(order.shippingFee));
+  const [address, setAddress] = useState(order.address ?? db.contacts.find((c) => c.id === order.contactId)?.address ?? "");
+  const [error, setError] = useState("");
+  const priceOf = (l: { productId: string; variantId: string }) => { const p = db.products.find((x) => x.id === l.productId); return p?.variants?.find((v) => v.id === l.variantId)?.price ?? p?.price ?? 0; };
+  const subtotal = lines.reduce((s, l) => s + priceOf(l) * (Number(l.quantity) || 0), 0);
+  const total = subtotal + (Number(fee) || 0);
+  const set = (i: number, patch: Partial<(typeof lines)[number]>) => { setLines((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l))); setError(""); };
+  const save = () => {
+    const ok = lines.filter((l) => Number(l.quantity) > 0);
+    if (!ok.length) return setError("An order needs at least one item. To drop the whole order, cancel it instead.");
+    const noOption = ok.find((l) => db.products.find((p) => p.id === l.productId)?.variants?.length && !l.variantId);
+    if (noOption) return setError(`Choose which option of ${db.products.find((p) => p.id === noOption.productId)?.name}.`);
+    if (!(Number(fee) >= 0)) return setError("Enter the delivery fee, or 0.");
+    if (total < (order.amountPaid ?? 0)) return setError(`The new total is less than the ${formatCurrency(order.amountPaid ?? 0, ws.currency)} already paid.`);
+    editOrder(order.id, { lines: ok.map((l) => ({ productId: l.productId, ...(l.variantId ? { variantId: l.variantId } : {}), quantity: Math.round(Number(l.quantity)) })), deliveryFee: Number(fee), ...(address.trim() ? { address: address.trim() } : {}) });
+    onClose();
+  };
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader><DialogTitle>Change order {order.reference}</DialogTitle><DialogDescription>Prices come from your catalogue. You can change it until it's dispatched.</DialogDescription></DialogHeader>
+        <ul className="space-y-2" aria-label="Items">
+          {lines.map((l, i) => {
+            const p = db.products.find((x) => x.id === l.productId);
+            return (
+              <li key={i} className="flex flex-wrap items-center gap-1.5">
+                <Select value={l.productId} onValueChange={(v) => set(i, { productId: v, variantId: "" })}>
+                  <SelectTrigger className="h-8 min-w-0 flex-1" aria-label={`Item ${i + 1}`}><SelectValue>{p?.name ?? "Choose a product"}</SelectValue></SelectTrigger>
+                  <SelectContent>{db.products.filter((x) => x.active !== false || x.id === l.productId).map((x) => <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>)}</SelectContent>
+                </Select>
+                {p?.variants?.length ? (
+                  <Select value={l.variantId} onValueChange={(v) => set(i, { variantId: v })}>
+                    <SelectTrigger className="h-8 w-32" aria-label={`Item ${i + 1} option`}><SelectValue placeholder="Option">{p.variants.find((v) => v.id === l.variantId)?.name}</SelectValue></SelectTrigger>
+                    <SelectContent>{p.variants.map((v) => <SelectItem key={v.id} value={v.id}>{v.name} · {formatCurrency(v.price, ws.currency)}</SelectItem>)}</SelectContent>
+                  </Select>
+                ) : null}
+                <Input className="h-8 w-16" inputMode="numeric" aria-label={`Item ${i + 1} quantity`} value={l.quantity} onChange={(e) => set(i, { quantity: e.target.value.replace(/\D/g, "") })} />
+                <span className="num w-20 text-right text-xs">{formatCurrency(priceOf(l) * (Number(l.quantity) || 0), ws.currency)}</span>
+                <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" aria-label={`Remove item ${i + 1}`} onClick={() => setLines((ls) => ls.filter((_, j) => j !== i))}>Remove</Button>
+              </li>
+            );
+          })}
+        </ul>
+        <Button size="sm" variant="outline" className="w-fit" onClick={() => { const p = db.products.find((x) => x.active !== false); if (p) setLines((ls) => [...ls, { productId: p.id, variantId: "", quantity: "1" }]); }}><Plus className="size-3.5" /> Add item</Button>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5"><Label htmlFor="eo-fee">Delivery fee</Label><Input id="eo-fee" inputMode="decimal" value={fee} onChange={(e) => { setFee(e.target.value.replace(/[^\d.]/g, "")); setError(""); }} /></div>
+          <div className="space-y-1.5"><Label>New total</Label><p className="num flex h-9 items-center font-semibold">{formatCurrency(total, ws.currency)}</p></div>
+          <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="eo-addr">Delivery address</Label><Textarea id="eo-addr" rows={2} value={address} onChange={(e) => setAddress(e.target.value)} /></div>
+        </div>
+        {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
+        <DialogFooter><Button variant="outline" onClick={onClose}>Keep as it is</Button><Button onClick={save}>Save changes</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+const CANCEL_REASONS = ["Customer changed their mind", "Customer can't be reached", "Out of stock", "Duplicate order", "Price or delivery fee too high"];
+function CancelOrder({ order, onClose }: { order: OrderSummary; onClose: () => void }) {
+  const { cancelOrder } = useActions();
+  const [reason, setReason] = useState("");
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle>Cancel order {order.reference}?</DialogTitle><DialogDescription>The reason is kept in the order's history.</DialogDescription></DialogHeader>
+        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Common reasons">
+          {CANCEL_REASONS.map((r) => <button key={r} type="button" onClick={() => setReason(r)} className={`rounded-full border px-2.5 py-1 text-xs ${reason === r ? "border-primary bg-primary/10 text-primary" : ""}`}>{r}</button>)}
+        </div>
+        <div className="space-y-1.5"><Label htmlFor="co-reason">Reason</Label><Textarea id="co-reason" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} /></div>
+        <DialogFooter><Button variant="outline" onClick={onClose}>Keep the order</Button><Button variant="destructive" disabled={!reason.trim()} onClick={() => { cancelOrder(order.id, reason); onClose(); }}>Cancel order</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 function Invoice({ order, onClose }: { order: OrderSummary; onClose: () => void }) {
   const db = useDb();
@@ -157,6 +248,7 @@ function OrderPanel({ order, onClose }: { order: OrderSummary; onClose: () => vo
   const c = db.contacts.find((x) => x.id === order.contactId);
   const delivery = db.deliveries.find((d) => d.orderId === order.id);
   const history = db.activities.filter((a) => a.contactId === order.contactId && a.title.includes(order.reference));
+  const [dialog, setDialog] = useState<"edit" | "cancel" | null>(null);
   const money = (n: number) => formatCurrency(n, ws.currency);
 
   return (
@@ -216,8 +308,9 @@ function OrderPanel({ order, onClose }: { order: OrderSummary; onClose: () => vo
           {NEXT[order.status].length > 0 && (
             <div className="flex flex-wrap gap-2">
               {NEXT[order.status].map((n) => (
-                <Button key={n.to} size="sm" variant={n.variant ?? "default"} onClick={() => setOrderStatus(order.id, n.to)}>{n.label}</Button>
+                <Button key={n.to} size="sm" variant={n.variant ?? "default"} onClick={() => (n.to === "cancelled" ? setDialog("cancel") : setOrderStatus(order.id, n.to))}>{n.label}</Button>
               ))}
+              {EDITABLE_STATUSES.includes(order.status) && <Button size="sm" variant="outline" onClick={() => setDialog("edit")}>Change order</Button>}
             </div>
           )}
 
@@ -231,6 +324,8 @@ function OrderPanel({ order, onClose }: { order: OrderSummary; onClose: () => vo
           </div>
         </div>
       </SheetContent>
+      {dialog === "edit" && <EditOrder order={order} onClose={() => setDialog(null)} />}
+      {dialog === "cancel" && <CancelOrder order={order} onClose={() => setDialog(null)} />}
     </Sheet>
   );
 }

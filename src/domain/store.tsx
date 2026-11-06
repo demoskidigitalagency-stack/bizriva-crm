@@ -21,7 +21,7 @@ import { autoMap, flatten, normalise, PLATFORMS } from "./intake";
 import { careGuideText, confirmedText, dispatchedText, receiptNo, receiptText } from "./receipt";
 import type {
   AgentConfig, Broadcast, BusinessSettings, CalendarEvent, Campaign, Channel, OrderForm, OrderFormField, Contact, DeliveryStatus, FollowUpRule, ID, IntegrationState, KnowledgeEntry,
-  LeadOutcome, LeadStage, Lifecycle, MediaAsset, MessageTemplate, OrderStatus, PaymentMethod, Product, Rider, StockMovement, Task,
+  LeadOutcome, LeadStage, Lifecycle, MediaAsset, MessageTemplate, OrderStatus, OrderSummary, PaymentMethod, Product, Rider, StockMovement, Task,
   TeamMember, Workflow, WorkflowRun, FactKind, Connection, ConnectionEvent, AdDraft, MetaLink, PaymentProviderId, PaymentSetup, PaymentEvent,
 } from "./types";
 
@@ -92,9 +92,16 @@ export interface CreateOrderInput {
   method: PaymentMethod;
 }
 
+export interface EditOrderInput { lines: { productId: ID; variantId?: ID; quantity: number }[]; deliveryFee: number; address?: string }
+export const EDITABLE_STATUSES: OrderStatus[] = ["pending_verification", "confirmed", "processing", "ready_for_dispatch"];
+
 export interface StoreActions {
   addContact: (input: CreateContactInput) => void;
   createOrder: (input: CreateOrderInput) => void;
+  /** Change items, delivery fee or address before the order leaves. */
+  editOrder: (orderId: ID, input: EditOrderInput) => void;
+  /** Cancel with a reason (kept in the order's history). */
+  cancelOrder: (orderId: ID, reason: string) => void;
   setLeadStage: (leadId: ID, stage: LeadStage) => void;
   setLeadOutcome: (leadId: ID, outcome: LeadOutcome | undefined) => void;
   assignOwner: (contactId: ID, ownerId: ID) => void;
@@ -367,6 +374,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         paymentMethod: input.method,
         channel: input.channel,
         productNames: products.map((x) => `${x.line.qty}× ${x.product!.name}`),
+        lines: products.map((x) => ({ productId: x.product!.id, quantity: x.line.qty, unitPrice: x.product!.price })),
       };
       const next = {
         ...d,
@@ -489,6 +497,27 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, []);
 
 
+  const editOrder = useCallback((orderId: ID, input: EditOrderInput) => {
+    setDb((d) => {
+      const o = d.orders.find((x) => x.id === orderId);
+      if (!o || !EDITABLE_STATUSES.includes(o.status)) return d;
+      const lines = input.lines.filter((l) => l.quantity > 0).map((l) => {
+        const p = d.products.find((x) => x.id === l.productId);
+        const v = p?.variants?.find((x) => x.id === l.variantId);
+        return p ? { p, v, line: { productId: p.id, ...(v ? { variantId: v.id } : {}), quantity: l.quantity, unitPrice: v?.price ?? p.price } } : null;
+      }).filter((x): x is NonNullable<typeof x> => !!x);
+      if (!lines.length) return d;
+      const subtotal = lines.reduce((s, x) => s + x.line.unitPrice * x.line.quantity, 0);
+      const total = subtotal + Math.max(0, input.deliveryFee);
+      if (total < (o.amountPaid ?? 0)) return d;
+      const updated: OrderSummary = { ...o, lines: lines.map((x) => x.line), total, shippingFee: Math.max(0, input.deliveryFee), itemsCount: lines.reduce((s, x) => s + x.line.quantity, 0),
+        cogs: lines.reduce((s, x) => s + x.p.cost * x.line.quantity, 0), productNames: lines.map((x) => `${x.line.quantity}× ${x.p.name}${x.v ? ` (${x.v.name})` : ""}`),
+        ...(input.address?.trim() ? { address: input.address.trim() } : {}) };
+      const next = { ...d, orders: d.orders.map((x) => (x.id === orderId ? updated : x)) };
+      return logActivity(next, o.contactId, `Order ${o.reference} changed (total was ${o.total.toLocaleString("en-NG")})`, "order", updated.productNames.join(", "));
+    });
+  }, []);
+
   const setOrderStatus = useCallback((orderId: ID, status: OrderStatus, note?: string) => {
     setDb((d) => {
       const order = d.orders.find((o) => o.id === orderId);
@@ -543,6 +572,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       return logActivity(next, order.contactId, `Order ${order.reference}: ${status.replace(/_/g, " ")}`, "order", note);
     });
   }, []);
+  const cancelOrder = useCallback((orderId: ID, reason: string) => setOrderStatus(orderId, "cancelled", `Cancelled: ${reason.trim()}`), [setOrderStatus]);
 
   const recordCodCheck = useCallback((orderId: ID, result: "confirmed" | "unreachable" | "cancelled", note?: string) => {
     setDb((d) => {
@@ -1557,11 +1587,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
         sendReply, markNotificationsRead, setWorkspace: setWorkspaceId, setOrderStatus, recordCodCheck, setDeliveryStatus, markRemitted,
         saveProduct, adjustStock, mergeContacts, startLead, resetPracticeData, saveRecord, removeRecord, updateSettings, updateAgent,
         setIntegration, assignRider, moveStock, recordPayment, logRun, retryRun, sendBroadcast, addCampaignSpend,
-        updateContactDetails, simulateIncoming, sendProductCard, updateWorkspace, submitLeadForm,
+        editOrder, cancelOrder, updateContactDetails, simulateIncoming, sendProductCard, updateWorkspace, submitLeadForm,
         submitOrderForm, trackForm, simulateFormTraffic, recordDeposit, requestBalance, issueInvoice, flagComplaint, resolveComplaint,
         toggleSetupStep, importProducts, addPolicyStarters, importChatHistory, saveFacts, removeFact, sendPaymentLink, receiveIntake, connectMeta, disconnectMeta, syncMeta, setCapi, publishAd, setAdStatus, connectPayments, disconnectPayments, updatePayments, requestPayment, simulatePayment, matchPayment, sendOrderMessage,
         assignOrders, runAssignmentNow, logAttempt, setOnDuty, sendToPartner, partnerAction, payCommission, messageContact,
-  }), [addContact, createOrder, setLeadStage, setLeadOutcome, assignOwner, setLifecycle, completeTask, snoozeTask, addTask, addNote, logCall, sendReply, markNotificationsRead, setOrderStatus, recordCodCheck, setDeliveryStatus, markRemitted, saveProduct, adjustStock, mergeContacts, startLead, resetPracticeData, saveRecord, removeRecord, updateSettings, updateAgent, setIntegration, assignRider, moveStock, recordPayment, logRun, retryRun, sendBroadcast, addCampaignSpend, updateContactDetails, simulateIncoming, sendProductCard, updateWorkspace, submitLeadForm, submitOrderForm, trackForm, simulateFormTraffic, recordDeposit, requestBalance, issueInvoice, flagComplaint, resolveComplaint, toggleSetupStep, importProducts, addPolicyStarters, importChatHistory, saveFacts, removeFact, sendPaymentLink, receiveIntake, connectMeta, disconnectMeta, syncMeta, setCapi, publishAd, setAdStatus, connectPayments, disconnectPayments, updatePayments, requestPayment, simulatePayment, matchPayment, sendOrderMessage, assignOrders, runAssignmentNow, logAttempt, setOnDuty, sendToPartner, partnerAction, payCommission, messageContact]);
+  }), [editOrder, cancelOrder, addContact, createOrder, setLeadStage, setLeadOutcome, assignOwner, setLifecycle, completeTask, snoozeTask, addTask, addNote, logCall, sendReply, markNotificationsRead, setOrderStatus, recordCodCheck, setDeliveryStatus, markRemitted, saveProduct, adjustStock, mergeContacts, startLead, resetPracticeData, saveRecord, removeRecord, updateSettings, updateAgent, setIntegration, assignRider, moveStock, recordPayment, logRun, retryRun, sendBroadcast, addCampaignSpend, updateContactDetails, simulateIncoming, sendProductCard, updateWorkspace, submitLeadForm, submitOrderForm, trackForm, simulateFormTraffic, recordDeposit, requestBalance, issueInvoice, flagComplaint, resolveComplaint, toggleSetupStep, importProducts, addPolicyStarters, importChatHistory, saveFacts, removeFact, sendPaymentLink, receiveIntake, connectMeta, disconnectMeta, syncMeta, setCapi, publishAd, setAdStatus, connectPayments, disconnectPayments, updatePayments, requestPayment, simulatePayment, matchPayment, sendOrderMessage, assignOrders, runAssignmentNow, logAttempt, setOnDuty, sendToPartner, partnerAction, payCommission, messageContact]);
 
   const liveLayer = useMemo(() => {
     const sb = supabase();

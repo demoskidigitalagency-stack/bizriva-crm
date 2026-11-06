@@ -48,6 +48,8 @@ export function liveActions(w: LiveWriter, getDb: () => Database, reload: () => 
     addContact: (input) => run(w.addContact(input), "Customer saved"),
     updateContactDetails: (id, patch) => run(w.updateContactDetails(id, patch)),
     createOrder: (input) => run(w.createOrder(input), "Order saved — numbered and given to an agent"),
+    editOrder: (id, input) => run(w.editOrder(id, input), "Order updated"),
+    cancelOrder: (id, reason) => run(w.cancelOrder(id, reason), "Order cancelled"),
     setOrderStatus: (id, status) => run(w.setOrderStatus(id, status)),
     recordCodCheck: (id, result) => run(w.recordCodCheck(id, result, me)),
     setDeliveryStatus: (id, status, reason) => run(w.setDeliveryStatus(id, status, reason)),

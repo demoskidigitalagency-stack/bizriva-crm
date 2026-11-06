@@ -298,6 +298,8 @@ export interface ProductInterest {
   capturedAt: string;
 }
 
+export interface OrderLine { productId: ID; variantId?: ID; quantity: number; unitPrice: number }
+
 export interface OrderSummary {
   /** Real data: the server's COD risk check (it decides who may confirm). */
   serverRisk?: { score: number; level: "low" | "medium" | "high"; reasons: string[] };
@@ -314,6 +316,10 @@ export interface OrderSummary {
   paymentMethod: PaymentMethod;
   channel: Channel;
   productNames: string[];
+  /** What's on the order, line by line (missing on old sample orders). */
+  lines?: OrderLine[];
+  /** Delivery address for this order, when it differs from the customer's. */
+  address?: string;
   /** Deposits and part payments received so far. Missing means nothing paid before delivery. */
   amountPaid?: number;
   /** Set once an invoice has been issued. */

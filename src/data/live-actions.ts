@@ -9,7 +9,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/domain/database";
 import { deliveryLink, partnerMessage, pickAgent } from "@/domain/ops";
-import type { CreateContactInput, CreateOrderInput } from "@/domain/store";
+import type { CreateContactInput, CreateOrderInput, EditOrderInput } from "@/domain/store";
 import type { AgentConfig, AttemptOutcome, BusinessSettings, Contact, ID, OrderStatus, PaymentMethod, Product } from "@/domain/types";
 
 interface CreateLike {
@@ -97,6 +97,11 @@ export function liveWriter(sb: SupabaseClient, ws: string, getDb: () => Database
     },
     assignRider: async (deliveryId: ID, riderId?: ID): Promise<Result> => fail((await sb.from("deliveries").update({ partner_id: riderId ?? null }).eq("id", deliveryId)).error),
     markRemitted: async (paymentId: ID): Promise<Result> => fail((await sb.from("payments").update({ remitted_at: new Date().toISOString() }).eq("id", paymentId)).error),
+    async editOrder(orderId: ID, input: EditOrderInput): Promise<Result> {
+      const items = input.lines.filter((l) => l.quantity > 0).map((l) => ({ product_id: l.productId, variant_id: l.variantId ?? null, quantity: l.quantity }));
+      return fail((await sb.rpc("edit_order", { p_order: orderId, p_items: items, p_delivery_fee: input.deliveryFee, p_discount: null, p_address: input.address ?? null, p_note: null })).error);
+    },
+    cancelOrder: async (orderId: ID, reason: string): Promise<Result> => fail((await sb.rpc("cancel_order", { p_order: orderId, p_reason: reason })).error),
     async recordPayment(orderId: ID, method: PaymentMethod, amount?: number): Promise<Result> {
       const o = order(orderId);
       if (!o) return { error: "Order not found" };

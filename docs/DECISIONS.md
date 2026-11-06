@@ -36,3 +36,8 @@ Choices made while finishing the backend unattended (6 Nov 2026). Each is easy t
 19. **Only Meta can approve a template on real data.** Staff press "Submit to Meta"; the server sends it and checks back every 5 minutes. Editing a submitted or approved template sends it back to draft (Meta reviews every change).
 20. **Template variables are fixed:** {{1}} = customer's first name, {{2}} = their latest order number, {{3}} = the product on it. The server fills them when sending.
 21. **Pidgin templates go to WhatsApp as English** (WhatsApp has no Pidgin language code); the words stay in Pidgin. So an English and a Pidgin template can't share a name.
+
+## Orders
+22. **An order can be changed until it's dispatched** (items, options, quantities, delivery fee, address) by the owner, a manager or the agent it's assigned to. Prices always come from the catalogue — the screen only sends product, option and quantity. The old version is kept in the history.
+23. **Only owners and managers can give a discount**, and a change can never bring the total below what the customer already paid.
+24. **Cancelling needs a reason**, kept in the order's history and notes.
