@@ -15,6 +15,12 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { DataProvider } from "@/domain/store";
 import { AuthProvider } from "@/app/auth";
 import { Toaster } from "@/components/ui/sonner";
+import { useLive } from "@/domain/store";
+
+/** Save confirmations and errors appear only on live data (Practice Mode saves instantly in the browser). */
+function LiveToaster() {
+  return useLive().on ? <Toaster richColors position="top-center" /> : null;
+}
 import { AppShell } from "@/components/app/AppShell";
 import { APPEARANCE_BOOT_SCRIPT, AppearanceProvider, DEFAULT_THEME } from "@/app/appearance";
 
@@ -139,7 +145,7 @@ function RootComponent() {
             {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
             <Outlet />
           </AppShell>
-          <Toaster richColors position="top-center" />
+          <LiveToaster />
         </DataProvider>
         </AuthProvider>
       </AppearanceProvider>
