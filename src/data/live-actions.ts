@@ -10,7 +10,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/domain/database";
 import { deliveryLink, partnerMessage, pickAgent } from "@/domain/ops";
 import type { CreateContactInput, CreateOrderInput } from "@/domain/store";
-import type { AttemptOutcome, BusinessSettings, Contact, ID, OrderStatus, PaymentMethod, Product } from "@/domain/types";
+import type { AgentConfig, AttemptOutcome, BusinessSettings, Contact, ID, OrderStatus, PaymentMethod, Product } from "@/domain/types";
 
 interface CreateLike {
   contact: CreateContactInput;
@@ -148,9 +148,17 @@ export function liveWriter(sb: SupabaseClient, ws: string, getDb: () => Database
       if (businessName) cols["name"] = businessName;
       if (Object.keys(rest).length || email) {
         const { meta: _m, payments: _p, plan: _pl, assignment: _a, commission: _c, brief: _b, afterDelivery: _d, partnerAcceptMinutes: _pa, ...everyday } = { ...cur, ...rest };
-        cols["settings"] = { ...everyday, ...(email ? { email: { fromName: email.fromName } } : {}) };
+        cols["settings"] = { ...everyday, agent: getDb().agent, ...(email ? { email: { fromName: email.fromName } } : {}) };
       }
       return fail((await sb.from("workspaces").update(cols).eq("id", ws)).error);
+    },
+    /** The AI agent's setup lives with the everyday settings, so the server's AI reads it. */
+    async updateAgent(patch: Partial<AgentConfig>): Promise<Result> {
+      const { meta: _m, payments: _p, plan: _pl, assignment: _a, commission: _c, brief: _b, afterDelivery: _d, partnerAcceptMinutes: _pa, ...everyday } = getDb().settings;
+      return fail((await sb.from("workspaces").update({ settings: { ...everyday, agent: { ...getDb().agent, ...patch } } }).eq("id", ws)).error);
+    },
+    async setHandler(conversationId: ID, who: "ai" | "human"): Promise<Result> {
+      return fail((await sb.from("conversations").update({ handled_by: who, ...(who === "ai" ? { ai_error: null } : {}) }).eq("id", conversationId)).error);
     },
     async sendReply(conversationId: ID, text: string): Promise<Result> {
       return fail((await sb.from("messages").insert({ workspace_id: ws, conversation_id: conversationId, direction: "out", body: text.trim(), status: "queued" })).error);

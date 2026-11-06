@@ -27,7 +27,7 @@ const NOT_YET: Partial<Record<keyof StoreActions, string>> = {
   requestPayment: "Payment requests in the chat need your payment provider's key.", sendPaymentLink: "Payment links need your payment provider's key.",
   importChatHistory: "Chat import on live data comes next.",
   setLifecycle: "On live data the stage follows the customer's orders.",
-  updateAgent: "AI agent settings are saved once the AI is connected.", setIntegration: "Channels connect for real from Integrations once their keys are in place.",
+  setIntegration: "Channels connect for real from Integrations once their keys are in place.",
   addCampaignSpend: "Ad spend comes from Meta once it's connected.", sendProductCard: "Product cards are sent once WhatsApp is connected.",
   saveRecord: "", removeRecord: "",
 };
@@ -113,6 +113,7 @@ export function liveActions(w: LiveWriter, getDb: () => Database, reload: () => 
     setLeadOutcome: (leadId, outcome) => run(w.setLeadOutcome(leadId, outcome)),
     mergeContacts: (keepId, ids) => run(w.mergeContacts(keepId, ids), "Customers merged"),
     importProducts: (rows) => { run(w.importProducts(rows), `${rows.length} product${rows.length === 1 ? "" : "s"} imported`); return rows.length; },
+    updateAgent: (patch) => run(w.updateAgent(patch), "AI agent saved"),
     resetPracticeData: () => toast.info("You're on your real data. Switch to Practice Mode from the account menu to use sample data."),
   };
 }

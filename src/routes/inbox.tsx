@@ -1,3 +1,4 @@
+import { AiChatBar } from "@/components/app/AiChatBar";
 import { useEffect, useMemo, useState } from "react";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AlertTriangle, CheckCircle2, CreditCard, FlaskConical, Megaphone, MessageSquareText, Package, Send, Sparkles, X } from "lucide-react";
@@ -189,6 +190,7 @@ function Thread({ conversation }: { conversation: Conversation }) {
   };
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      <AiChatBar conversation={conversation} />
       <ComplaintBar conversation={conversation} />
       <ul className="scroll-thin flex-1 space-y-2 overflow-y-auto bg-chat p-4">
         {conversation.messages.map((m) => (
@@ -198,6 +200,7 @@ function Thread({ conversation }: { conversation: Conversation }) {
               m.direction === "out" ? "bg-primary text-primary-foreground" : "bg-chat-in text-chat-in-foreground shadow-xs",
               tails && (m.direction === "out" ? "rounded-br-none" : "rounded-bl-none"),
             )}>
+              {m.byAi && <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary-foreground/80">AI reply</p>}
               <p className="whitespace-pre-wrap">{m.body}</p>
               <p className={cn("mt-1 text-[10px]", m.direction === "out" ? "text-primary-foreground/70" : "text-muted-foreground")}>{relativeTime(m.at)}{m.delivery && m.delivery !== "failed" ? ` · ${DELIVERY_LABEL[m.delivery]}` : ""}</p>
               {m.delivery === "failed" && <p className="mt-1 rounded bg-destructive/90 px-1.5 py-0.5 text-[11px] text-white" role="note">Not delivered{m.error ? `: ${m.error}` : ""}</p>}

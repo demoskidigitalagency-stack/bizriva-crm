@@ -266,6 +266,8 @@ export interface Message {
   /** Real data only: where an outgoing message is with WhatsApp, and why it failed. */
   delivery?: "queued" | "sent" | "delivered" | "read" | "failed";
   error?: string;
+  /** Written by the AI agent (real data). */
+  byAi?: boolean;
 }
 
 export interface Conversation {
@@ -280,6 +282,8 @@ export interface Conversation {
   messages: Message[];
   /** A complaint raised in this chat, tracked until resolved. */
   complaint?: { status: "open" | "resolved"; reason: string; openedAt: string; resolvedAt?: string; resolution?: string };
+  /** Real data: whether the AI or the team answers this chat, and why the AI couldn't. */
+  ai?: { handledBy: "ai" | "human"; error?: string; priority?: boolean };
 }
 
 export interface ProductInterest {

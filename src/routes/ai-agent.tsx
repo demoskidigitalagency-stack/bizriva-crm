@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Section, StatusBadge } from "@/components/app/primitives";
-import { useActions, useDb } from "@/domain/store";
+import { useActions, useDb, useLive } from "@/domain/store";
+import { AiConnect } from "@/components/app/AiConnect";
 import { agentReply, type AgentReply } from "@/domain/agent";
 import type { AgentConfig } from "@/domain/types";
 import { cn } from "@/lib/utils";
@@ -130,6 +131,7 @@ function TestChat() {
 
 function AiAgent() {
   const db = useDb();
+  const live = useLive();
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -138,11 +140,15 @@ function AiAgent() {
           <h1 className="text-2xl font-bold">AI Sales Agent</h1>
           <p className="mt-1 text-sm text-muted-foreground">Answers the first messages from ads: greets, quotes prices from the catalogue, sends photos and hands over to a person when needed.</p>
         </div>
-        <StatusBadge tone={db.agent.enabled ? "info" : "neutral"}>{db.agent.enabled ? "On · practice rules" : "Off"}</StatusBadge>
+        <StatusBadge tone={db.agent.enabled ? "info" : "neutral"}>{db.agent.enabled ? (live.on ? "On" : "On · practice rules") : "Off"}</StatusBadge>
       </div>
-      <p className="rounded-md border bg-surface p-3 text-xs text-muted-foreground">
-        Practice Mode uses fixed rules that follow the same limits as the real AI: it never invents a price, stock level or promise, and anything it can't answer goes to a person. The real language model replaces these rules when the backend is connected.
-      </p>
+      {live.on ? (
+        <AiConnect />
+      ) : (
+        <p className="rounded-md border bg-surface p-3 text-xs text-muted-foreground">
+          Practice Mode uses fixed rules that follow the same limits as the real AI: it never invents a price, stock level or promise, and anything it can't answer goes to a person. On your real data, the AI answers WhatsApp customers once you connect it.
+        </p>
+      )}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
         <Settings />
         <TestChat />

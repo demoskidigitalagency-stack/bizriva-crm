@@ -5,7 +5,7 @@ Generated from `src/app/status.ts` and `src/app/modules.ts` by `bun run status`.
 | Track | Progress | |
 | --- | ---: | --- |
 | **Frontend — Practice Mode** (every page and button works on sample data) | **100%** | `████████████████████` |
-| **Backend — Live** (works for real: auth, database, WhatsApp, AI) | **31%** | `██████░░░░░░░░░░░░░░` |
+| **Backend — Live** (works for real: auth, database, WhatsApp, AI) | **33%** | `███████░░░░░░░░░░░░░` |
 
 Modules: 34 of 34 practice ready · 0 partly working · 0 planned.
 
@@ -76,7 +76,7 @@ Modules: 34 of 34 practice ready · 0 partly working · 0 planned.
 | Phase | Share | Done | Progress |
 | --- | ---: | ---: | --- |
 | Phase 1 — Core communication | 30% | 7/10 | 73% |
-| Phase 2 — AI and automation | 22% | 1/9 | 11% |
+| Phase 2 — AI and automation | 22% | 2/9 | 22% |
 | Phase 3 — Sales and commerce | 22% | 3/9 | 30% |
 | Phase 4 — More channels | 11% | 0/5 | 0% |
 | Phase 5 — Intelligence and monetisation | 15% | 0/7 | 0% |
@@ -96,15 +96,15 @@ _Real WhatsApp messages land in a shared, saved inbox for several agents._
 - [ ] Send replies, media and templates from the inbox — Text replies and templates send every minute with the 24-hour rule (reached Meta in testing); media still to do
 - [ ] Inbox updates live; assignment and transfer
 
-### Phase 2 — AI and automation — 11%
+### Phase 2 — AI and automation — 22%
 
 _Instant first replies from real catalogue data, and follow-ups that respect the rules._
 
 - [ ] Products with variants, prices and stock
 - [ ] Media library in cloud storage
 - [x] Knowledge base _(2026-11-06)_ — Knowledge entries saved to the database with keywords; policy starters add in one tap
-- [ ] AI agent answers only from catalogue and knowledge base
-- [ ] Human takeover pauses AI; hand back to AI
+- [ ] AI agent answers only from catalogue and knowledge base — Built and deployed (ai-reply): this business's data only, price check, handover rules, owner's own key in Vault. Tested live up to the AI service; answers for real once you add your Anthropic key
+- [x] Human takeover pauses AI; hand back to AI _(2026-11-06)_ — Inbox: Take over / Let AI answer; the AI only answers chats it handles; asking for a person, complaints or doubt hand over and flag the chat. Tested on the live project
 - [ ] Template management (WhatsApp-approved)
 - [ ] Follow-up engine: 24-hour window, caps, quiet hours, stop on reply
 - [ ] Consent records, opt-out keywords, suppression list

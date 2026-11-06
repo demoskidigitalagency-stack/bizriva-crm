@@ -213,7 +213,8 @@ export function toDatabase(raw: RawData, now = new Date()): Database {
       id: c["id"], contactId: c["contact_id"], channel: (CHANNEL[c["channel"]] ?? c["channel"]) as Channel, subject: c["summary"] ?? (msgs[0]?.["body"] ?? "").slice(0, 48),
       unread: last?.["direction"] === "in" && c["status"] !== "closed", awaitingReply: last?.["direction"] === "in", assigneeId: c["assigned_to"] ?? "",
       lastMessageAt: iso(last?.["created_at"] ?? c["last_inbound_at"] ?? c["created_at"]),
-      messages: msgs.map((m) => ({ id: m["id"], conversationId: c["id"], direction: m["direction"], body: m["body"] ?? (m["template_name"] ? `[Template: ${m["template_name"]}]` : "[Media]"), at: iso(m["created_at"]), ...(m["sent_by"] ? { authorId: m["sent_by"] } : {}), ...(m["direction"] === "out" && m["status"] ? { delivery: m["status"] } : {}), ...(m["error"] ? { error: m["error"] } : {}) })),
+      messages: msgs.map((m) => ({ id: m["id"], conversationId: c["id"], direction: m["direction"], body: m["body"] ?? (m["template_name"] ? `[Template: ${m["template_name"]}]` : "[Media]"), at: iso(m["created_at"]), ...(m["sent_by"] ? { authorId: m["sent_by"] } : {}), ...(m["direction"] === "out" && m["status"] ? { delivery: m["status"] } : {}), ...(m["error"] ? { error: m["error"] } : {}), ...(m["by_ai"] ? { byAi: true } : {}) })),
+      ai: { handledBy: c["handled_by"] === "human" ? "human" : "ai", ...(c["ai_error"] ? { error: c["ai_error"] } : {}), ...(c["priority"] ? { priority: true } : {}) },
       ...(cp ? { complaint: { status: cp["status"] === "resolved" ? "resolved" : "open", reason: cp["reason"], openedAt: iso(cp["opened_at"]), ...(cp["resolved_at"] ? { resolvedAt: iso(cp["resolved_at"]) } : {}), ...(cp["resolution"] ? { resolution: cp["resolution"] } : {}) } } : {}),
     } as Conversation;
   });
@@ -300,7 +301,7 @@ export function toDatabase(raw: RawData, now = new Date()): Database {
     }),
     workflows: [], workflowRuns: [], media: [], stockMovements: [],
     integrations: practice.integrations.map((i) => ({ ...i, status: "not_connected" as const })) as Database["integrations"],
-    agent: practice.agent, settings: liveSettings(w, raw.providers, raw.meta),
+    agent: { ...practice.agent, ...((w["settings"]?.["agent"] ?? {}) as Partial<typeof practice.agent>) }, settings: liveSettings(w, raw.providers, raw.meta),
     orderForms: raw.forms.map((f) => ({ id: f["id"], name: f["name"], productId: f["product_id"], headline: f["headline"], ...(f["banner"] ? { banner: f["banner"] } : {}), packages: f["packages"] ?? [], fields: f["fields"] ?? ["name", "phone", "address", "city"], payOnDelivery: f["pay_on_delivery"] !== false, pixels: { meta: !!f["meta_pixel"], tiktok: !!f["tiktok_pixel"] }, thankYou: f["thank_you"] ?? "Thank you!", active: f["active"] !== false, createdAt: iso(f["created_at"]), stats: { views: 0, starts: 0, submits: 0, duplicatesBlocked: 0, dropOff: {} } })),
     formSubmissions: [],
     events: raw.events.map((e) => ({ id: e["id"], title: e["title"], kind: e["kind"], at: iso(e["starts_at"]), ...(e["contact_id"] ? { contactId: e["contact_id"] } : {}), ...(e["order_id"] ? { orderId: e["order_id"] } : {}), ...(e["note"] ? { note: e["note"] } : {}) })),

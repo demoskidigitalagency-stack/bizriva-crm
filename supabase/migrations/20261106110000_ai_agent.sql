@@ -19,6 +19,7 @@ create table public.ai_keys (
   model text check (model ~ '^[a-z0-9.-]{3,60}$'),
   saved_by uuid references auth.users(id),
   saved_at timestamptz not null default now(),
+  active boolean not null default true,
   last_used_at timestamptz,
   last_error text
 );
@@ -42,7 +43,8 @@ begin
       if p_key !~ '^sk-ant-[A-Za-z0-9_-]{20,}$' then raise exception 'Paste an Anthropic API key (it starts with sk-ant-)'; end if;
       perform vault.update_secret(cur.key_secret_id, p_key);
     end if;
-    update ai_keys set model = nullif(p_model, ''), saved_by = auth.uid(), saved_at = now(), last_error = null where workspace_id = p_workspace;
+    if not cur.active and coalesce(p_key, '') = '' then raise exception 'Paste an Anthropic API key (it starts with sk-ant-)'; end if;
+    update ai_keys set model = nullif(p_model, ''), saved_by = auth.uid(), saved_at = now(), last_error = null, active = true where workspace_id = p_workspace;
   end if;
 end $$;
 create or replace function public.remove_ai_key(p_workspace uuid) returns void
@@ -52,8 +54,9 @@ begin
   if not private.has_role(p_workspace, array['owner']::member_role[]) then raise exception 'Only the owner can disconnect the AI' using errcode = '42501'; end if;
   select * into cur from ai_keys where workspace_id = p_workspace;
   if cur is null then return; end if;
-  delete from vault.secrets where id = cur.key_secret_id;
-  delete from ai_keys where workspace_id = p_workspace;
+  -- The key is wiped (overwritten) and the connection switched off.
+  perform vault.update_secret(cur.key_secret_id, '');
+  update ai_keys set active = false, last_error = null where workspace_id = p_workspace;
 end $$;
 revoke execute on function public.save_ai_key(uuid, text, text) from public, anon;
 grant execute on function public.save_ai_key(uuid, text, text) to authenticated;
@@ -86,8 +89,8 @@ begin
   ), upd as (
     update conversations c set ai_claimed_at = now() from picked where c.id = picked.id returning c.id, c.workspace_id, picked.message_id
   )
-  select u.id, u.workspace_id, u.message_id, s.decrypted_secret, k.model
-  from upd u left join ai_keys k on k.workspace_id = u.workspace_id left join vault.decrypted_secrets s on s.id = k.key_secret_id;
+  select u.id, u.workspace_id, u.message_id, nullif(s.decrypted_secret, ''), k.model
+  from upd u left join ai_keys k on k.workspace_id = u.workspace_id and k.active left join vault.decrypted_secrets s on s.id = k.key_secret_id;
   perform private.sys_restore(prev);
 end $$;
 

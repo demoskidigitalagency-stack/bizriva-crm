@@ -44,11 +44,14 @@ FIX = {
         {**W, "id": str(uuid.uuid4()), "score": 0, "stage": "converted", "contact_id": C1, "source_channel": "whatsapp", "ad_campaign_name": "Oct glow promo", "created_at": AGO(40), "last_activity_at": AGO(20)},
         {**W, "id": str(uuid.uuid4()), "score": 0, "stage": "order_confirmed", "contact_id": C2, "source_channel": "whatsapp", "created_at": AGO(30), "last_activity_at": AGO(10)},
         {**W, "id": str(uuid.uuid4()), "score": 0, "stage": "order_created", "contact_id": C3, "source_channel": "whatsapp", "created_at": AGO(3), "last_activity_at": AGO(3)}],
-    "conversations": [{**W, "id": v, "status": "open", "channel": "whatsapp", "priority": False, "contact_id": c, "handled_by": "ai", "created_at": AGO(40)} for v, c in [(V1, C1), (V2, C2), (V3, C3)]],
+    "conversations": [
+        {**W, "id": V1, "status": "open", "channel": "whatsapp", "priority": False, "contact_id": C1, "handled_by": "ai", "created_at": AGO(40)},
+        {**W, "id": V2, "status": "open", "channel": "whatsapp", "priority": True, "contact_id": C2, "handled_by": "human", "created_at": AGO(30)},
+        {**W, "id": V3, "status": "open", "channel": "whatsapp", "priority": False, "contact_id": C3, "handled_by": "ai", "ai_error": "401 invalid x-api-key", "created_at": AGO(3)}],
     "messages": [
         {**W, "id": str(uuid.uuid4()), "conversation_id": V3, "direction": "in", "body": "Hi, how much is the body cream?", "status": "received", "created_at": AGO(3)},
         {**W, "id": str(uuid.uuid4()), "conversation_id": V1, "direction": "in", "body": "Hi, how much is the body cream?", "status": "received", "created_at": AGO(40)},
-        {**W, "id": str(uuid.uuid4()), "conversation_id": V1, "direction": "out", "body": "🧾 *Receipt RCPT-BZ-1001* — Glow Naturals", "status": "queued", "created_at": AGO(20)},
+        {**W, "id": str(uuid.uuid4()), "conversation_id": V1, "direction": "out", "body": "🧾 *Receipt RCPT-BZ-1001* — Glow Naturals", "status": "queued", "by_ai": True, "created_at": AGO(20)},
         {**W, "id": str(uuid.uuid4()), "conversation_id": V1, "direction": "out", "body": "We miss you, Ada!", "status": "failed", "error": "Outside the 24-hour window — needs an approved template", "created_at": AGO(1)}],
     "complaints": [], "consents": [{**W, "id": str(uuid.uuid4()), "source": "order form", "channel": "whatsapp", "granted": True, "category": "marketing", "contact_id": C1, "recorded_at": AGO(40)}],
     "contact_facts": [], "customer_accounts": [],
@@ -114,6 +117,9 @@ async def handle(route):
         if fn == "save_whatsapp":
             FIX["whatsapp_numbers"] = [{**W, "phone_number_id": body.get("p_phone_number_id"), "waba_id": None, "display_phone": body.get("p_display_phone"), "verify_token": "vt-0123456789abcdef", "active": True, "connected_at": NOW, "last_inbound_at": None, "last_sent_at": None, "last_error": None}]
             return await route.fulfill(status=200, headers=hdr, body=json.dumps("vt-0123456789abcdef"))
+        if fn == "save_ai_key":
+            FIX["ai_keys"] = [{**W, "active": True, "model": None, "saved_at": NOW, "last_used_at": None, "last_error": None}]
+            return await route.fulfill(status=200, headers=hdr, body="null")
         if fn == "send_to_partner":
             return await route.fulfill(status=200, headers=hdr, body=json.dumps({"token": "a1b2c3d4e5f60718293a4b5c6d7e8f90", "partner": "Arewa Express", "phone": "+2348169001122", "group": None, "fee": 4000, "state": "FCT"}))
         return await route.fulfill(status=200, headers=hdr, body=json.dumps(1 if fn == "pay_commission" else None))
@@ -260,6 +266,29 @@ async def main():
         t = await pg.locator("main").inner_text()
         ok("then it shows the callback address and verify token for Meta", "functions/v1/whatsapp-webhook" in t and "vt-0123456789abcdef" in t and "Waiting for Meta" in t)
         ok("the secret isn't shown back", ("x" * 40) not in t and ("s" * 32) not in t)
+
+        await ready("/ai-agent")
+        aif = pg.get_by_role("form", name="Connect the AI")
+        ok("owner sees Connect the AI on real data", await aif.count() == 1)
+        await aif.get_by_label("Anthropic API key").fill("sk-ant-api03-" + "k" * 30)
+        await aif.get_by_role("button", name="Connect the AI").click(); await pg.wait_for_timeout(1000)
+        ok("the AI key goes to the server once, through save_ai_key", sum(1 for w in writes if w[0] == "rpc" and w[1] == "save_ai_key") == 1)
+        t = await pg.locator("main").inner_text()
+        ok("then it shows Connected and never the key", "Connected" in t and ("k" * 30) not in t)
+        before = len(writes)
+        await pg.get_by_label("Name customers see").fill("Adaeze")
+        await pg.get_by_role("button", name="Save", exact=True).click(); await pg.wait_for_timeout(800)
+        ok("agent setup saves to the business for the AI to read", any(w[0] == "PATCH" and w[1] == "workspaces" and (w[2].get("settings") or {}).get("agent", {}).get("name") == "Adaeze" for w in writes[before:]))
+
+        await ready(f"/inbox?c={V3}")
+        bar = pg.get_by_role("status", name="Who answers this chat")
+        ok("chat shows the AI is answering and why it couldn't", "AI is answering" in await bar.inner_text() and "401 invalid x-api-key" in await bar.inner_text())
+        await bar.get_by_role("button", name="Take over").click(); await pg.wait_for_timeout(800)
+        ok("Take over hands the chat to the team", wrote("PATCH", "conversations", lambda b: b.get("handled_by") == "human"))
+        await ready(f"/inbox?c={V2}")
+        ok("a handed-over chat says it needs a reply", "Handed to the team" in await pg.get_by_role("status", name="Who answers this chat").inner_text())
+        await ready(f"/inbox?c={V1}")
+        ok("AI-written messages are labelled", "ai reply" in (await pg.locator("main").inner_text()).lower())
 
         # Switch back to sample data.
         await pg.get_by_role("button", name=re.compile("Showing your real data")).click()
