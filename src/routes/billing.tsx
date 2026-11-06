@@ -2,7 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Section, StatusBadge } from "@/components/app/primitives";
-import { useActions, useDb, useWorkspace } from "@/domain/store";
+import { useActions, useDb, useLive, useWorkspace } from "@/domain/store";
+import { LiveBilling } from "@/components/app/LiveBilling";
 import type { BusinessSettings } from "@/domain/types";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -38,6 +39,19 @@ function Billing() {
   const current = PLANS.find((p) => p.id === db.settings.plan)!;
   const messages = db.conversations.reduce((s, c) => s + c.messages.length, 0);
   const storageMb = Math.round(db.media.reduce((s, m) => s + m.bytes, 0) / 1024 / 1024);
+  const live = useLive();
+  if (live.on) {
+    return (
+      <div className="space-y-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-primary">Workspace</p>
+          <h1 className="text-2xl font-bold">Billing</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Your plan, what you've used this month, and payments.</p>
+        </div>
+        <LiveBilling />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

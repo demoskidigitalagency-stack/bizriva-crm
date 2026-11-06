@@ -91,6 +91,10 @@ FIX = {
         {"id": str(uuid.uuid4()), "state": "cancelled", "cancel_reason": "replied", "run_at": AGO(1), "sent_at": None, "attempt": 2, "rule_id": "__RULE__", "conversation_id": V3}],
     "product_variants": [{**W, "id": "5b0f6a10-2c3d-4e5f-8a9b-0c1d2e3f4a50", "product_id": P1, "name": "500ml", "price": 18000.00, "stock": 6}],
     "media_assets": [{**W, "id": "6c1a7b21-3d4e-4f60-9b0c-1d2e3f4a5b61", "product_id": P1, "kind": "image", "storage_path": f"{WS}/out/media/abc-glow.jpg", "bytes": 120000, "name": "glow.jpg", "created_at": AGO(5)}],
+    "plans": [{"id": "trial", "name": "Trial", "price_ngn": 0, "contacts": 500, "seats": 3, "messages_month": 1000, "storage_mb": 200, "sort": 0},
+              {"id": "starter", "name": "Starter", "price_ngn": 25000, "contacts": 2000, "seats": 3, "messages_month": 5000, "storage_mb": 1000, "sort": 1},
+              {"id": "growth", "name": "Growth", "price_ngn": 60000, "contacts": 10000, "seats": 10, "messages_month": 25000, "storage_mb": 5000, "sort": 2}],
+    "plan_payments": [],
     "order_forms": [], "connections": [], "calendar_events": [], "payment_events": [], "campaigns": [], "campaign_results": [], "payment_providers": [], "meta_links": [],
 }
 
@@ -126,6 +130,9 @@ async def handle(route):
             msgs = [{"id": "w1", "from": "you", "text": "Do you have shea butter?", "at": AGO(0.2)}, {"id": "w2", "from": "us", "text": "Yes! It's ₦6,000.", "at": AGO(0.1), "media": None}]
             return await route.fulfill(status=200, headers=hdr, body=json.dumps({"ok": True, "messages": msgs if any(w[0] == "webchat" and w[1] == "send" for w in writes) else []}))
         return await route.fulfill(status=200, headers=hdr, body=json.dumps({"ok": True}))
+    if path.startswith("/functions/v1/billing"):
+        writes.append(("fn", "billing", json.loads(req.post_data or "{}"), req.headers.get("authorization", "")))
+        return await route.fulfill(status=200, headers=hdr, body=json.dumps({"url": B + "/paid", "reference": "BZP-ABC"}))
     if path.startswith("/functions/v1/payment-link"):
         if req.method == "OPTIONS":
             return await route.fulfill(status=204, headers=hdr)
@@ -162,6 +169,15 @@ async def handle(route):
             FIX["meta_pages"] = [{"page_id": body.get("p_page_id"), "page_name": body.get("p_page_name"), "ig_account_id": body.get("p_ig_id") or None, "verify_token": "mv-abcdef123456", "active": True, "connected_at": NOW, "last_event_at": None, "last_sent_at": None, "last_error": None}]
             FIX["meta_leads"] = [{"id": str(uuid.uuid4()), "fields": {"full_name": "Tolu Ade", "phone_number": "+2348031112222"}, "platform": "ig", "error": None, "received_at": AGO(0.5)}]
             return await route.fulfill(status=200, headers=hdr, body=json.dumps("mv-abcdef123456"))
+        if fn == "plan_usage":
+            return await route.fulfill(status=200, headers=hdr, body=json.dumps({"plan": "trial", "name": "Trial", "price": 0, "trialEndsAt": AGO(-24 * 5), "renewsAt": None, "active": True, "suspended": False, "suspendedReason": None,
+                "limits": {"contacts": 500, "seats": 3, "messages": 1000, "storageMb": 200}, "used": {"contacts": 3, "seats": 2, "messages": 40, "storageMb": 0.1}}))
+        if fn == "admin_is":
+            return await route.fulfill(status=200, headers=hdr, body="true")
+        if fn == "admin_overview":
+            return await route.fulfill(status=200, headers=hdr, body=json.dumps({"totals": {"businesses": 2, "paying": 1, "trialsActive": 1, "suspended": 0, "mrr": 60000, "orders30d": 12, "messages24h": 30},
+                "businesses": [{"id": WS, "name": "Glow Naturals", "plan": "trial", "createdAt": AGO(48), "trialEndsAt": AGO(-120), "renewsAt": None, "active": True, "suspended": False, "suspendedReason": None, "owner": "ademola@shop.ng", "members": 2, "contacts": 3, "orders30d": 3, "lastActivity": AGO(1), "whatsapp": True, "ai": True},
+                               {"id": str(uuid.uuid4()), "name": "Kano Fabrics", "plan": "growth", "createdAt": AGO(400), "trialEndsAt": None, "renewsAt": AGO(-200), "active": True, "suspended": False, "suspendedReason": None, "owner": "musa@kano.ng", "members": 4, "contacts": 900, "orders30d": 9, "lastActivity": AGO(3), "whatsapp": True, "ai": False}]}))
         if fn == "payment_connection":
             return await route.fulfill(status=200, headers=hdr, body=json.dumps(FIX.get("payconn")))
         if fn == "save_payment_key":
@@ -407,6 +423,19 @@ async def main():
         await ready("/team")
         t = await pg.locator("main").inner_text()
         ok("team shows the real agents", "Chidi" in t and "Musa Abdullahi" not in t)
+
+        await ready("/billing")
+        t = await pg.locator("main").inner_text()
+        ok("billing shows the real plan, days left and usage against the limits", "Current plan: Trial" in t and "days left" in t and "3 of 500" in t and "40 of 1,000" in t)
+        await pg.get_by_role("button", name="Choose Growth").click(); await pg.wait_for_timeout(1500)
+        bl = [w for w in writes if w[0] == "fn" and w[1] == "billing"]
+        ok("choosing a plan asks the server for a Paystack checkout, signed in", len(bl) == 1 and bl[0][2] == {"workspace_id": WS, "plan": "growth"} and bl[0][3].startswith("Bearer "))
+        await ready("/admin")
+        t = await pg.locator("main").inner_text()
+        ok("Super Admin sees every business with plan and health", "Kano Fabrics" in t and "Glow Naturals" in t and "₦60,000" in t)
+        kano = pg.get_by_role("listitem", name="Kano Fabrics")
+        await kano.get_by_label("Reason to suspend Kano Fabrics").fill("Chargeback fraud"); await kano.get_by_role("button", name="Suspend").click(); await pg.wait_for_timeout(800)
+        ok("suspending needs a reason and goes to the server", any(w[0] == "rpc" and w[1] == "admin_suspend" and w[2].get("p_suspend") is True and w[2].get("p_reason") == "Chargeback fraud" for w in writes))
 
         await ready("/templates")
         t = await pg.locator("main").inner_text()

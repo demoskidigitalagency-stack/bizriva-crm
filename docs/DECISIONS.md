@@ -58,3 +58,10 @@ Choices made while finishing the backend unattended (6 Nov 2026). Each is easy t
 33. **A lead-form submission becomes a customer (matched by phone or email), a lead with the ad it came from, and a "Call this new lead" task** for the on-duty agent with the fewest open chats, due in 15 minutes. No automatic WhatsApp message — that would need an approved template and their consent.
 34. **Messenger and Instagram replies only go out within 24 hours of the customer's last message** (Meta's rule); later ones are marked failed with the reason. The AI answers these chats like WhatsApp.
 35. New Messenger/Instagram customers get their name from Meta once; customer photos and files are copied into the private storage.
+
+## Plans, limits and Super Admin
+36. **Plans and prices** (₦/month, changeable by a Super Admin): Trial free for 14 days · Starter ₦25,000 · Growth ₦60,000 · Scale ₦150,000, with customer, seat, broadcast-message and storage limits.
+37. **Limits never lose a sale:** customers who message you are always saved, even over the customer limit; replies, order updates and the AI never count against the message allowance. Limits stop staff adding customers, inviting teammates, sending a broadcast that wouldn't fit, and uploading media.
+38. **When a trial ends, or a paid plan is 3 days overdue, the AI assistant and broadcasts pause** until a plan is paid; inbox, orders and everything else keep working. Existing businesses got a 14-day trial counted from when they were created.
+39. **Plans are paid through Bizriva's own Paystack account** (`BIZRIVA_PAYSTACK_SECRET` and `APP_URL` as Edge Function secrets; Paystack webhook → `/functions/v1/billing/paystack`). Each payment adds 30 days. Only the owner pays.
+40. **Super Admins are added by hand** (`insert into platform_admins …` in the SQL editor). They see every business, set plans and trial days, and suspend (with a reason) or restore — each change is recorded in that business's history.

@@ -102,6 +102,11 @@ export function liveSettings(w: Row, providers: Row[], meta: Row[]): BusinessSet
     ...s,
     businessName: String(w["name"] ?? ""),
     ...(w["webchat_key"] ? { webchatKey: String(w["webchat_key"]) } : {}),
+    billing: (() => {
+      const t = w["trial_ends_at"] ? String(w["trial_ends_at"]) : undefined, r = w["plan_renews_at"] ? String(w["plan_renews_at"]) : undefined, now = Date.now();
+      const active = !w["suspended_at"] && (String(w["plan"] ?? "trial") === "trial" ? !t || Date.parse(t) > now : !r || Date.parse(r) + 3 * 86_400_000 > now);
+      return { ...(t ? { trialEndsAt: t } : {}), ...(r ? { renewsAt: r } : {}), ...(w["suspended_at"] ? { suspended: String(w["suspended_reason"] ?? "Suspended") } : {}), active };
+    })(),
     sms: (() => { const x = (w["sms_settings"] ?? {}) as Row; return { provider: x["provider"] === "termii" ? "termii" as const : "none" as const, ...(x["sender"] ? { sender: String(x["sender"]) } : {}), fallback: x["fallback"] !== false, ...(x["base_url"] ? { baseUrl: String(x["base_url"]) } : {}), ...(x["last_error"] ? { lastError: String(x["last_error"]) } : {}), ...(x["last_sent_at"] ? { lastSentAt: String(x["last_sent_at"]) } : {}) }; })(),
     timezone: String(w["timezone"] ?? "Africa/Lagos"),
     plan: (["trial", "starter", "growth", "scale"].includes(String(w["plan"])) ? w["plan"] : "trial") as BusinessSettings["plan"],

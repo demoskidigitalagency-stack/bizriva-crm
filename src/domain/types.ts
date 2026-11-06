@@ -685,6 +685,8 @@ export interface BusinessSettings {
   webchat?: { greeting?: string; color?: string; askPhone?: boolean };
   /** Website chat public key (real data); missing = turned off. */
   webchatKey?: string;
+  /** Plan status on real data: when the trial ends or the plan renews, and whether the AI and broadcasts are paused. */
+  billing?: { trialEndsAt?: string; renewsAt?: string; suspended?: string; active: boolean };
   /** SMS through Termii (real data; the key itself stays on the server). */
   sms?: { provider: "termii" | "none"; sender?: string; fallback?: boolean; baseUrl?: string; lastError?: string; lastSentAt?: string };
   timezone: string;

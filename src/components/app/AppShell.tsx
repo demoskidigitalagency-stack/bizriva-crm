@@ -10,6 +10,7 @@ import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, C
 import { cn } from "@/lib/utils";
 import { relativeTime } from "@/lib/format";
 import { useActions, useDb, useLive, useWorkspace } from "@/domain/store";
+import { useIsAdmin } from "@/app/admin";
 import { globalSearch, getTodayQueues } from "@/domain/repositories";
 import { currentUser } from "@/domain/seed";
 import { PersonAvatar } from "./primitives";
@@ -274,6 +275,20 @@ function LiveGate({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+/** Real data: the trial ended, the plan lapsed or the business is suspended — say what's paused and where to fix it. */
+function PlanBar() {
+  const live = useLive();
+  const db = useDb();
+  const b = db.settings.billing;
+  if (!live.on || live.status !== "ready" || !b || b.active) return null;
+  return (
+    <div role="alert" className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-warning/50 bg-warning/10 px-4 py-2 text-sm">
+      {b.suspended ? <>This business is suspended: {b.suspended}. The AI assistant and broadcasts are paused.</>
+        : <>{db.settings.plan === "trial" ? "Your free trial has ended" : "Your plan's payment is overdue"} — the AI assistant and broadcasts are paused. <Button size="sm" asChild><Link to="/billing">Choose a plan</Link></Button></>}
+    </div>
+  );
+}
+
 function LiveStatusBar() {
   const live = useLive();
   if (!live.on || live.status === "ready") return null;
@@ -287,6 +302,7 @@ function LiveStatusBar() {
 function AccountMenu() {
   const auth = useAuth();
   const live = useLive();
+  const isAdmin = useIsAdmin(!!auth.session);
   if (auth.configured && auth.ready && !auth.session) {
     return <Button asChild size="sm" variant="outline" className="ml-1"><Link to="/account">Sign in</Link></Button>;
   }
@@ -305,6 +321,7 @@ function AccountMenu() {
         {auth.configured && <DropdownMenuItem asChild><Link to="/account">{auth.session ? "Account and team invites" : "Sign in"}</Link></DropdownMenuItem>}
         {live.available && <DropdownMenuItem onSelect={() => live.setMode(live.on ? "practice" : "live")}>{live.on ? "Switch to Practice Mode (sample data)" : `Use ${auth.current?.name ?? "my business"}'s real data`}</DropdownMenuItem>}
         <DropdownMenuItem asChild><Link to="/settings">Workspace settings</Link></DropdownMenuItem>
+        {isAdmin && <DropdownMenuItem asChild><Link to="/admin">Super Admin</Link></DropdownMenuItem>}
         <DropdownMenuItem asChild><Link to="/welcome">Public website</Link></DropdownMenuItem>
         {auth.session && <DropdownMenuItem onSelect={() => void auth.signOut()}>Sign out</DropdownMenuItem>}
       </DropdownMenuContent>
@@ -345,7 +362,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <AccountMenu />
           </div>
         </header>
-        <main className="mx-auto w-full max-w-[1400px] flex-1 px-3 py-5 sm:px-5 lg:px-8"><LiveStatusBar /><LiveGate>{children}</LiveGate></main>
+        <main className="mx-auto w-full max-w-[1400px] flex-1 px-3 py-5 sm:px-5 lg:px-8"><LiveStatusBar /><PlanBar /><LiveGate>{children}</LiveGate></main>
       </div>
     </div>
   );
