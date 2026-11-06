@@ -263,6 +263,9 @@ export interface Message {
   body: string;
   at: string;
   authorId?: ID;
+  /** Real data only: where an outgoing message is with WhatsApp, and why it failed. */
+  delivery?: "queued" | "sent" | "delivered" | "read" | "failed";
+  error?: string;
 }
 
 export interface Conversation {

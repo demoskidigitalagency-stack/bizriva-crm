@@ -213,7 +213,7 @@ export function toDatabase(raw: RawData, now = new Date()): Database {
       id: c["id"], contactId: c["contact_id"], channel: (CHANNEL[c["channel"]] ?? c["channel"]) as Channel, subject: c["summary"] ?? (msgs[0]?.["body"] ?? "").slice(0, 48),
       unread: last?.["direction"] === "in" && c["status"] !== "closed", awaitingReply: last?.["direction"] === "in", assigneeId: c["assigned_to"] ?? "",
       lastMessageAt: iso(last?.["created_at"] ?? c["last_inbound_at"] ?? c["created_at"]),
-      messages: msgs.map((m) => ({ id: m["id"], conversationId: c["id"], direction: m["direction"], body: m["body"] ?? (m["template_name"] ? `[Template: ${m["template_name"]}]` : "[Media]"), at: iso(m["created_at"]), ...(m["sent_by"] ? { authorId: m["sent_by"] } : {}) })),
+      messages: msgs.map((m) => ({ id: m["id"], conversationId: c["id"], direction: m["direction"], body: m["body"] ?? (m["template_name"] ? `[Template: ${m["template_name"]}]` : "[Media]"), at: iso(m["created_at"]), ...(m["sent_by"] ? { authorId: m["sent_by"] } : {}), ...(m["direction"] === "out" && m["status"] ? { delivery: m["status"] } : {}), ...(m["error"] ? { error: m["error"] } : {}) })),
       ...(cp ? { complaint: { status: cp["status"] === "resolved" ? "resolved" : "open", reason: cp["reason"], openedAt: iso(cp["opened_at"]), ...(cp["resolved_at"] ? { resolvedAt: iso(cp["resolved_at"]) } : {}), ...(cp["resolution"] ? { resolution: cp["resolution"] } : {}) } } : {}),
     } as Conversation;
   });

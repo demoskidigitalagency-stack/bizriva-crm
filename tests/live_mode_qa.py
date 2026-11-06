@@ -48,7 +48,8 @@ FIX = {
     "messages": [
         {**W, "id": str(uuid.uuid4()), "conversation_id": V3, "direction": "in", "body": "Hi, how much is the body cream?", "status": "received", "created_at": AGO(3)},
         {**W, "id": str(uuid.uuid4()), "conversation_id": V1, "direction": "in", "body": "Hi, how much is the body cream?", "status": "received", "created_at": AGO(40)},
-        {**W, "id": str(uuid.uuid4()), "conversation_id": V1, "direction": "out", "body": "🧾 *Receipt RCPT-BZ-1001* — Glow Naturals", "status": "queued", "created_at": AGO(20)}],
+        {**W, "id": str(uuid.uuid4()), "conversation_id": V1, "direction": "out", "body": "🧾 *Receipt RCPT-BZ-1001* — Glow Naturals", "status": "queued", "created_at": AGO(20)},
+        {**W, "id": str(uuid.uuid4()), "conversation_id": V1, "direction": "out", "body": "We miss you, Ada!", "status": "failed", "error": "Outside the 24-hour window — needs an approved template", "created_at": AGO(1)}],
     "complaints": [], "consents": [{**W, "id": str(uuid.uuid4()), "source": "order form", "channel": "whatsapp", "granted": True, "category": "marketing", "contact_id": C1, "recorded_at": AGO(40)}],
     "contact_facts": [], "customer_accounts": [],
     "products": [
@@ -110,6 +111,9 @@ async def handle(route):
         if fn == "workspace_team":
             return await route.fulfill(status=200, headers=hdr, body=json.dumps(FIX["team"]))
         writes.append(("rpc", fn, body))
+        if fn == "save_whatsapp":
+            FIX["whatsapp_numbers"] = [{**W, "phone_number_id": body.get("p_phone_number_id"), "waba_id": None, "display_phone": body.get("p_display_phone"), "verify_token": "vt-0123456789abcdef", "active": True, "connected_at": NOW, "last_inbound_at": None, "last_sent_at": None, "last_error": None}]
+            return await route.fulfill(status=200, headers=hdr, body=json.dumps("vt-0123456789abcdef"))
         if fn == "send_to_partner":
             return await route.fulfill(status=200, headers=hdr, body=json.dumps({"token": "a1b2c3d4e5f60718293a4b5c6d7e8f90", "partner": "Arewa Express", "phone": "+2348169001122", "group": None, "fee": 4000, "state": "FCT"}))
         return await route.fulfill(status=200, headers=hdr, body=json.dumps(1 if fn == "pay_commission" else None))
@@ -219,6 +223,9 @@ async def main():
         await ready("/inbox")
         t = await pg.locator("main").inner_text()
         ok("inbox has the real chats", "Tolu Ade" in t)
+        await ready(f"/inbox?c={V1}")
+        t = await pg.locator("main").inner_text()
+        ok("a message WhatsApp couldn't take shows why", "Not delivered: Outside the 24-hour window" in t and "Waiting to send" in t, t[-300:])
 
         await ready("/calls?v=board")
         t = await pg.locator("main").inner_text()
@@ -239,6 +246,20 @@ async def main():
             await sw.click()
         await pg.get_by_role("button", name="Save settings").click(); await pg.wait_for_timeout(800)
         ok("changing a setting saves to the business", any(w[0] == "PATCH" and w[1] == "workspaces" for w in writes[before:]))
+
+        await ready("/integrations")
+        wa = pg.get_by_role("form", name="Connect WhatsApp")
+        ok("owner sees Connect WhatsApp on real data", await wa.count() == 1)
+        await wa.get_by_label("Phone number ID").fill("106540352242922")
+        await wa.get_by_label("WhatsApp number").fill("+234 803 000 0000")
+        await wa.get_by_label("Access token").fill("EAAG" + "x" * 40)
+        await wa.get_by_label("App secret").fill("s" * 32)
+        await wa.get_by_role("button", name="Connect WhatsApp").click(); await pg.wait_for_timeout(1200)
+        sent = [w for w in writes if w[0] == "rpc" and w[1] == "save_whatsapp"]
+        ok("keys go to the server once, through save_whatsapp", len(sent) == 1 and sent[0][2].get("p_phone_number_id") == "106540352242922")
+        t = await pg.locator("main").inner_text()
+        ok("then it shows the callback address and verify token for Meta", "functions/v1/whatsapp-webhook" in t and "vt-0123456789abcdef" in t and "Waiting for Meta" in t)
+        ok("the secret isn't shown back", ("x" * 40) not in t and ("s" * 32) not in t)
 
         # Switch back to sample data.
         await pg.get_by_role("button", name=re.compile("Showing your real data")).click()

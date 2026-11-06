@@ -15,6 +15,8 @@ import { CHANNEL_LABELS, LEAD_STAGES, ORDER_STATUS_META, SOURCE_LABELS, type Con
 import { formatCurrency, relativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
+const DELIVERY_LABEL = { queued: "Waiting to send", sent: "Sent ✓", delivered: "Delivered ✓✓", read: "Read ✓✓" } as const;
+
 export const Route = createFileRoute("/inbox")({
   head: () => ({
     meta: [
@@ -197,7 +199,8 @@ function Thread({ conversation }: { conversation: Conversation }) {
               tails && (m.direction === "out" ? "rounded-br-none" : "rounded-bl-none"),
             )}>
               <p className="whitespace-pre-wrap">{m.body}</p>
-              <p className={cn("mt-1 text-[10px]", m.direction === "out" ? "text-primary-foreground/70" : "text-muted-foreground")}>{relativeTime(m.at)}</p>
+              <p className={cn("mt-1 text-[10px]", m.direction === "out" ? "text-primary-foreground/70" : "text-muted-foreground")}>{relativeTime(m.at)}{m.delivery && m.delivery !== "failed" ? ` · ${DELIVERY_LABEL[m.delivery]}` : ""}</p>
+              {m.delivery === "failed" && <p className="mt-1 rounded bg-destructive/90 px-1.5 py-0.5 text-[11px] text-white" role="note">Not delivered{m.error ? `: ${m.error}` : ""}</p>}
             </div>
           </li>
         ))}

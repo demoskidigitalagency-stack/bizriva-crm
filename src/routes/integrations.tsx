@@ -4,7 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Section, StatusBadge } from "@/components/app/primitives";
-import { useActions, useDb, useWorkspace } from "@/domain/store";
+import { useActions, useDb, useLive, useWorkspace } from "@/domain/store";
+import { WhatsAppConnect } from "@/components/app/WhatsAppConnect";
 import type { IntegrationState } from "@/domain/types";
 import { relativeTime } from "@/lib/format";
 
@@ -78,6 +79,7 @@ function LeadFormTester() {
 function Integrations() {
   const db = useDb();
   const { setIntegration } = useActions();
+  const live = useLive();
   return (
     <div className="space-y-4">
       <div>
@@ -90,6 +92,13 @@ function Integrations() {
         {db.integrations.map((s) => {
           const i = INFO[s.id];
           const sim = s.status === "simulated";
+          if (s.id === "whatsapp" && live.on) {
+            return (
+              <Section key={s.id} title={i.name} description={i.what} className="md:col-span-2">
+                <WhatsAppConnect />
+              </Section>
+            );
+          }
           return (
             <Section key={s.id} title={i.name} description={i.what} action={<StatusBadge tone={sim ? "info" : "neutral"}>{sim ? "Simulated" : "Not connected"}</StatusBadge>}>
               <div className="space-y-3 p-4 text-sm">
