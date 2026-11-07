@@ -2,12 +2,13 @@
 //
 // Woken by the database every minute and by whatsapp-webhook as soon as a
 // customer writes (x-bizriva-cron header = the secret in Vault). For each chat
-// waiting on the AI it loads that business's data only, asks Claude for a reply
-// using the business's own key (or the platform key ANTHROPIC_API_KEY if set),
-// checks the reply (brain.ts), then queues it for WhatsApp or hands the chat
-// to a person.
+// waiting on the AI it loads that business's data only and answers with Claude
+// on the business's own key — or, with no key, with the free Basic assistant
+// (basic.ts, rules only). The reply is checked (brain.ts), then queued, or the
+// chat is handed to a person.
 import { createClient } from "npm:@supabase/supabase-js@2.49.4";
 import { checkReply, quickRules, RESPOND_TOOL, systemPrompt, turns, type Ctx, type Decision, type Draft } from "./brain.ts";
+import { basicReply } from "./basic.ts";
 
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -45,11 +46,12 @@ Deno.serve(async (req) => {
     try {
       const { data: ctx } = await db.rpc("svc_ai_context", { p_conversation: j.conversation_id });
       if (!ctx) throw new Error("Chat not found");
-      decision = quickRules(ctx as Ctx);
-      if (!decision) {
-        const key = j.api_key ?? Deno.env.get("ANTHROPIC_API_KEY") ?? "";
-        if (!key) throw new Error("The AI isn't connected — add your Anthropic API key under AI Agent");
-        decision = checkReply(ctx as Ctx, await ask(key, j.model ?? DEFAULT_MODEL, ctx as Ctx));
+      // The business's own key → the full AI. No key → the free Basic assistant (rules, no AI service).
+      const key = j.api_key ?? "";
+      if (!key) decision = basicReply(ctx as Ctx);
+      else {
+        decision = quickRules(ctx as Ctx);
+        if (!decision) decision = checkReply(ctx as Ctx, await ask(key, j.model ?? DEFAULT_MODEL, ctx as Ctx));
       }
       // Checkout: the server prices the draft and words the summary; a YES creates the order.
       if (decision?.confirm) {

@@ -80,4 +80,11 @@ Choices made while finishing the backend unattended (6 Nov 2026). Each is easy t
 47. "On time" for confirming an order uses the business's own "call within" setting (default 2 hours).
 
 ## When the AI can't answer
-48. **If the AI can't answer — no AI key added, the assistant switched off, or the trial/plan has ended — new customer messages go straight to the team** and the chat is assigned to the on-duty agent with the fewest open chats. Nobody waits on an AI that isn't there. Customer chats only use the business's own AI key; Bizriva's key is for the planner.
+48. **If the assistant is switched off, or the trial/plan has ended, new customer messages go straight to the team** and the chat is assigned to the on-duty agent with the fewest open chats. Nobody waits on an assistant that isn't there. Customer chats only use the business's own AI key; Bizriva's key is for the planner.
+
+## Basic assistant (free, no AI key)
+49. **With no AI key, the free Basic assistant answers.** It works from rules over the business's own data, with no AI service and no cost: greetings with a few products, a product's price, options, stock and photo, the closest knowledge-base answer, and orders taken one question at a time (product → option → how many → address → the priced summary → YES). Anything it doesn't understand, a change to a waiting summary, a complaint or a request for a person goes to the team. Adding a key switches the same chats to the full AI.
+
+## Old WhatsApp chats
+50. **Only owners and managers can import chats** (WhatsApp "Export chat" files, one-to-one only, up to 5,000 messages per file). A new customer is added, or the chat joins an existing customer's history; messages already there are skipped.
+51. **Imported messages are history only:** they never open WhatsApp's 24-hour reply window, never wake the assistant, never start reminders, and never count in response times.

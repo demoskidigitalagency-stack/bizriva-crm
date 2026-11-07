@@ -8,7 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Section, StatusBadge } from "@/components/app/primitives";
-import { useActions, useDb } from "@/domain/store";
+import { useActions, useDb, useLive } from "@/domain/store";
+import { useAuth } from "@/app/auth";
+import { supabase } from "@/lib/supabase";
 import { fullName } from "@/domain/repositories";
 import { extractDetails } from "@/domain/extract";
 import { guessCustomer, parseWhatsAppExport, SAMPLE_EXPORT, type ParsedChat } from "@/domain/whatsapp-export";
@@ -30,6 +32,9 @@ const digitsOf = (p: string) => p.replace(/\D/g, "").slice(-10);
 function ChatCard({ chat, onDone, onRemove }: { chat: ParsedChat; onDone: (msg: string, contactId: string) => void; onRemove: () => void }) {
   const db = useDb();
   const { importChatHistory } = useActions();
+  const live = useLive();
+  const { current } = useAuth();
+  const [busy, setBusy] = useState(false);
   const customerSender = guessCustomer(chat) ?? chat.senders[0]?.name ?? "";
   const [customer, setCustomer] = useState(customerSender);
   const business = chat.senders.find((s) => s.name !== customer)?.name ?? "";
@@ -46,14 +51,36 @@ function ChatCard({ chat, onDone, onRemove }: { chat: ParsedChat; onDone: (msg: 
   const picked = db.contacts.find((c) => c.id === contactId);
   const groupLike = chat.senders.length > 2;
 
+  const done = (res: { added: number; duplicates: number }, cid: string) =>
+    onDone(`${res.added} message${res.added === 1 ? "" : "s"} imported from ${chat.fileName}${res.duplicates ? ` (${res.duplicates} were already there)` : ""}.`, cid);
+
+  /** Real data: the server adds the customer (or uses the one picked) and stores the history, marked imported. */
+  const runLive = async () => {
+    const sb = supabase(); if (!sb || !current) return;
+    if (mode === "existing" && !contactId) return setError("Pick the customer this chat belongs to.");
+    if (mode === "new" && (!name.trim() || phone.replace(/\D/g, "").length < 10)) return setError("Enter the customer's name and full phone number.");
+    setBusy(true); setError("");
+    const { data, error: e } = await sb.rpc("import_chat", {
+      p_workspace: current.workspaceId, p_contact: mode === "existing" ? contactId : null,
+      p_name: mode === "new" ? name.trim() : null, p_phone: mode === "new" ? phone : null, p_city: mode === "new" ? found.city ?? null : null,
+      p_messages: chat.messages.map((m) => ({ at: m.at, out: m.sender === business, body: m.body })), p_file: chat.fileName,
+    });
+    setBusy(false);
+    if (e) return setError(e.message);
+    const r = data as { contact: string; added: number; duplicates: number };
+    await live.reload();
+    done(r, r.contact);
+  };
+
   const run = () => {
     if (groupLike) return setError("This looks like a group chat. Only one-to-one chats can be imported.");
+    if (live.on) return void runLive();
     const res = importChatHistory({
       ...(mode === "existing" && contactId ? { contactId } : { newContact: { name, phone, ...(found.city ? { city: found.city } : {}) } }),
       businessSender: business, messages: chat.messages, fileName: chat.fileName,
     });
     if (!res) return setError(mode === "existing" ? "Pick the customer this chat belongs to." : "Enter the customer's name and full phone number.");
-    onDone(`${res.added} message${res.added === 1 ? "" : "s"} imported from ${chat.fileName}${res.duplicates ? ` (${res.duplicates} were already there)` : ""}.`, res.contactId);
+    done(res, res.contactId);
   };
 
   return (
@@ -89,7 +116,7 @@ function ChatCard({ chat, onDone, onRemove }: { chat: ParsedChat; onDone: (msg: 
             </div>
           )}
           {error && <p className="text-destructive" role="alert">{error}</p>}
-          <Button size="sm" onClick={run} disabled={groupLike}>Import chat</Button>
+          <Button size="sm" onClick={run} disabled={groupLike || busy}>{busy ? "Importing…" : "Import chat"}</Button>
         </div>
         <div className="min-w-0">
           <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Preview</p>
@@ -108,6 +135,7 @@ function ChatCard({ chat, onDone, onRemove }: { chat: ParsedChat; onDone: (msg: 
 }
 
 export function ChatImport() {
+  const live = useLive();
   const [chats, setChats] = useState<ParsedChat[]>([]);
   const [paste, setPaste] = useState("");
   const [done, setDone] = useState<{ msg: string; contactId: string }[]>([]);
@@ -136,7 +164,7 @@ export function ChatImport() {
           <label className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border border-dashed p-6 text-center hover:border-primary/50">
             <MessageSquare className="size-6 text-muted-foreground" aria-hidden="true" />
             <span className="font-medium">Select exported chats</span>
-            <span className="text-xs text-muted-foreground">Stays in this browser in Practice Mode</span>
+            <span className="text-xs text-muted-foreground">{live.on ? "Saved to your real customer list. Old messages never wake the assistant or send reminders." : "Stays in this browser in Practice Mode"}</span>
             <input type="file" multiple accept=".txt,.zip,text/plain,application/zip" className="sr-only" aria-label="WhatsApp chat export files" onChange={(e) => { void onFiles(e.target.files); e.target.value = ""; }} />
           </label>
           <details>

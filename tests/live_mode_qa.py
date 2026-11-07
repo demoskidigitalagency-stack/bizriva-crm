@@ -182,6 +182,8 @@ async def handle(route):
         if fn == "response_times":
             return await route.fulfill(status=200, headers=hdr, body=json.dumps({"callWithin": 120, "customerTurns": 3, "unanswered": 1, "overall": {"median": 5.5, "within5": 1, "answered": 2}, "ai": {"replies": 1, "median": 1.0}, "automatic": 0,
                 "people": [{"userId": CHIDI, "name": "Chidi Okafor", "role": "sales", "replies": 1, "median": 10.0, "average": 10.0, "within5": 0, "confirmed": 1, "confirmMedian": 45.0, "confirmOnTime": 1}]}))
+        if fn == "import_chat":
+            return await route.fulfill(status=200, headers=hdr, body=json.dumps({"contact": str(uuid.uuid4()), "conversation": str(uuid.uuid4()), "added": len(body.get("p_messages") or []), "duplicates": 0}))
         if fn == "admin_is":
             return await route.fulfill(status=200, headers=hdr, body="true")
         if fn == "admin_overview":
@@ -561,6 +563,18 @@ async def main():
         await pg.goto(B + "/paid"); await pg.wait_for_timeout(800)
         ok("customers land on a thank-you page after paying", "Your payment is being confirmed" in await pg.locator("body").inner_text())
         await pg.goto(B + "/")
+
+        await ready("/crm/imports?t=chats")
+        ok("chat import says it saves to the real customer list", await pg.get_by_text(re.compile("Saved to your real customer list")).count() == 1)
+        await pg.get_by_text("Or paste the chat text").click()
+        await pg.get_by_role("button", name="Try a sample chat").click(); await pg.wait_for_timeout(400)
+        nc = pg.get_by_role("button", name="New contact")
+        if await nc.count(): await nc.first.click()
+        await pg.get_by_role("button", name="Import chat").click(); await pg.wait_for_timeout(1500)
+        ic = [w for w in writes if w[0] == "rpc" and w[1] == "import_chat"]
+        ok("importing a chat on real data goes to the server, with who sent each message", len(ic) == 1 and ic[0][2].get("p_workspace") == WS and len(ic[0][2]["p_messages"]) > 3
+           and any(m["out"] for m in ic[0][2]["p_messages"]) and any(not m["out"] for m in ic[0][2]["p_messages"]) and ic[0][2].get("p_file") == "WhatsApp Chat with Chioma Eze.txt", ic[:1])
+        ok("and shows how many messages came in", "messages imported from WhatsApp Chat with Chioma Eze.txt" in await pg.locator("main").inner_text())
 
         # Switch back to sample data.
         await pg.get_by_role("button", name=re.compile("Showing your real data")).click()

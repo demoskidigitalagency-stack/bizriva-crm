@@ -25,7 +25,6 @@ const NOT_YET: Partial<Record<keyof StoreActions, string>> = {
   connectPayments: "Add your payment provider's secret key in Account to connect payments.",
   disconnectPayments: "Payments are managed from Account.", updatePayments: "Payment options are saved once your provider is connected.",
   requestPayment: "Payment requests in the chat need your payment provider's key.", sendPaymentLink: "Payment links need your payment provider's key.",
-  importChatHistory: "Chat import on live data comes next.",
   setLifecycle: "On live data the stage follows the customer's orders.",
   setIntegration: "Channels connect for real from Integrations once their keys are in place.",
   addCampaignSpend: "Ad spend comes from Meta once it's connected.",

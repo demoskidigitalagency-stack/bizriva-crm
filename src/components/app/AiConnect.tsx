@@ -67,7 +67,13 @@ export function AiConnect() {
       <div className="space-y-3 p-4 text-sm">
         {error && <p className="text-xs text-destructive" role="alert">{error}</p>}
         {row === undefined ? <p className="text-muted-foreground" role="status">Checking…</p> : !row ? (
-          isOwner ? form : <p className="text-muted-foreground">Not connected yet — the owner connects the AI here.</p>
+          <>
+            <div className="rounded-md border bg-muted/30 p-3 text-xs">
+              <p className="flex items-center gap-2 font-medium text-foreground"><StatusBadge tone="info">Basic assistant on</StatusBadge> Free — no key needed</p>
+              <p className="mt-1 text-muted-foreground">Without a key, a simple assistant answers for you: greetings, prices and photos from your products, answers from your knowledge base, and taking orders step by step (product, option, how many, address, then the customer replies YES). Anything else goes to your team. Add products and knowledge so it has more to answer with. Add a key below when you want the full AI, which understands any question.</p>
+            </div>
+            {isOwner ? form : <p className="text-muted-foreground">The owner can add an AI key here for the full AI.</p>}
+          </>
         ) : (
           <>
             <div className="flex flex-wrap items-center gap-2">
