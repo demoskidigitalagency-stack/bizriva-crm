@@ -25,6 +25,7 @@ import { Route as CallsRouteImport } from './routes/calls'
 import { Route as CodRouteImport } from './routes/cod'
 import { Route as ConnectionsRouteImport } from './routes/connections'
 import { Route as CrmRouteImport } from './routes/crm'
+import { Route as DataDeletionRouteImport } from './routes/data-deletion'
 import { Route as DeliveryRouteImport } from './routes/delivery'
 import { Route as FollowUpsRouteImport } from './routes/follow-ups'
 import { Route as HelpRouteImport } from './routes/help'
@@ -37,6 +38,7 @@ import { Route as OrderFormsRouteImport } from './routes/order-forms'
 import { Route as OrdersRouteImport } from './routes/orders'
 import { Route as PaidRouteImport } from './routes/paid'
 import { Route as PaymentsRouteImport } from './routes/payments'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProductsRouteImport } from './routes/products'
 import { Route as ProgressRouteImport } from './routes/progress'
 import { Route as RidersRouteImport } from './routes/riders'
@@ -45,6 +47,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as StoreRouteImport } from './routes/store'
 import { Route as TeamRouteImport } from './routes/team'
 import { Route as TemplatesRouteImport } from './routes/templates'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as TodayRouteImport } from './routes/today'
 import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as WorkflowHistoryRouteImport } from './routes/workflow-history'
@@ -146,6 +149,11 @@ const CrmRoute = CrmRouteImport.update({
   path: '/crm',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DataDeletionRoute = DataDeletionRouteImport.update({
+  id: '/data-deletion',
+  path: '/data-deletion',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DeliveryRoute = DeliveryRouteImport.update({
   id: '/delivery',
   path: '/delivery',
@@ -206,6 +214,11 @@ const PaymentsRoute = PaymentsRouteImport.update({
   path: '/payments',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProductsRoute = ProductsRouteImport.update({
   id: '/products',
   path: '/products',
@@ -244,6 +257,11 @@ const TeamRoute = TeamRouteImport.update({
 const TemplatesRoute = TemplatesRouteImport.update({
   id: '/templates',
   path: '/templates',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TodayRoute = TodayRouteImport.update({
@@ -364,6 +382,7 @@ export interface FileRoutesByFullPath {
   '/cod': typeof CodRoute
   '/connections': typeof ConnectionsRoute
   '/crm': typeof CrmRouteWithChildren
+  '/data-deletion': typeof DataDeletionRoute
   '/delivery': typeof DeliveryRoute
   '/follow-ups': typeof FollowUpsRoute
   '/help': typeof HelpRoute
@@ -376,6 +395,7 @@ export interface FileRoutesByFullPath {
   '/orders': typeof OrdersRoute
   '/paid': typeof PaidRoute
   '/payments': typeof PaymentsRoute
+  '/privacy': typeof PrivacyRoute
   '/products': typeof ProductsRoute
   '/progress': typeof ProgressRoute
   '/riders': typeof RidersRoute
@@ -384,6 +404,7 @@ export interface FileRoutesByFullPath {
   '/store': typeof StoreRoute
   '/team': typeof TeamRoute
   '/templates': typeof TemplatesRoute
+  '/terms': typeof TermsRoute
   '/today': typeof TodayRoute
   '/welcome': typeof WelcomeRoute
   '/workflow-history': typeof WorkflowHistoryRoute
@@ -421,6 +442,7 @@ export interface FileRoutesByTo {
   '/calls': typeof CallsRoute
   '/cod': typeof CodRoute
   '/connections': typeof ConnectionsRoute
+  '/data-deletion': typeof DataDeletionRoute
   '/delivery': typeof DeliveryRoute
   '/follow-ups': typeof FollowUpsRoute
   '/help': typeof HelpRoute
@@ -433,6 +455,7 @@ export interface FileRoutesByTo {
   '/orders': typeof OrdersRoute
   '/paid': typeof PaidRoute
   '/payments': typeof PaymentsRoute
+  '/privacy': typeof PrivacyRoute
   '/products': typeof ProductsRoute
   '/progress': typeof ProgressRoute
   '/riders': typeof RidersRoute
@@ -441,6 +464,7 @@ export interface FileRoutesByTo {
   '/store': typeof StoreRoute
   '/team': typeof TeamRoute
   '/templates': typeof TemplatesRoute
+  '/terms': typeof TermsRoute
   '/today': typeof TodayRoute
   '/welcome': typeof WelcomeRoute
   '/workflow-history': typeof WorkflowHistoryRoute
@@ -480,6 +504,7 @@ export interface FileRoutesById {
   '/cod': typeof CodRoute
   '/connections': typeof ConnectionsRoute
   '/crm': typeof CrmRouteWithChildren
+  '/data-deletion': typeof DataDeletionRoute
   '/delivery': typeof DeliveryRoute
   '/follow-ups': typeof FollowUpsRoute
   '/help': typeof HelpRoute
@@ -492,6 +517,7 @@ export interface FileRoutesById {
   '/orders': typeof OrdersRoute
   '/paid': typeof PaidRoute
   '/payments': typeof PaymentsRoute
+  '/privacy': typeof PrivacyRoute
   '/products': typeof ProductsRoute
   '/progress': typeof ProgressRoute
   '/riders': typeof RidersRoute
@@ -500,6 +526,7 @@ export interface FileRoutesById {
   '/store': typeof StoreRoute
   '/team': typeof TeamRoute
   '/templates': typeof TemplatesRoute
+  '/terms': typeof TermsRoute
   '/today': typeof TodayRoute
   '/welcome': typeof WelcomeRoute
   '/workflow-history': typeof WorkflowHistoryRoute
@@ -540,6 +567,7 @@ export interface FileRouteTypes {
     | '/cod'
     | '/connections'
     | '/crm'
+    | '/data-deletion'
     | '/delivery'
     | '/follow-ups'
     | '/help'
@@ -552,6 +580,7 @@ export interface FileRouteTypes {
     | '/orders'
     | '/paid'
     | '/payments'
+    | '/privacy'
     | '/products'
     | '/progress'
     | '/riders'
@@ -560,6 +589,7 @@ export interface FileRouteTypes {
     | '/store'
     | '/team'
     | '/templates'
+    | '/terms'
     | '/today'
     | '/welcome'
     | '/workflow-history'
@@ -597,6 +627,7 @@ export interface FileRouteTypes {
     | '/calls'
     | '/cod'
     | '/connections'
+    | '/data-deletion'
     | '/delivery'
     | '/follow-ups'
     | '/help'
@@ -609,6 +640,7 @@ export interface FileRouteTypes {
     | '/orders'
     | '/paid'
     | '/payments'
+    | '/privacy'
     | '/products'
     | '/progress'
     | '/riders'
@@ -617,6 +649,7 @@ export interface FileRouteTypes {
     | '/store'
     | '/team'
     | '/templates'
+    | '/terms'
     | '/today'
     | '/welcome'
     | '/workflow-history'
@@ -655,6 +688,7 @@ export interface FileRouteTypes {
     | '/cod'
     | '/connections'
     | '/crm'
+    | '/data-deletion'
     | '/delivery'
     | '/follow-ups'
     | '/help'
@@ -667,6 +701,7 @@ export interface FileRouteTypes {
     | '/orders'
     | '/paid'
     | '/payments'
+    | '/privacy'
     | '/products'
     | '/progress'
     | '/riders'
@@ -675,6 +710,7 @@ export interface FileRouteTypes {
     | '/store'
     | '/team'
     | '/templates'
+    | '/terms'
     | '/today'
     | '/welcome'
     | '/workflow-history'
@@ -714,6 +750,7 @@ export interface RootRouteChildren {
   CodRoute: typeof CodRoute
   ConnectionsRoute: typeof ConnectionsRoute
   CrmRoute: typeof CrmRouteWithChildren
+  DataDeletionRoute: typeof DataDeletionRoute
   DeliveryRoute: typeof DeliveryRoute
   FollowUpsRoute: typeof FollowUpsRoute
   HelpRoute: typeof HelpRoute
@@ -726,6 +763,7 @@ export interface RootRouteChildren {
   OrdersRoute: typeof OrdersRoute
   PaidRoute: typeof PaidRoute
   PaymentsRoute: typeof PaymentsRoute
+  PrivacyRoute: typeof PrivacyRoute
   ProductsRoute: typeof ProductsRoute
   ProgressRoute: typeof ProgressRoute
   RidersRoute: typeof RidersRoute
@@ -734,6 +772,7 @@ export interface RootRouteChildren {
   StoreRoute: typeof StoreRoute
   TeamRoute: typeof TeamRoute
   TemplatesRoute: typeof TemplatesRoute
+  TermsRoute: typeof TermsRoute
   TodayRoute: typeof TodayRoute
   WelcomeRoute: typeof WelcomeRoute
   WorkflowHistoryRoute: typeof WorkflowHistoryRoute
@@ -858,6 +897,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CrmRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/data-deletion': {
+      id: '/data-deletion'
+      path: '/data-deletion'
+      fullPath: '/data-deletion'
+      preLoaderRoute: typeof DataDeletionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/delivery': {
       id: '/delivery'
       path: '/delivery'
@@ -942,6 +988,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PaymentsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/products': {
       id: '/products'
       path: '/products'
@@ -996,6 +1049,13 @@ declare module '@tanstack/react-router' {
       path: '/templates'
       fullPath: '/templates'
       preLoaderRoute: typeof TemplatesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/today': {
@@ -1190,6 +1250,7 @@ const rootRouteChildren: RootRouteChildren = {
   CodRoute: CodRoute,
   ConnectionsRoute: ConnectionsRoute,
   CrmRoute: CrmRouteWithChildren,
+  DataDeletionRoute: DataDeletionRoute,
   DeliveryRoute: DeliveryRoute,
   FollowUpsRoute: FollowUpsRoute,
   HelpRoute: HelpRoute,
@@ -1202,6 +1263,7 @@ const rootRouteChildren: RootRouteChildren = {
   OrdersRoute: OrdersRoute,
   PaidRoute: PaidRoute,
   PaymentsRoute: PaymentsRoute,
+  PrivacyRoute: PrivacyRoute,
   ProductsRoute: ProductsRoute,
   ProgressRoute: ProgressRoute,
   RidersRoute: RidersRoute,
@@ -1210,6 +1272,7 @@ const rootRouteChildren: RootRouteChildren = {
   StoreRoute: StoreRoute,
   TeamRoute: TeamRoute,
   TemplatesRoute: TemplatesRoute,
+  TermsRoute: TermsRoute,
   TodayRoute: TodayRoute,
   WelcomeRoute: WelcomeRoute,
   WorkflowHistoryRoute: WorkflowHistoryRoute,
