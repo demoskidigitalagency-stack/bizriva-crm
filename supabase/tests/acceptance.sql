@@ -21,6 +21,7 @@ begin
   insert into followup_rules(workspace_id, name, trigger, delay_hours, max_attempts, template_name, message) values (ws, 'Price reminder', 'no_reply_after_price', 2, 2, 'win_back', 'Hi {{name}}, still interested in {{product}}?');
   tok := vault.create_secret('acceptance-token-xxxxxxxxxxxxxxxxxxxx', 'acc_' || ws);
   insert into whatsapp_numbers(workspace_id, phone_number_id, waba_id, token_secret_id, app_secret_id) values (ws, '1098765432', '2098765432', tok, tok);
+  insert into ai_keys(workspace_id, key_secret_id, active) values (ws, tok, true);   -- the AI is connected (its replies are simulated)
   perform set_config('bizriva.system', '', true);
 
   -- 1. Ad click starts a WhatsApp chat; contact and ad source recorded.

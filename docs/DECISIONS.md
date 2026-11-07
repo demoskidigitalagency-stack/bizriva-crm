@@ -78,3 +78,6 @@ Choices made while finishing the backend unattended (6 Nov 2026). Each is easy t
 ## Response times
 46. **Response times are clock minutes, nights and weekends included** — that's what the customer feels. A customer's burst of messages counts as one wait, from their first message to our next reply; order updates and receipts don't count as replies.
 47. "On time" for confirming an order uses the business's own "call within" setting (default 2 hours).
+
+## When the AI can't answer
+48. **If the AI can't answer — no AI key added, the assistant switched off, or the trial/plan has ended — new customer messages go straight to the team** and the chat is assigned to the on-duty agent with the fewest open chats. Nobody waits on an AI that isn't there. Customer chats only use the business's own AI key; Bizriva's key is for the planner.
