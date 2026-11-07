@@ -88,3 +88,9 @@ Choices made while finishing the backend unattended (6 Nov 2026). Each is easy t
 ## Old WhatsApp chats
 50. **Only owners and managers can import chats** (WhatsApp "Export chat" files, one-to-one only, up to 5,000 messages per file). A new customer is added, or the chat joins an existing customer's history; messages already there are skipped.
 51. **Imported messages are history only:** they never open WhatsApp's 24-hour reply window, never wake the assistant, never start reminders, and never count in response times.
+
+## Connect WhatsApp with Meta (one click, keep the phone app)
+52. **Bizriva is a Meta Tech Provider with one Meta app.** Owners connect WhatsApp through Meta's sign-up window in Bizriva; no Meta app or keys of their own. The Super Admin saves Bizriva's App ID, sign-up configuration ID and app secret once (docs/META_SETUP.md). The old "paste your own Meta app keys" way stays under Advanced.
+53. **A number on the WhatsApp Business app keeps working on the phone (Coexistence).** Bizriva asks Meta for the phone's contacts and up to 6 months of one-to-one chats right after connecting (Meta allows this once, within 24 hours). History is saved as imported: it never opens the 24-hour window, wakes the assistant, starts reminders or counts in response times. Group chats don't come across.
+54. **A reply sent from the phone is a real reply.** It shows in the chat, and the assistant steps back from that chat (handed to the team) so the two don't talk over each other.
+55. **Contacts removed on the phone are never deleted from Bizriva.** A number can only be connected to one business. If the business disconnects in the phone app, the connection shows as disconnected with a "Connect again" button.

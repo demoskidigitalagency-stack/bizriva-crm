@@ -6,9 +6,16 @@
 //      phone_number_id; the X-Hub-Signature-256 header must equal
 //      HMAC-SHA256(raw body, that business's Meta app secret) or nothing is saved.
 //      The same Meta message id is saved once, so Meta's retries can't duplicate.
+// Numbers connected through Bizriva's Meta app use Bizriva's app secret. Those
+// that stay on the WhatsApp Business app (Coexistence) also send: `history`
+// (up to 6 months of chats, saved as imported history), `smb_app_state_sync`
+// (the phone's contacts), `smb_message_echoes` (replies sent from the phone),
+// and `account_update` PARTNER_REMOVED when the business disconnects us.
 // Always answers 200 quickly for a verified request (Meta retries otherwise).
 import { createClient } from "npm:@supabase/supabase-js@2.49.4";
 import { inboundPath, MAX_BYTES, mediaOf } from "./media.ts";
+import { parseContacts, parseEchoes, parseHistory, textOf } from "./coexist.ts";
+export { textOf };
 
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -45,23 +52,6 @@ async function saveFile(ws: string, token: string, messageId: string, f: NonNull
   await db.rpc("svc_whatsapp_media", { p_message: messageId, p_media_id: null, p_kind: null, p_name: null, p_path: path, p_error: err });
 }
 
-/** The text we keep for a WhatsApp message of any type. */
-// deno-lint-ignore no-explicit-any
-export function textOf(m: any): string | null {
-  switch (m?.type) {
-    case "text": return m.text?.body ?? null;
-    case "button": return m.button?.text ?? null;
-    case "interactive": return m.interactive?.button_reply?.title ?? m.interactive?.list_reply?.title ?? null;
-    case "image": case "video": case "document": case "audio": case "sticker": {
-      const cap = m[m.type]?.caption; return `[${m.type}]${cap ? " " + cap : ""}`;
-    }
-    case "location": return `[location] ${m.location?.name ?? ""} ${m.location?.address ?? ""} (${m.location?.latitude}, ${m.location?.longitude})`.trim();
-    case "contacts": return "[contact card]";
-    case "reaction": return m.reaction?.emoji ? `[reacted ${m.reaction.emoji}]` : null;
-    default: return null;
-  }
-}
-
 Deno.serve(async (req) => {
   const url = new URL(req.url);
   if (req.method === "GET") {
@@ -73,29 +63,53 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return json(405, { error: "GET or POST only" });
 
   const body = await req.text();
-  if (body.length > 1_000_000) return json(413, { error: "Too large" });
+  if (body.length > 5_000_000) return json(413, { error: "Too large" });
   // deno-lint-ignore no-explicit-any
   let evt: any;
   try { evt = JSON.parse(body); } catch { return json(400, { error: "Not JSON" }); }
   if (evt?.object !== "whatsapp_business_account") return json(200, { ignored: true });
 
   const sig = (req.headers.get("x-hub-signature-256") ?? "").replace(/^sha256=/, "");
+  const FIELDS = new Set(["messages", "history", "smb_message_echoes", "smb_app_state_sync", "account_update"]);
   // deno-lint-ignore no-explicit-any
-  const changes: any[] = (evt.entry ?? []).flatMap((e: any) => e?.changes ?? []).filter((c: any) => c?.field === "messages");
+  const changes: { waba: string; field: string; value: any }[] = (evt.entry ?? []).flatMap((e: any) => (e?.changes ?? []).map((c: any) => ({ waba: String(e?.id ?? ""), field: String(c?.field ?? ""), value: c?.value ?? {} })))
+    .filter((c: { field: string }) => FIELDS.has(c.field));
   const keys = new Map<string, { workspace_id: string; app_secret: string; token: string } | null>();
   const downloads: Promise<void>[] = [];
-  const out = { saved: 0, duplicates: 0, statuses: 0, rejected: 0 };
+  const out = { saved: 0, duplicates: 0, statuses: 0, rejected: 0, history: 0, contacts: 0, echoes: 0 };
 
   for (const ch of changes) {
-    const v = ch.value ?? {};
+    const v = ch.value;
     const pnid = String(v.metadata?.phone_number_id ?? "");
-    if (!keys.has(pnid)) {
-      const { data } = await db.rpc("svc_whatsapp_keys", { p_phone_number_id: pnid });
+    const key = pnid ? `p:${pnid}` : `w:${ch.waba}`;
+    if (!keys.has(key)) {
+      const { data } = pnid ? await db.rpc("svc_whatsapp_keys", { p_phone_number_id: pnid }) : await db.rpc("svc_whatsapp_keys_by_waba", { p_waba: ch.waba });
       const k = (data as { workspace_id: string; app_secret: string; token: string }[] | null)?.[0] ?? null;
-      keys.set(pnid, k && same(await hmac256(k.app_secret, body), sig) ? k : null);
+      keys.set(key, k && k.app_secret && same(await hmac256(k.app_secret, body), sig) ? k : null);
     }
-    const k = keys.get(pnid);
+    const k = keys.get(key);
     if (!k) { out.rejected++; continue; }
+
+    if (ch.field === "account_update") {
+      if (v.event === "PARTNER_REMOVED") await db.rpc("svc_whatsapp_partner_removed", { p_waba: ch.waba, p_reason: "Disconnected in the WhatsApp Business app — connect again from Bizriva" });
+      out.statuses++; continue;
+    }
+    if (ch.field === "history") {
+      for (const chunk of parseHistory(v)) {
+        if (chunk.error) await db.rpc("svc_whatsapp_history_error", { p_workspace: k.workspace_id, p_code: chunk.error.code, p_message: chunk.error.message });
+        else { await db.rpc("svc_whatsapp_history", { p_workspace: k.workspace_id, p_progress: chunk.progress, p_threads: chunk.threads }); out.history += chunk.threads.reduce((n, t) => n + t.messages.length, 0); }
+      }
+      continue;
+    }
+    if (ch.field === "smb_app_state_sync") {
+      const list = parseContacts(v);
+      if (list.length) await db.rpc("svc_whatsapp_contacts", { p_workspace: k.workspace_id, p_contacts: list });
+      out.contacts += list.length; continue;
+    }
+    if (ch.field === "smb_message_echoes") {
+      for (const e of parseEchoes(v)) { await db.rpc("svc_whatsapp_echo", { p_workspace: k.workspace_id, p_wa_id: e.wa, p_msg_id: e.id, p_body: e.body, p_at: e.at }); out.echoes++; }
+      continue;
+    }
 
     // deno-lint-ignore no-explicit-any
     const names = new Map<string, string>((v.contacts ?? []).map((c: any) => [String(c.wa_id), c.profile?.name ?? ""]));
@@ -137,5 +151,5 @@ Deno.serve(async (req) => {
     if (runtime?.waitUntil) runtime.waitUntil(wake); else await wake;
   }
   // Unsigned or unknown numbers get 401 so a forged call learns nothing and saves nothing.
-  return out.rejected && !out.saved && !out.statuses && !out.duplicates ? json(401, { error: "Bad signature" }) : json(200, out);
+  return out.rejected && !out.saved && !out.statuses && !out.duplicates && !out.history && !out.contacts && !out.echoes ? json(401, { error: "Bad signature" }) : json(200, out);
 });

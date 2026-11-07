@@ -134,6 +134,13 @@ async def handle(route):
         writes.append(("fn", "ai-planner", json.loads(req.post_data or "{}"), req.headers.get("authorization", "")))
         step = {"title": "Message lapsed buyers", "description": "Send the win-back template to the 12 customers.", "timing": "Day 1", "channel": "whatsapp", "ownerRole": "sales_rep", "target": "12 customers", "messageDraft": "Hi {{name}}, we miss you."}
         return await route.fulfill(status=200, headers=hdr, body=json.dumps({"id": "p1", "plan": {"title": "Win back old buyers", "summary": "Two steps.", "trigger": "Every Monday", "steps": [step, {**step, "title": "Call the rest", "channel": "phone", "messageDraft": None}], "successMetrics": ["5 repeat orders"], "risks": ["Template not approved"]}}))
+    if path.startswith("/functions/v1/whatsapp-onboard"):
+        b = json.loads(req.post_data or "{}")
+        writes.append(("fn", "whatsapp-onboard", b, req.headers.get("authorization", "")))
+        FIX["whatsapp_numbers"] = [{**W, "phone_number_id": "555000111", "waba_id": b.get("waba_id"), "display_phone": "+234 803 000 0000", "verify_token": "vt-x", "active": True, "connected_at": NOW,
+            "last_inbound_at": None, "last_sent_at": None, "last_error": None, "via": "partner", "on_app": True, "history_status": "syncing", "history_progress": 40,
+            "history_messages": 1200, "history_chats": 85, "contacts_synced": 310, "history_error": None}]
+        return await route.fulfill(status=200, headers=hdr, body=json.dumps({"ok": True, "display_phone": "+234 803 000 0000", "on_app": True, "history": "syncing", "sync_error": None}))
     if path.startswith("/functions/v1/billing"):
         writes.append(("fn", "billing", json.loads(req.post_data or "{}"), req.headers.get("authorization", "")))
         return await route.fulfill(status=200, headers=hdr, body=json.dumps({"url": B + "/paid", "reference": "BZP-ABC"}))
@@ -184,6 +191,10 @@ async def handle(route):
                 "people": [{"userId": CHIDI, "name": "Chidi Okafor", "role": "sales", "replies": 1, "median": 10.0, "average": 10.0, "within5": 0, "confirmed": 1, "confirmMedian": 45.0, "confirmOnTime": 1}]}))
         if fn == "import_chat":
             return await route.fulfill(status=200, headers=hdr, body=json.dumps({"contact": str(uuid.uuid4()), "conversation": str(uuid.uuid4()), "added": len(body.get("p_messages") or []), "duplicates": 0}))
+        if fn == "admin_meta_settings":
+            return await route.fulfill(status=200, headers=hdr, body=json.dumps({"appId": None, "configId": None, "hasSecret": False, "verifyToken": "pv-0123456789abcdef", "updatedAt": NOW, "numbers": 0, "onApp": 0}))
+        if fn == "platform_meta":
+            return await route.fulfill(status=200, headers=hdr, body=json.dumps(FIX.get("platform")))
         if fn == "admin_is":
             return await route.fulfill(status=200, headers=hdr, body="true")
         if fn == "admin_overview":
@@ -227,6 +238,11 @@ async def handle(route):
     return await route.fulfill(status=404, headers=hdr, body="{}")
 
 
+# Facebook's SDK, faked: the sign-up "finishes" with a WhatsApp Business Account and a one-time code.
+FAKE_FB = """window.FB={init:function(o){window.__fbInit=o},login:function(cb,opts){window.__fbLogin=opts;setTimeout(function(){
+window.dispatchEvent(new MessageEvent('message',{origin:'https://www.facebook.com',data:JSON.stringify({type:'WA_EMBEDDED_SIGNUP',event:'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING',version:3,data:{waba_id:'666000111'}})}));
+cb({authResponse:{code:'AQD-fake-code-123456'}})},50)}};if(window.fbAsyncInit)window.fbAsyncInit();"""
+
 results = []
 
 
@@ -244,6 +260,7 @@ async def main():
         br = await p.chromium.launch()
         ctx = await br.new_context(viewport={"width": 1280, "height": 900})
         await ctx.route(re.compile(rf"https://{REF}\.supabase\.co/.*"), handle)
+        await ctx.route(re.compile(r"https://connect\.facebook\.net/.*"), lambda route: route.fulfill(status=200, headers={"Content-Type": "application/javascript"}, body=FAKE_FB))
         await ctx.add_init_script(f"localStorage.setItem('sb-{REF}-auth-token', {json.dumps(json.dumps(session()))}); if (!sessionStorage.getItem('qa.init')) {{ localStorage.removeItem('bizriva.mode'); sessionStorage.setItem('qa.init', '1'); }}")
         pg = await ctx.new_page()
         errors = []
@@ -390,6 +407,23 @@ async def main():
         ok("then it shows the callback address and verify token for Meta", "functions/v1/whatsapp-webhook" in t and "vt-0123456789abcdef" in t and "Waiting for Meta" in t)
         ok("the secret isn't shown back", ("x" * 40) not in t and ("s" * 32) not in t)
 
+        # Bizriva's Meta app is switched on: one-click connect that keeps the phone app.
+        FIX["platform"] = {"appId": "123456789012", "configId": "987654321098", "ready": True}
+        FIX["whatsapp_numbers"] = []
+        await ready("/integrations")
+        keep = pg.get_by_role("button", name="Connect the WhatsApp Business app I already use")
+        ok("owner sees the two ways to connect with Meta, own-app keys tucked away", await keep.count() == 1 and await pg.get_by_role("button", name="Connect a new number").count() == 1
+           and await pg.get_by_role("form", name="Connect WhatsApp").count() == 0)
+        await keep.click(); await pg.wait_for_timeout(1800)
+        login = await pg.evaluate("window.__fbLogin")
+        ok("Meta's window opens for the phone-app number, with Bizriva's app and sign-up configuration", (await pg.evaluate("window.__fbInit"))["appId"] == "123456789012"
+           and login["config_id"] == "987654321098" and login["extras"]["featureType"] == "whatsapp_business_app_onboarding" and login["response_type"] == "code")
+        ob = [w for w in writes if w[0] == "fn" and w[1] == "whatsapp-onboard"]
+        ok("the one-time code and account go to the server, signed in", len(ob) == 1 and ob[0][2] == {"workspace": WS, "code": "AQD-fake-code-123456", "waba_id": "666000111"} and ob[0][3].startswith("Bearer "), ob[:1])
+        t = await pg.locator("main").inner_text()
+        ok("then it shows the number stays on the phone and the chats coming in", "still works on your phone" in t and "Also on your phone" in t and "Bringing in your chats from the phone… 40%" in t
+           and "1,200 messages from 85 chats · 310 contacts" in t and "functions/v1/whatsapp-webhook" not in t)
+
         await ready("/ai-agent")
         aif = pg.get_by_role("form", name="Connect the AI")
         ok("owner sees Connect the AI on real data", await aif.count() == 1)
@@ -466,6 +500,11 @@ async def main():
         kano = pg.get_by_role("listitem", name="Kano Fabrics")
         await kano.get_by_label("Reason to suspend Kano Fabrics").fill("Chargeback fraud"); await kano.get_by_role("button", name="Suspend").click(); await pg.wait_for_timeout(800)
         ok("suspending needs a reason and goes to the server", any(w[0] == "rpc" and w[1] == "admin_suspend" and w[2].get("p_suspend") is True and w[2].get("p_reason") == "Chargeback fraud" for w in writes))
+        mf = pg.get_by_role("form", name="Bizriva Meta app")
+        ok("Super Admin can switch on WhatsApp for every business, with the webhook to paste into Meta", await mf.count() == 1 and "pv-0123456789abcdef" in await pg.locator("main").inner_text() and "Not switched on" in await pg.locator("main").inner_text())
+        await mf.get_by_label("Meta App ID").fill("123456789012"); await mf.get_by_label("Configuration ID").fill("987654321098"); await mf.get_by_label("Meta app secret").fill("z" * 32)
+        await mf.get_by_role("button", name="Save").click(); await pg.wait_for_timeout(800)
+        ok("the Meta app is saved through the server, secret not shown back", any(w[0] == "rpc" and w[1] == "admin_set_meta" and w[2] == {"p_app_id": "123456789012", "p_config_id": "987654321098", "p_app_secret": "z" * 32} for w in writes) and ("z" * 32) not in await pg.locator("main").inner_text())
 
         await ready("/templates")
         t = await pg.locator("main").inner_text()

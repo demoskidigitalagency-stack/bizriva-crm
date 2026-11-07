@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { KpiCard, Section, StatusBadge } from "@/components/app/primitives";
 import { supabase } from "@/lib/supabase";
 import { formatCurrency, formatDate, relativeTime } from "@/lib/format";
+import { Copy, WHATSAPP_WEBHOOK } from "@/components/app/WhatsAppConnect";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Super Admin · Bizriva" }, { name: "robots", content: "noindex" }] }),
@@ -58,6 +59,7 @@ function Admin() {
       </div>
       {msg.ok && <p className="text-sm text-success" role="status">{msg.ok}</p>}
       {msg.error && <p className="text-sm text-destructive" role="alert">{msg.error}</p>}
+      <MetaApp />
       <Section title="Businesses" action={<Input className="h-8 w-56" placeholder="Find a business or owner" aria-label="Find a business" value={q} onChange={(e) => setQ(e.target.value)} />}>
         <ul className="divide-y" aria-label="Businesses">
           {list.map((b) => <BizRow key={b.id} b={b} act={act} />)}
@@ -95,5 +97,55 @@ function BizRow({ b, act }: { b: Biz; act: (fn: string, args: Record<string, unk
           : <><Input className="h-8 w-48" placeholder="Reason to suspend" aria-label={`Reason to suspend ${b.name}`} value={reason} onChange={(e) => setReason(e.target.value)} /><Button size="sm" variant="ghost" className="text-destructive" disabled={!reason.trim()} onClick={() => void act("admin_suspend", { p_workspace: b.id, p_suspend: true, p_reason: reason }, `${b.name} suspended`)}>Suspend</Button></>}
       </div>
     </li>
+  );
+}
+
+interface MetaSettings { appId: string | null; configId: string | null; hasSecret: boolean; verifyToken: string; updatedAt: string; numbers: number; onApp: number }
+
+/** Bizriva's own Meta app: lets every business connect WhatsApp in a few clicks (Meta Tech Provider). */
+function MetaApp() {
+  const [m, setM] = useState<MetaSettings | null>(null);
+  const [f, setF] = useState({ appId: "", configId: "", secret: "" });
+  const [msg, setMsg] = useState<{ ok?: string; error?: string }>({});
+  const [busy, setBusy] = useState(false);
+  const load = useCallback(async () => {
+    const sb = supabase(); if (!sb) return;
+    const { data } = await sb.rpc("admin_meta_settings");
+    const d = data as MetaSettings | null;
+    setM(d); if (d) setF((x) => ({ ...x, appId: d.appId ?? "", configId: d.configId ?? "" }));
+  }, []);
+  useEffect(() => { void load(); }, [load]);
+  if (!m) return null;
+  const ready = !!(m.appId && m.configId && m.hasSecret);
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const sb = supabase(); if (!sb) return;
+    setBusy(true);
+    const { error } = await sb.rpc("admin_set_meta", { p_app_id: f.appId.trim(), p_config_id: f.configId.trim(), p_app_secret: f.secret.trim() });
+    setBusy(false);
+    setMsg(error ? { error: error.message } : { ok: "Saved. Businesses can now connect WhatsApp with Meta's sign-up." });
+    if (!error) { setF((x) => ({ ...x, secret: "" })); await load(); }
+  };
+  return (
+    <Section title="WhatsApp for every business (Bizriva's Meta app)" description="Fill this once Meta approves Bizriva as a Tech Provider. Then owners connect WhatsApp in a few clicks — including numbers that stay on the WhatsApp Business app."
+      action={<StatusBadge tone={ready ? "success" : "warning"}>{ready ? `On · ${m.numbers} connected (${m.onApp} also on the phone)` : "Not switched on"}</StatusBadge>}>
+      <div className="grid gap-4 p-4 text-sm lg:grid-cols-2">
+        <form className="space-y-2" onSubmit={save} aria-label="Bizriva Meta app">
+          <Input value={f.appId} onChange={(e) => setF({ ...f, appId: e.target.value.replace(/\D/g, "") })} placeholder="App ID" aria-label="Meta App ID" inputMode="numeric" />
+          <Input value={f.configId} onChange={(e) => setF({ ...f, configId: e.target.value.replace(/\D/g, "") })} placeholder="Embedded Signup configuration ID" aria-label="Configuration ID" inputMode="numeric" />
+          <Input type="password" autoComplete="off" value={f.secret} onChange={(e) => setF({ ...f, secret: e.target.value })} placeholder={m.hasSecret ? "App secret saved (leave blank to keep)" : "App secret"} aria-label="Meta app secret" />
+          <p className="text-xs text-muted-foreground">App ID and app secret: your Meta app → App settings → Basic. Configuration ID: Facebook Login for Business → Configurations (WhatsApp Embedded Signup). The secret is stored encrypted and never shown again.</p>
+          <Button type="submit" size="sm" disabled={busy}>{busy ? "Saving…" : "Save"}</Button>
+          {msg.ok && <p className="text-xs text-success" role="status">{msg.ok}</p>}
+          {msg.error && <p className="text-xs text-destructive" role="alert">{msg.error}</p>}
+        </form>
+        <div className="space-y-2 rounded-md border p-3">
+          <p className="font-medium">In your Meta app → WhatsApp → Configuration → Webhook</p>
+          <Copy label="Callback URL" value={WHATSAPP_WEBHOOK} />
+          <Copy label="Verify token" value={m.verifyToken} />
+          <p className="text-xs text-muted-foreground">Then subscribe to: messages, history, smb_app_state_sync, smb_message_echoes, account_update.</p>
+        </div>
+      </div>
+    </Section>
   );
 }
