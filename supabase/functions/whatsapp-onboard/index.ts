@@ -30,11 +30,23 @@ async function graph(path: string, token: string, init?: { method?: string; body
   return res;
 }
 
-/** The WhatsApp Business Account a sign-up token was granted (when Meta's window didn't say). */
-async function wabaFromToken(token: string, appToken: string): Promise<string> {
+/** The WhatsApp Business Account a sign-up token was granted (when Meta's window didn't say):
+ *  the WhatsApp scopes' targets, else a WhatsApp account owned by a business the token can manage.
+ *  `seen` says what Meta granted, for the error message when nothing fits. */
+async function wabaFromToken(token: string, appToken: string): Promise<{ waba: string; seen: string }> {
   const r = await fetch(`${G}/debug_token?input_token=${encodeURIComponent(token)}&access_token=${encodeURIComponent(appToken)}`, { signal: AbortSignal.timeout(20_000) });
   const res = await r.json().catch(() => ({}));
-  return pickWaba(res?.data?.granular_scopes ?? []) ?? "";
+  const scopes: { scope?: string; target_ids?: string[] }[] = res?.data?.granular_scopes ?? [];
+  const seen = scopes.map((s) => `${s.scope}${s.target_ids?.length ? `×${s.target_ids.length}` : ""}`).join(", ") || (res?.data?.scopes ?? []).join(", ") || "nothing";
+  const direct = pickWaba(scopes);
+  if (direct) return { waba: direct, seen };
+  const businesses = scopes.find((s) => s.scope === "business_management")?.target_ids ?? [];
+  for (const biz of businesses.slice(0, 5)) {
+    for (const edge of ["owned_whatsapp_business_accounts", "client_whatsapp_business_accounts"]) {
+      try { const l = await graph(`${biz}/${edge}?fields=id`, token); const id = l?.data?.[0]?.id; if (id) return { waba: String(id), seen }; } catch { /* next */ }
+    }
+  }
+  return { waba: "", seen };
 }
 
 /** Ask Meta for the phone's contacts, then its chat history. Each is allowed once per connection. */
@@ -96,8 +108,11 @@ Deno.serve(async (req) => {
     const token = String(tok.access_token);
 
     // Which WhatsApp Business Account: from Meta's window, else from what the code was granted.
-    if (!waba) waba = await wabaFromToken(token, `${app.app_id}|${app.app_secret}`);
-    if (!waba) throw new Error("Meta didn't share a WhatsApp account. Try again and pick your WhatsApp Business account in Meta's window.");
+    if (!waba) {
+      const found = await wabaFromToken(token, `${app.app_id}|${app.app_secret}`);
+      waba = found.waba;
+      if (!waba) throw new Error(`Meta didn't share a WhatsApp account — the sign-up ended before the WhatsApp step. Try again and go on until you've scanned the QR code. (Meta granted: ${found.seen})`);
+    }
 
     // 2. Which number, and is it on the WhatsApp Business app?
     const list = await graph(`${waba}/phone_numbers?fields=id,display_phone_number,verified_name,platform_type,is_on_biz_app`, token);
