@@ -1,7 +1,7 @@
 // bun test tests/whatsapp_coexist.test.ts — numbers that stay on the WhatsApp Business app (Coexistence).
 import { describe, expect, test } from "bun:test";
 import { parseContacts, parseEchoes, parseHistory, textOf } from "../supabase/functions/whatsapp-webhook/coexist";
-import { pickNumber } from "../supabase/functions/whatsapp-onboard/pick";
+import { pickNumber, pickWaba } from "../supabase/functions/whatsapp-onboard/pick";
 
 const BIZ = "2348030000000", CUST = "2348031112222";
 
@@ -76,5 +76,14 @@ describe("picking the number", () => {
   });
   test("text of ordinary messages still works", () => {
     expect(textOf({ type: "text", text: { body: "Hi" } })).toBe("Hi");
+  });
+});
+
+describe("finding the WhatsApp account from the sign-up token", () => {
+  test("management scope first, then messaging, else none", () => {
+    expect(pickWaba([{ scope: "business_management", target_ids: ["111111111"] }, { scope: "whatsapp_business_management", target_ids: ["222222222"] }])).toBe("222222222");
+    expect(pickWaba([{ scope: "whatsapp_business_messaging", target_ids: ["333333333"] }])).toBe("333333333");
+    expect(pickWaba([{ scope: "whatsapp_business_management", target_ids: ["bad"] }])).toBeNull();
+    expect(pickWaba([])).toBeNull();
   });
 });

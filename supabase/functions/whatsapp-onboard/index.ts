@@ -10,7 +10,7 @@
 //     ask Meta for the phone's contacts and up to 6 months of chats (allowed once, within 24 hours);
 //   • new number → register it for Cloud API with a random two-step PIN (kept in Vault).
 import { createClient } from "npm:@supabase/supabase-js@2.49.4";
-import { pickNumber } from "./pick.ts";
+import { pickNumber, pickWaba } from "./pick.ts";
 
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 const G = "https://graph.facebook.com/v21.0";
@@ -28,6 +28,13 @@ async function graph(path: string, token: string, init?: { method?: string; body
   const res = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(`${res?.error?.code ?? r.status} ${res?.error?.error_user_msg ?? res?.error?.message ?? "Meta refused the request"}`.slice(0, 300));
   return res;
+}
+
+/** The WhatsApp Business Account a sign-up token was granted (when Meta's window didn't say). */
+async function wabaFromToken(token: string, appToken: string): Promise<string> {
+  const r = await fetch(`${G}/debug_token?input_token=${encodeURIComponent(token)}&access_token=${encodeURIComponent(appToken)}`, { signal: AbortSignal.timeout(20_000) });
+  const res = await r.json().catch(() => ({}));
+  return pickWaba(res?.data?.granular_scopes ?? []) ?? "";
 }
 
 /** Ask Meta for the phone's contacts, then its chat history. Each is allowed once per connection. */
@@ -71,8 +78,9 @@ Deno.serve(async (req) => {
     return err ? json(502, { error: err }) : json(200, { ok: true });
   }
 
-  const code = String(b?.code ?? ""), waba = String(b?.waba_id ?? "");
-  if (code.length < 10 || !/^\d{6,25}$/.test(waba)) return json(400, { error: "Meta's sign-up didn't finish — try again" });
+  const code = String(b?.code ?? "");
+  let waba = String(b?.waba_id ?? "");
+  if (code.length < 10 || (waba && !/^\d{6,25}$/.test(waba))) return json(400, { error: "Meta's sign-up didn't finish — try again" });
   const { data: plat } = await db.rpc("svc_meta_platform");
   const app = (plat as { app_id: string | null; app_secret: string | null }[] | null)?.[0];
   if (!app?.app_id || !app.app_secret) return json(503, { error: "Bizriva's WhatsApp connection isn't switched on yet" });
@@ -83,6 +91,10 @@ Deno.serve(async (req) => {
     const tok = await t.json().catch(() => ({}));
     if (!t.ok || !tok.access_token) throw new Error(`${tok?.error?.code ?? t.status} ${tok?.error?.message ?? "Meta didn't accept the sign-up code"}`);
     const token = String(tok.access_token);
+
+    // Which WhatsApp Business Account: from Meta's window, else from what the code was granted.
+    if (!waba) waba = await wabaFromToken(token, `${app.app_id}|${app.app_secret}`);
+    if (!waba) throw new Error("Meta didn't share a WhatsApp account. Try again and pick your WhatsApp Business account in Meta's window.");
 
     // 2. Which number, and is it on the WhatsApp Business app?
     const list = await graph(`${waba}/phone_numbers?fields=id,display_phone_number,verified_name,platform_type,is_on_biz_app`, token);

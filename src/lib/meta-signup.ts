@@ -7,7 +7,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 declare global { interface Window { FB?: any; fbAsyncInit?: () => void } }
 
-export type SignupResult = { ok: true; code: string; waba_id: string; phone_number_id?: string } | { ok: false; error: string; cancelled?: boolean };
+export type SignupResult = { ok: true; code: string; waba_id?: string; phone_number_id?: string } | { ok: false; error: string; cancelled?: boolean };
 
 let loading: Promise<void> | null = null;
 let loadedFor = "";
@@ -40,6 +40,7 @@ export function metaSignup(configId: string, keepPhoneApp: boolean): Promise<Sig
       if (!/(^|\.)facebook\.com$/.test(host)) return;
       let d: any; try { d = typeof e.data === "string" ? JSON.parse(e.data) : e.data; } catch { return; }
       if (d?.type !== "WA_EMBEDDED_SIGNUP") return;
+      console.info("[bizriva] Meta sign-up event", d.event, d.data ? Object.keys(d.data) : []);
       if (String(d.event ?? "").startsWith("FINISH")) { waba = d.data?.waba_id ? String(d.data.waba_id) : undefined; phone = d.data?.phone_number_id ? String(d.data.phone_number_id) : undefined; tryDone(); }
       else if (d.event === "CANCEL") error = d.data?.error_message ?? undefined;
       else if (d.event === "ERROR") error = d.data?.error_message ?? "Meta's sign-up stopped with an error";
@@ -49,8 +50,9 @@ export function metaSignup(configId: string, keepPhoneApp: boolean): Promise<Sig
       code = resp?.authResponse?.code ?? null;
       if (!code) return finish({ ok: false, cancelled: !error, error: error ?? "The sign-up window was closed before it finished." });
       tryDone();
-      // The account details come in a separate message; give it a moment.
-      setTimeout(() => finish({ ok: false, error: "Meta didn't say which WhatsApp account you picked. Try again." }), 5000);
+      // The account details usually come in a separate message; if it doesn't, the server
+      // finds the account from the code itself.
+      setTimeout(() => finish({ ok: true, code: code!, ...(waba ? { waba_id: waba } : {}), ...(phone ? { phone_number_id: phone } : {}) }), 3000);
     }, {
       config_id: configId, response_type: "code", override_default_response_type: true,
       extras: { setup: {}, sessionInfoVersion: "3", ...(keepPhoneApp ? { featureType: "whatsapp_business_app_onboarding" } : {}) },
