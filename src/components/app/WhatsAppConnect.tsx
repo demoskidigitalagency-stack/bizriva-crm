@@ -136,7 +136,7 @@ export function WhatsAppConnect() {
           <p className="mt-1 text-xs text-muted-foreground">A number that isn't on WhatsApp yet. It will work in Bizriva only, not in a phone app.</p>
         </button>
       </div>
-      <p className="text-xs text-muted-foreground">{busy ? "Finish the steps in Meta's window…" : "A Meta window opens: log in with Facebook, confirm your business, then pick or scan your number. About 5 minutes. On your phone you need WhatsApp Business 2.24.17 or newer."}</p>
+      <p className="text-xs text-muted-foreground">{busy ? "Finish the steps in Meta's window…" : "A Meta window opens: log in with Facebook, confirm your business, then pick or scan your number. About 5 minutes. On your phone you need WhatsApp Business 2.24.17 or newer. If Meta says you've linked Bizriva before, choose “Edit settings” — not “Continue” — so you can pick your WhatsApp number."}</p>
     </div>
   ) : null;
 

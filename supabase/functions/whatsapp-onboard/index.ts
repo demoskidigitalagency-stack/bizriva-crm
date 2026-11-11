@@ -111,7 +111,7 @@ Deno.serve(async (req) => {
     if (!waba) {
       const found = await wabaFromToken(token, `${app.app_id}|${app.app_secret}`);
       waba = found.waba;
-      if (!waba) throw new Error(`Meta didn't share a WhatsApp account — the sign-up ended before the WhatsApp step. Try again and go on until you've scanned the QR code. (Meta granted: ${found.seen})`);
+      if (!waba) throw new Error(`Meta didn't share a WhatsApp account — the sign-up ended before the WhatsApp step. Try again; if Meta says you've linked Bizriva before, choose “Edit settings” (not “Continue”) and go on until you've picked or scanned your number. (Meta granted: ${found.seen})`);
     }
 
     // 2. Which number, and is it on the WhatsApp Business app?
