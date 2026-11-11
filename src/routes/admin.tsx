@@ -100,7 +100,8 @@ function BizRow({ b, act }: { b: Biz; act: (fn: string, args: Record<string, unk
   );
 }
 
-interface MetaSettings { appId: string | null; configId: string | null; hasSecret: boolean; verifyToken: string; updatedAt: string; numbers: number; onApp: number }
+interface MetaSettings { appId: string | null; configId: string | null; hasSecret: boolean; verifyToken: string; updatedAt: string; numbers: number; onApp: number;
+  lastWebhook?: { at: string | null; fields: string | null; number: string | null; ok: boolean | null; total: number } | null }
 
 /** Bizriva's own Meta app: lets every business connect WhatsApp in a few clicks (Meta Tech Provider). */
 function MetaApp() {
@@ -144,6 +145,9 @@ function MetaApp() {
           <Copy label="Callback URL" value={WHATSAPP_WEBHOOK} />
           <Copy label="Verify token" value={m.verifyToken} />
           <p className="text-xs text-muted-foreground">Then subscribe to: messages, history, smb_app_state_sync, smb_message_echoes, account_update.</p>
+          <p className="text-xs" role="status">{m.lastWebhook?.at
+            ? <>Last message from Meta: <strong>{relativeTime(m.lastWebhook.at)}</strong> ({m.lastWebhook.fields}{m.lastWebhook.number ? `, ${m.lastWebhook.number}` : ""}){m.lastWebhook.ok ? "" : " — not linked to a business on Bizriva yet"}</>
+            : "Meta hasn't sent anything yet."}</p>
         </div>
       </div>
     </Section>

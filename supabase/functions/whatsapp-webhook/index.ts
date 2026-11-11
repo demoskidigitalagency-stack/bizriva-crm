@@ -74,6 +74,9 @@ Deno.serve(async (req) => {
   // deno-lint-ignore no-explicit-any
   const changes: { waba: string; field: string; value: any }[] = (evt.entry ?? []).flatMap((e: any) => (e?.changes ?? []).map((c: any) => ({ waba: String(e?.id ?? ""), field: String(c?.field ?? ""), value: c?.value ?? {} })))
     .filter((c: { field: string }) => FIELDS.has(c.field));
+  // Note that Meta reached us (Super Admin shows it), before any number lookup.
+  const seen = db.rpc("svc_webhook_seen", { p_fields: [...new Set(changes.map((c) => c.field))].join(", ") || "other",
+    p_number: String(changes[0]?.value?.metadata?.display_phone_number ?? changes[0]?.waba ?? ""), p_ok: false });
   const keys = new Map<string, { workspace_id: string; app_secret: string; token: string } | null>();
   const downloads: Promise<void>[] = [];
   const out = { saved: 0, duplicates: 0, statuses: 0, rejected: 0, history: 0, contacts: 0, echoes: 0 };
@@ -138,6 +141,8 @@ Deno.serve(async (req) => {
       out.statuses++;
     }
   }
+  await seen;
+  if (out.saved || out.statuses || out.duplicates || out.history || out.contacts || out.echoes) await db.rpc("svc_webhook_seen", { p_fields: "matched a connected number", p_number: String(changes[0]?.value?.metadata?.display_phone_number ?? ""), p_ok: true });
   // Customers' files are fetched from Meta after we answer (Meta wants a quick reply).
   // deno-lint-ignore no-explicit-any
   const runtime = (globalThis as any).EdgeRuntime;
