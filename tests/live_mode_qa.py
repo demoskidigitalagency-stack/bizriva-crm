@@ -238,10 +238,15 @@ async def handle(route):
     return await route.fulfill(status=404, headers=hdr, body="{}")
 
 
-# Facebook's SDK, faked: the sign-up "finishes" with a WhatsApp Business Account and a one-time code.
-FAKE_FB = """window.FB={init:function(o){window.__fbInit=o},login:function(cb,opts){window.__fbLogin=opts;setTimeout(function(){
-window.dispatchEvent(new MessageEvent('message',{origin:'https://www.facebook.com',data:JSON.stringify({type:'WA_EMBEDDED_SIGNUP',event:'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING',version:3,data:{waba_id:'666000111'}})}));
-cb({authResponse:{code:'AQD-fake-code-123456'}})},50)}};if(window.fbAsyncInit)window.fbAsyncInit();"""
+# Meta's sign-up window, faked: it reports the WhatsApp account to the opener, then returns to Bizriva's page with a code.
+META_DIALOG = []
+FAKE_DIALOG = """<script>const q=new URLSearchParams(location.search);
+window.opener&&window.opener.postMessage(JSON.stringify({type:'WA_EMBEDDED_SIGNUP',event:'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING',version:3,data:{waba_id:'666000111'}}),'*');
+setTimeout(()=>{location.href=q.get('redirect_uri')+'?code=AQD-fake-code-123456&state='+q.get('state')},150);</script>"""
+
+async def fake_dialog(route):
+    META_DIALOG.append(route.request.url)
+    await route.fulfill(status=200, headers={"Content-Type": "text/html"}, body=FAKE_DIALOG)
 
 results = []
 
@@ -260,7 +265,7 @@ async def main():
         br = await p.chromium.launch()
         ctx = await br.new_context(viewport={"width": 1280, "height": 900})
         await ctx.route(re.compile(rf"https://{REF}\.supabase\.co/.*"), handle)
-        await ctx.route(re.compile(r"https://connect\.facebook\.net/.*"), lambda route: route.fulfill(status=200, headers={"Content-Type": "application/javascript"}, body=FAKE_FB))
+        await ctx.route(re.compile(r"https://www\.facebook\.com/v21\.0/dialog/oauth.*"), fake_dialog)
         await ctx.add_init_script(f"localStorage.setItem('sb-{REF}-auth-token', {json.dumps(json.dumps(session()))}); if (!sessionStorage.getItem('qa.init')) {{ localStorage.removeItem('bizriva.mode'); sessionStorage.setItem('qa.init', '1'); }}")
         pg = await ctx.new_page()
         errors = []
@@ -414,12 +419,14 @@ async def main():
         keep = pg.get_by_role("button", name="Connect the WhatsApp Business app I already use")
         ok("owner sees the two ways to connect with Meta, own-app keys tucked away", await keep.count() == 1 and await pg.get_by_role("button", name="Connect a new number").count() == 1
            and await pg.get_by_role("form", name="Connect WhatsApp").count() == 0)
-        await keep.click(); await pg.wait_for_timeout(1800)
-        login = await pg.evaluate("window.__fbLogin")
-        ok("Meta's window opens for the phone-app number, with Bizriva's app and sign-up configuration", (await pg.evaluate("window.__fbInit"))["appId"] == "123456789012"
-           and login["config_id"] == "987654321098" and login["extras"]["featureType"] == "whatsapp_business_app_onboarding" and login["response_type"] == "code")
+        await keep.click(); await pg.wait_for_timeout(3000)
+        from urllib.parse import urlparse, parse_qs
+        dq = parse_qs(urlparse(META_DIALOG[0]).query) if META_DIALOG else {}
+        ok("Meta's window opens for the phone-app number, with Bizriva's app, sign-up configuration and return page",
+           dq.get("client_id") == ["123456789012"] and dq.get("config_id") == ["987654321098"] and dq.get("response_type") == ["code"]
+           and json.loads(dq["extras"][0])["featureType"] == "whatsapp_business_app_onboarding" and dq["redirect_uri"][0].endswith("/meta/callback"), dq)
         ob = [w for w in writes if w[0] == "fn" and w[1] == "whatsapp-onboard"]
-        ok("the one-time code and account go to the server, signed in", len(ob) == 1 and ob[0][2] == {"workspace": WS, "code": "AQD-fake-code-123456", "waba_id": "666000111"} and ob[0][3].startswith("Bearer "), ob[:1])
+        ok("the one-time code, the same return page and the account go to the server, signed in", len(ob) == 1 and ob[0][2] == {"workspace": WS, "code": "AQD-fake-code-123456", "redirect_uri": dq["redirect_uri"][0], "waba_id": "666000111"} and ob[0][3].startswith("Bearer "), ob[:1])
         t = await pg.locator("main").inner_text()
         ok("then it shows the number stays on the phone and the chats coming in", "still works on your phone" in t and "Also on your phone" in t and "Bringing in your chats from the phone… 40%" in t
            and "1,200 messages from 85 chats · 310 contacts" in t and "functions/v1/whatsapp-webhook" not in t)

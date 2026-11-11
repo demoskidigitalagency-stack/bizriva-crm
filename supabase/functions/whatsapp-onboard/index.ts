@@ -2,7 +2,7 @@
 //
 // The owner finishes Meta's sign-up window in the app; the page sends us the
 // one-time code and the WhatsApp Business Account id, with their Bizriva login.
-//   { workspace, code, waba_id, phone_number_id? }   → connect
+//   { workspace, code, redirect_uri, waba_id?, phone_number_id? }   → connect
 //   { workspace, action: "sync" }                    → ask Meta again for contacts + history
 // We swap the code for the business's token with Bizriva's Meta app secret,
 // subscribe Bizriva to their account's webhooks, and:
@@ -79,6 +79,9 @@ Deno.serve(async (req) => {
   }
 
   const code = String(b?.code ?? "");
+  // The exact return address Meta's window used (Bizriva's /meta/callback page); Meta requires the same one here.
+  const redirect = String(b?.redirect_uri ?? "");
+  if (redirect && !/^https:\/\/[a-z0-9.-]+(:\d+)?\/meta\/callback$/i.test(redirect)) return json(400, { error: "Unexpected return address" });
   let waba = String(b?.waba_id ?? "");
   if (code.length < 10 || (waba && !/^\d{6,25}$/.test(waba))) return json(400, { error: "Meta's sign-up didn't finish — try again" });
   const { data: plat } = await db.rpc("svc_meta_platform");
@@ -87,7 +90,7 @@ Deno.serve(async (req) => {
 
   try {
     // 1. The one-time code → the business's token (works for their WhatsApp account only).
-    const t = await fetch(`${G}/oauth/access_token?client_id=${app.app_id}&client_secret=${encodeURIComponent(app.app_secret)}&code=${encodeURIComponent(code)}`, { signal: AbortSignal.timeout(20_000) });
+    const t = await fetch(`${G}/oauth/access_token?client_id=${app.app_id}&client_secret=${encodeURIComponent(app.app_secret)}&code=${encodeURIComponent(code)}${redirect ? `&redirect_uri=${encodeURIComponent(redirect)}` : ""}`, { signal: AbortSignal.timeout(20_000) });
     const tok = await t.json().catch(() => ({}));
     if (!t.ok || !tok.access_token) throw new Error(`${tok?.error?.code ?? t.status} ${tok?.error?.message ?? "Meta didn't accept the sign-up code"}`);
     const token = String(tok.access_token);

@@ -14,7 +14,7 @@ import { StatusBadge } from "@/components/app/primitives";
 import { useAuth } from "@/app/auth";
 import { supabase } from "@/lib/supabase";
 import { relativeTime } from "@/lib/format";
-import { loadFacebook, metaSignup } from "@/lib/meta-signup";
+import { metaSignup } from "@/lib/meta-signup";
 
 export const WHATSAPP_WEBHOOK = "https://xjhzkciowmklxrtwsikm.supabase.co/functions/v1/whatsapp-webhook";
 
@@ -103,10 +103,9 @@ export function WhatsAppConnect() {
     const sb = supabase(); if (!sb || !ws || !platform?.ready || !platform.appId || !platform.configId) return;
     setBusy(true); setError(""); setDone("");
     try {
-      await loadFacebook(platform.appId);
-      const r = await metaSignup(platform.configId, keepPhoneApp);
+      const r = await metaSignup(platform.appId, platform.configId, keepPhoneApp);
       if (!r.ok) { setBusy(false); return setError(r.cancelled ? "" : r.error); }
-      const { data, error: e } = await sb.functions.invoke("whatsapp-onboard", { body: { workspace: ws, code: r.code, waba_id: r.waba_id, phone_number_id: r.phone_number_id } });
+      const { data, error: e } = await sb.functions.invoke("whatsapp-onboard", { body: { workspace: ws, code: r.code, redirect_uri: r.redirect_uri, waba_id: r.waba_id, phone_number_id: r.phone_number_id } });
       const msg = await fnError(data, e, "Couldn't finish connecting WhatsApp — try again.");
       if (msg) { setBusy(false); return setError(msg); }
       const d = data as { display_phone?: string; on_app?: boolean; sync_error?: string | null };

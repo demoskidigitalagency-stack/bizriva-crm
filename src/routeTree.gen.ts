@@ -66,6 +66,7 @@ import { Route as CrmWorkflowsRouteImport } from './routes/crm/workflows'
 import { Route as DTokenRouteImport } from './routes/d.$token'
 import { Route as FFormIdRouteImport } from './routes/f.$formId'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
+import { Route as MetaCallbackRouteImport } from './routes/meta.callback'
 import { Route as CrmContactsIndexRouteImport } from './routes/crm/contacts/index'
 import { Route as CrmContactsContactIdRouteImport } from './routes/crm/contacts/$contactId'
 
@@ -354,6 +355,11 @@ const InviteTokenRoute = InviteTokenRouteImport.update({
   path: '/invite/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MetaCallbackRoute = MetaCallbackRouteImport.update({
+  id: '/meta/callback',
+  path: '/meta/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CrmContactsIndexRoute = CrmContactsIndexRouteImport.update({
   id: '/contacts/',
   path: '/contacts/',
@@ -422,6 +428,7 @@ export interface FileRoutesByFullPath {
   '/d/$token': typeof DTokenRoute
   '/f/$formId': typeof FFormIdRoute
   '/invite/$token': typeof InviteTokenRoute
+  '/meta/callback': typeof MetaCallbackRoute
   '/crm/': typeof CrmIndexRoute
   '/crm/contacts/$contactId': typeof CrmContactsContactIdRoute
   '/crm/contacts/': typeof CrmContactsIndexRoute
@@ -482,6 +489,7 @@ export interface FileRoutesByTo {
   '/d/$token': typeof DTokenRoute
   '/f/$formId': typeof FFormIdRoute
   '/invite/$token': typeof InviteTokenRoute
+  '/meta/callback': typeof MetaCallbackRoute
   '/crm': typeof CrmIndexRoute
   '/crm/contacts/$contactId': typeof CrmContactsContactIdRoute
   '/crm/contacts': typeof CrmContactsIndexRoute
@@ -544,6 +552,7 @@ export interface FileRoutesById {
   '/d/$token': typeof DTokenRoute
   '/f/$formId': typeof FFormIdRoute
   '/invite/$token': typeof InviteTokenRoute
+  '/meta/callback': typeof MetaCallbackRoute
   '/crm/': typeof CrmIndexRoute
   '/crm/contacts/$contactId': typeof CrmContactsContactIdRoute
   '/crm/contacts/': typeof CrmContactsIndexRoute
@@ -607,6 +616,7 @@ export interface FileRouteTypes {
     | '/d/$token'
     | '/f/$formId'
     | '/invite/$token'
+    | '/meta/callback'
     | '/crm/'
     | '/crm/contacts/$contactId'
     | '/crm/contacts/'
@@ -667,6 +677,7 @@ export interface FileRouteTypes {
     | '/d/$token'
     | '/f/$formId'
     | '/invite/$token'
+    | '/meta/callback'
     | '/crm'
     | '/crm/contacts/$contactId'
     | '/crm/contacts'
@@ -728,6 +739,7 @@ export interface FileRouteTypes {
     | '/d/$token'
     | '/f/$formId'
     | '/invite/$token'
+    | '/meta/callback'
     | '/crm/'
     | '/crm/contacts/$contactId'
     | '/crm/contacts/'
@@ -781,6 +793,7 @@ export interface RootRouteChildren {
   DTokenRoute: typeof DTokenRoute
   FFormIdRoute: typeof FFormIdRoute
   InviteTokenRoute: typeof InviteTokenRoute
+  MetaCallbackRoute: typeof MetaCallbackRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1184,6 +1197,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InviteTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/meta/callback': {
+      id: '/meta/callback'
+      path: '/meta/callback'
+      fullPath: '/meta/callback'
+      preLoaderRoute: typeof MetaCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/crm/contacts/': {
       id: '/crm/contacts/'
       path: '/contacts'
@@ -1281,6 +1301,7 @@ const rootRouteChildren: RootRouteChildren = {
   DTokenRoute: DTokenRoute,
   FFormIdRoute: FFormIdRoute,
   InviteTokenRoute: InviteTokenRoute,
+  MetaCallbackRoute: MetaCallbackRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
