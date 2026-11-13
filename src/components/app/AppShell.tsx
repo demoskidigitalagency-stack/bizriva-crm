@@ -10,6 +10,7 @@ import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, C
 import { cn } from "@/lib/utils";
 import { relativeTime } from "@/lib/format";
 import { useActions, useDb, useLive, useWorkspace } from "@/domain/store";
+import { ActivityIndicator } from "@/components/app/ActivityIndicator";
 import { useIsAdmin } from "@/app/admin";
 import { globalSearch, getTodayQueues } from "@/domain/repositories";
 import { currentUser } from "@/domain/seed";
@@ -357,6 +358,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="ml-auto flex items-center gap-1">
             <QuickCreate />
             <AppearanceMenu />
+            <ActivityIndicator />
             <Notifications />
             <DataBadge />
             <AccountMenu />

@@ -195,6 +195,16 @@ async def handle(route):
             return await route.fulfill(status=200, headers=hdr, body=json.dumps({"appId": None, "configId": None, "hasSecret": False, "verifyToken": "pv-0123456789abcdef", "updatedAt": NOW, "numbers": 0, "onApp": 0}))
         if fn == "platform_meta":
             return await route.fulfill(status=200, headers=hdr, body=json.dumps(FIX.get("platform")))
+        if fn == "activity_status":
+            return await route.fulfill(status=200, headers=hdr, body=json.dumps({"checkedAt": NOW,
+                "channels": [{"key": "wa_link", "name": "WhatsApp (linked number)", "state": "ok", "detail": "+2347069511984 · Life Care · linked", "at": NOW},
+                             {"key": "ai", "name": "AI assistant", "state": "off", "detail": "No AI key — the free Basic assistant answers", "at": None}],
+                "running": [{"key": "wa_history", "title": "Bringing in old WhatsApp chats", "state": "running", "done": 5797, "total": None, "unit": "messages", "detail": "256 chats so far · keep WhatsApp open on the phone", "at": NOW, "link": "/whatsapp"},
+                            {"key": "campaign:1", "title": "Sending campaign: Black Friday", "state": "running", "done": 40, "total": 160, "unit": "people", "detail": "Whatsapp", "at": NOW, "link": "/broadcasts"}],
+                "problems": [{"key": "failed:x", "title": "3 messages didn't send", "detail": "This person has never messaged your WhatsApp", "at": NOW, "link": "/inbox"}],
+                "today": {"messagesIn": 12, "messagesOut": 9, "newContacts": 256, "orders": 2, "followupsSent": 1},
+                "recent": [{"action": "whatsapp_history_imported", "entity": "workspace", "detail": {"messages": 5797, "chats": 256, "tagged": 40}, "at": NOW, "by": None},
+                           {"action": "whatsapp_device_link_started", "entity": "workspace", "detail": {"method": "qr"}, "at": AGO(0.2), "by": "Ademola Adeniran"}]}))
         if fn == "wa_link_overview":
             return await route.fulfill(status=200, headers=hdr, body=json.dumps({"workerOnline": FIX.get("wa_worker", False), "cloudNumber": False, "whatsappContacts": 2, "withoutOrder": 1}))
         if fn == "link_whatsapp_device":
@@ -632,6 +642,16 @@ async def main():
         ok("importing a chat on real data goes to the server, with who sent each message", len(ic) == 1 and ic[0][2].get("p_workspace") == WS and len(ic[0][2]["p_messages"]) > 3
            and any(m["out"] for m in ic[0][2]["p_messages"]) and any(not m["out"] for m in ic[0][2]["p_messages"]) and ic[0][2].get("p_file") == "WhatsApp Chat with Chioma Eze.txt", ic[:1])
         ok("and shows how many messages came in", "messages imported from WhatsApp Chat with Chioma Eze.txt" in await pg.locator("main").inner_text())
+
+        # Live status: everything running, waiting and broken, in one place, plus the top-bar pill.
+        await ready("/activity")
+        t = await pg.locator("main").inner_text()
+        ok("live status lists problems, work in progress with counts, connections, today and recent activity",
+           "3 messages didn't send" in t and "Bringing in old WhatsApp chats" in t and "5,797 messages" in t and "40 of 160 people" in t
+           and "Life Care" in t and "Old WhatsApp chats brought in: 5,797 messages from 256 chats" in t and "Ademola Adeniran" in t, t[:300])
+        ok("the campaign shows a real progress bar", await pg.get_by_role("progressbar", name="Sending campaign: Black Friday").get_attribute("aria-valuenow") == "25")
+        pill = pg.get_by_role("link", name=re.compile("^Live status: "))
+        ok("the top bar says there's a problem and opens live status", await pill.count() == 1 and "1 problem" in await pill.inner_text())
 
         # WhatsApp Growth: link the number already in use with a pairing code (no Meta), then save every customer.
         FIX["wa_links"] = []

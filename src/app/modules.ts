@@ -12,7 +12,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   BarChart3, BookOpen, Boxes, Bot, CalendarCheck, CreditCard, FileText, HelpCircle, Images, LayoutDashboard,
   Megaphone, MessageSquare, Package, Plug, Send, Settings, ShieldCheck, ShoppingBag, Store, Truck, Users,
-  UsersRound, Wallet, Workflow, History, ListChecks, Bike, Building2, ClipboardList, CalendarDays, Telescope, Sunrise, PhoneCall, Smartphone,
+  UsersRound, Wallet, Workflow, History, ListChecks, Bike, Building2, ClipboardList, CalendarDays, Telescope, Sunrise, PhoneCall, Smartphone, Activity,
 } from "lucide-react";
 
 /** How real a module is today. Shown honestly in the UI — never overstated. */
@@ -56,6 +56,9 @@ export const MODULES: ModuleDef[] = [
   { id: "brief", label: "Money Brief", path: "/brief", icon: Sunrise, group: "Overview", phase: "MVP", state: "practice", sources: ["Review 2026-11-04"], decision: "Agreed",
     submenus: ["Yesterday's delivered revenue vs average", "Cash with riders and overdue", "Orders to confirm and high-risk COD", "Ad return, best and weakest ad", "Birthdays this week", "Today's list", "Copy as WhatsApp message", "Send time and channels (WhatsApp and email with backend)"],
     summary: "A plain-words morning summary of the money and what needs you today. Revenue counts only delivered orders." },
+  { id: "activity", label: "Live status", path: "/activity", icon: Activity, group: "Overview", phase: "MVP", state: "live", sources: ["Review 2026-11-13"], decision: "Agreed",
+    submenus: ["Connections and whether each is working", "In progress: old chats coming in, messages sending, campaigns, emails, follow-ups — with counts", "Problems in the last 24 hours with the reason", "Today's numbers", "Recent activity", "Top-bar indicator: running / problems / all good"],
+    summary: "Everything happening in the business right now, refreshed every few seconds. Real data only." },
   { id: "calendar", label: "Calendar", path: "/calendar", icon: CalendarDays, group: "Overview", phase: "MVP", state: "practice", sources: ["Review 2026-11-04"], decision: "Agreed",
     submenus: ["Month, week and list views", "Deliveries, call-backs, tasks and follow-ups", "Busy days", "Add an event"],
     summary: "Every delivery date, call-back and reminder on one calendar, so nothing is promised twice." },
