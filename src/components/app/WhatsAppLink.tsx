@@ -260,3 +260,73 @@ function Stat({ label, value }: { label: string; value: number | undefined }) {
     </div>
   );
 }
+
+interface Coverage { oldest: string | null; newest: string | null; messages: number; chats: number; months: { month: string; messages: number; chats: number }[] }
+interface Backfill { status: string; backfill_status: "queued" | "running" | "done" | "failed" | null; backfill_round: number; backfill_done: number; backfill_total: number; backfill_added: number; backfill_at: string | null; backfill_error: string | null }
+
+const monthName = (ym: string) => new Date(`${ym}-01T12:00:00Z`).toLocaleDateString("en-GB", { month: "short", year: "numeric" });
+const day = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+
+/** What's been brought in from the linked WhatsApp, month by month, and "Bring in older messages". */
+export function ChatsSynced() {
+  const { current } = useAuth();
+  const ws = current?.workspaceId;
+  const [cov, setCov] = useState<Coverage | null>(null);
+  const [bf, setBf] = useState<Backfill | null>(null);
+  const [msg, setMsg] = useState("");
+  const load = useCallback(async () => {
+    const sb = supabase(); if (!sb || !ws) return;
+    const [{ data: c }, { data: b }] = await Promise.all([
+      sb.rpc("wa_history_coverage", { p_workspace: ws }),
+      sb.from("wa_links").select("status, backfill_status, backfill_round, backfill_done, backfill_total, backfill_added, backfill_at, backfill_error").eq("workspace_id", ws).maybeSingle(),
+    ]);
+    setCov((c as Coverage | null) ?? null); setBf((b as Backfill | null) ?? null);
+  }, [ws]);
+  useEffect(() => { void load(); }, [load]);
+  const active = bf?.backfill_status === "queued" || bf?.backfill_status === "running";
+  useEffect(() => { if (!active) return; const t = setInterval(() => void load(), 4000); return () => clearInterval(t); }, [active, load]);
+
+  const start = async () => {
+    const sb = supabase(); if (!sb || !ws) return;
+    setMsg("");
+    const { error } = await sb.rpc("request_wa_backfill", { p_workspace: ws });
+    if (error) return setMsg(error.message);
+    await load();
+  };
+  if (!cov) return <p className="p-4 text-sm text-muted-foreground" role="status">Checking your chats…</p>;
+  const max = Math.max(1, ...cov.months.map((m) => m.messages));
+  const pct = bf && bf.backfill_total ? Math.round((bf.backfill_done / bf.backfill_total) * 100) : 0;
+  return (
+    <div className="space-y-3 p-4 text-sm">
+      {cov.messages === 0 ? <p className="text-muted-foreground">No chats from a linked WhatsApp yet.</p> : <>
+        <p><span className="font-semibold">{cov.messages.toLocaleString()} messages from {cov.chats.toLocaleString()} chats</span>
+          {cov.oldest && cov.newest && <span className="text-muted-foreground"> · from {day(cov.oldest)} to {day(cov.newest)}</span>}</p>
+        <ul className="space-y-1.5" aria-label="Messages by month">
+          {cov.months.map((m) => (
+            <li key={m.month} className="grid grid-cols-[5.5rem_1fr_auto] items-center gap-2 text-xs">
+              <span className="font-medium">{monthName(m.month)}</span>
+              <span className="h-2.5 overflow-hidden rounded bg-muted"><span className="block h-2.5 rounded bg-primary" style={{ width: `${Math.max(2, (m.messages / max) * 100)}%` }} /></span>
+              <span className="tabular-nums text-muted-foreground">{m.messages.toLocaleString()} msgs · {m.chats} chats</span>
+            </li>
+          ))}
+        </ul>
+      </>}
+      {bf?.status === "connected" && (
+        <div className="space-y-2 rounded-lg border p-3">
+          <p className="font-medium">Bring in older messages</p>
+          {active ? <>
+            <p className="text-xs" role="status">Asking your phone for older messages{bf.backfill_round ? ` — round ${bf.backfill_round}` : ""}: chat {bf.backfill_done.toLocaleString()} of {bf.backfill_total.toLocaleString()} · {bf.backfill_added.toLocaleString()} older messages so far</p>
+            <div className="h-2 overflow-hidden rounded bg-muted" role="progressbar" aria-label="Older messages" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}><div className="h-2 rounded bg-primary transition-all" style={{ width: `${pct}%` }} /></div>
+            <p className="text-xs text-muted-foreground">Keep WhatsApp open on your phone with internet. Each round goes about 50 messages further back in every chat.</p>
+          </> : <>
+            <p className="text-xs text-muted-foreground">Bizriva asks your phone for older messages, chat by chat, going back up to 12 months. Your phone must stay online; WhatsApp decides how far back each chat goes.</p>
+            {bf.backfill_status === "done" && <p className="text-xs">Last run brought in <b>{bf.backfill_added.toLocaleString()}</b> older messages{bf.backfill_at ? ` (${relativeTime(bf.backfill_at)})` : ""}.</p>}
+            {bf.backfill_status === "failed" && <p className="text-xs text-destructive">It stopped: {bf.backfill_error}</p>}
+            <Button size="sm" onClick={() => void start()}>{bf.backfill_status ? "Bring in older messages again" : "Bring in older messages"}</Button>
+          </>}
+          {msg && <p className="text-xs text-destructive" role="alert">{msg}</p>}
+        </div>
+      )}
+    </div>
+  );
+}

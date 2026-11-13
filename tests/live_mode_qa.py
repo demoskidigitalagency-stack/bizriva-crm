@@ -205,6 +205,12 @@ async def handle(route):
                 "today": {"messagesIn": 12, "messagesOut": 9, "newContacts": 256, "orders": 2, "followupsSent": 1},
                 "recent": [{"action": "whatsapp_history_imported", "entity": "workspace", "detail": {"messages": 5797, "chats": 256, "tagged": 40}, "at": NOW, "by": None},
                            {"action": "whatsapp_device_link_started", "entity": "workspace", "detail": {"method": "qr"}, "at": AGO(0.2), "by": "Ademola Adeniran"}]}))
+        if fn == "wa_history_coverage":
+            return await route.fulfill(status=200, headers=hdr, body=json.dumps({"oldest": "2026-08-16T10:00:00+00:00", "newest": NOW, "messages": 5797, "chats": 256,
+                "months": [{"month": "2026-11", "messages": 1365, "chats": 82}, {"month": "2026-10", "messages": 3925, "chats": 182}, {"month": "2026-09", "messages": 428, "chats": 7}, {"month": "2026-08", "messages": 79, "chats": 6}]}))
+        if fn == "request_wa_backfill":
+            for l in FIX.get("wa_links", []): l.update({"backfill_status": "running", "backfill_round": 1, "backfill_done": 40, "backfill_total": 256, "backfill_added": 312})
+            return await route.fulfill(status=200, headers=hdr, body="null")
         if fn == "wa_link_overview":
             return await route.fulfill(status=200, headers=hdr, body=json.dumps({"workerOnline": FIX.get("wa_worker", False), "cloudNumber": False, "whatsappContacts": 2, "withoutOrder": 1}))
         if fn == "link_whatsapp_device":
@@ -669,6 +675,15 @@ async def main():
         lk = [w for w in writes if w[0] == "rpc" and w[1] == "link_whatsapp_device"]
         ok("the number goes to the server in international form, with the method and the risk accepted", len(lk) == 1 and lk[0][2] == {"p_workspace": WS, "p_phone": "2348031234567", "p_method": "code", "p_risk_ack": True}, lk[:1])
         ok("then the pairing code shows with the steps in WhatsApp", await pg.get_by_label("Pairing code").inner_text() == "ABCD-1234" and "Link with phone number instead" in await pg.locator("main").inner_text())
+        ok("chats synced shows the date range and each month", "5,797 messages from 256 chats" in await pg.locator("main").inner_text()
+           and await pg.get_by_role("list", name="Messages by month").get_by_role("listitem").count() == 4 and "Oct 2026" in await pg.locator("main").inner_text())
+        FIX["wa_links"][0].update({"status": "connected", "backfill_status": None, "backfill_round": 0, "backfill_done": 0, "backfill_total": 0, "backfill_added": 0, "backfill_at": None, "backfill_error": None})
+        await ready("/whatsapp")
+        await pg.get_by_role("button", name="Bring in older messages").click(); await pg.wait_for_timeout(1500)
+        ok("bring in older messages asks the server and shows progress", any(w[0] == "rpc" and w[1] == "request_wa_backfill" for w in writes)
+           and "chat 40 of 256 · 312 older messages so far" in await pg.locator("main").inner_text())
+        FIX["wa_links"][0].update({"status": "waiting"})
+        await ready("/whatsapp")
         await pg.get_by_role("button", name="Tag chats by product").click(); await pg.wait_for_timeout(800)
         ok("tag chats by product runs on the server and says how many", any(w[0] == "rpc" and w[1] == "tag_chats_by_product" for w in writes) and "2 customers tagged" in await pg.locator("main").inner_text())
         async with pg.expect_download() as dl:

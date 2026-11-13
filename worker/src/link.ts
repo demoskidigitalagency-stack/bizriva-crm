@@ -7,7 +7,7 @@ import pino from "pino";
 import { dbAuthState } from "./auth.ts";
 import { batches, chatPhone, contactNames, pause, rememberLid, textOf, toRow, toThreads } from "./parse.ts";
 
-export interface LinkRow { id: string; workspace_id: string; phone: string; method: "code" | "qr"; status: string }
+export interface LinkRow { id: string; workspace_id: string; phone: string; method: "code" | "qr"; status: string; backfill_status?: string | null }
 
 const logger = pino({ level: process.env.LOG_LEVEL ?? "warn" });
 const MARKETING_PER_DAY = Number(process.env.MARKETING_PER_DAY ?? 500);
@@ -31,6 +31,7 @@ export class Link {
   private flush: (() => Promise<void>) | null = null;
   private auth: Awaited<ReturnType<typeof dbAuthState>> | null = null;
   private earlyCloses = 0;
+  private backfilling = false;
 
   private db: SupabaseClient;
   private key: Buffer;
@@ -260,6 +261,63 @@ export class Link {
         await new Promise((r) => setTimeout(r, pause(j.purpose)));
       }
     } finally { this.sending = false; }
+  }
+
+  private async historyCount(): Promise<number> {
+    const { data } = await this.db.from("wa_links").select("history_messages").eq("id", this.row.id).maybeSingle();
+    return Number((data as { history_messages?: number } | null)?.history_messages ?? 0);
+  }
+  private async backfillPatch(p: Record<string, unknown>) {
+    const { error } = await this.db.rpc("svc_wa_backfill_progress", { p_link: this.row.id, p_patch: p });
+    if (error) this.log(`backfill progress failed: ${error.message}`);
+  }
+
+  /**
+   * "Bring in older messages": ask the phone, chat by chat, for the 50 messages before the
+   * oldest one Bizriva has. Repeat in rounds until a round brings nothing new, the chats reach
+   * back 12 months, or 12 rounds. Answers arrive as ordinary history (onHistory).
+   */
+  async backfill(): Promise<void> {
+    if (this.backfilling || !this.sock || this.stopped) return;
+    this.backfilling = true;
+    const cutoff = Date.now() - 365 * 86_400_000;
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    let secondsMode = false; // the request's time is in milliseconds; fall back to seconds if the phone ignores it
+    try {
+      await this.backfillPatch({ status: "running", round: 0, done: 0, total: 0 });
+      this.log("backfill started");
+      for (let round = 1; round <= 12 && !this.stopped; round++) {
+        const { data, error } = await this.db.rpc("svc_wa_backfill_targets", { p_link: this.row.id, p_months: 12 });
+        if (error) throw new Error(error.message);
+        const targets = ((data ?? []) as { wa: string; msg_id: string; from_me: boolean; at: string }[]).filter((x) => new Date(x.at).getTime() > cutoff);
+        if (!targets.length) break;
+        const before = await this.historyCount();
+        await this.backfillPatch({ round, done: 0, total: targets.length });
+        for (let i = 0; i < targets.length; i++) {
+          if (!this.sock || this.stopped) throw new Error("WhatsApp disconnected — tap Bring in older messages again once it's back");
+          const x = targets[i]!;
+          const ms = new Date(x.at).getTime();
+          try {
+            await this.sock.fetchMessageHistory(50, { remoteJid: `${x.wa}@s.whatsapp.net`, id: x.msg_id, fromMe: x.from_me }, secondsMode ? Math.floor(ms / 1000) : ms);
+          } catch (e) { this.log(`ask older ${x.wa.slice(0, 5)}…: ${e instanceof Error ? e.message : e}`); }
+          if (i % 10 === 9) await this.backfillPatch({ done: i + 1 });
+          await sleep(1200);
+        }
+        await this.backfillPatch({ done: targets.length });
+        await sleep(45_000); // give the phone time to answer
+        const added = (await this.historyCount()) - before;
+        await this.backfillPatch({ added: Math.max(0, added) });
+        this.log(`backfill round ${round}: ${added} older messages`);
+        if (added <= 0) {
+          if (round === 1 && !secondsMode) { secondsMode = true; continue; }
+          break;
+        }
+      }
+      await this.backfillPatch({ status: "done" });
+      this.log("backfill done");
+    } catch (e) {
+      await this.backfillPatch({ status: "failed", error: e instanceof Error ? e.message : String(e) });
+    } finally { this.backfilling = false; }
   }
 
   /** Stop holding the line. logout = also remove the device from the owner's WhatsApp. */

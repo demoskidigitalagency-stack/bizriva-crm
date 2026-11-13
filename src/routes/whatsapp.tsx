@@ -5,7 +5,7 @@
  */
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PageHeader, Section } from "@/components/app/primitives";
-import { SavedContacts, WhatsAppLink } from "@/components/app/WhatsAppLink";
+import { ChatsSynced, SavedContacts, WhatsAppLink } from "@/components/app/WhatsAppLink";
 import { useLive } from "@/domain/store";
 
 export const Route = createFileRoute("/whatsapp")({
@@ -38,6 +38,9 @@ function WhatsAppGrowth() {
         <>
           <Section title="Link your WhatsApp" description="Works now, without Meta's approval. Same number, same phone app.">
             <WhatsAppLink />
+          </Section>
+          <Section title="Chats synced" description="What's in Bizriva from your WhatsApp, month by month.">
+            <ChatsSynced />
           </Section>
           <Section title="Your WhatsApp customers" description="Everyone who has messaged you, saved and ready to follow up.">
             <SavedContacts />

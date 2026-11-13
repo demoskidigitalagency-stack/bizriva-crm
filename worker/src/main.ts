@@ -37,6 +37,9 @@ async function beat(): Promise<void> {
     }
     // "pending" = the owner pressed Link (again): start fresh.
     if (cur && (r.status === "pending" || cur.stopped)) { await cur.stop(false); links.delete(r.id); }
+    // Older messages asked for: start once the link is up.
+    if (cur && !cur.stopped && r.status === "connected" && r.backfill_status === "queued") void cur.backfill();
+    if (cur) cur.row = { ...cur.row, ...r };
     if (!links.has(r.id)) {
       const l = new Link(db, key, r);
       links.set(r.id, l);
