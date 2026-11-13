@@ -55,7 +55,7 @@ export class Link {
     if (!waVersion) { try { waVersion = (await fetchLatestBaileysVersion()).version; } catch { /* use Baileys' built-in version */ } }
     const sock = makeWASocket({
       auth: auth.state, logger, version: waVersion,
-      browser: Browsers.macOS("Desktop"), // a desktop link gets the longest chat history
+      browser: Browsers.windows("Desktop"), // Windows Desktop (WIN_HYBRID, see scripts/patch-baileys.mjs) gets full chat history
       markOnlineOnConnect: false,         // the owner's phone keeps getting notifications
       syncFullHistory: true,
       generateHighQualityLinkPreview: false,

@@ -87,7 +87,7 @@ export function WhatsAppLink() {
     const { data, error: e2 } = await sb.rpc("unlink_whatsapp_device", { p_workspace: ws });
     setBusy(false);
     if (e2) return setError(e2.message);
-    setNote(data === "removed_check_phone" ? "Unlinked from Bizriva. On your phone, open WhatsApp → Linked devices and log out “Mac OS” to finish." : data === "unlinking" ? "Unlinking…" : "Unlinked.");
+    setNote(data === "removed_check_phone" ? "Unlinked from Bizriva. On your phone, open WhatsApp → Linked devices and log out the Windows device to finish." : data === "unlinking" ? "Unlinking…" : "Unlinked.");
     await load();
   };
 
