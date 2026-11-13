@@ -65,7 +65,8 @@ export class Link {
     sock.ev.on("creds.update", () => void auth.saveCreds());
     sock.ev.on("connection.update", (u) => void this.onConnection(u).catch((e) => this.log(`connection handler: ${e}`)));
     sock.ev.on("messaging-history.set", (h) => void this.onHistory(h).catch((e) => this.log(`history: ${e}`)));
-    sock.ev.on("messaging-history.status", (s: any) => { if (s?.status === "complete") void this.finishHistory(); });
+    // WhatsApp sends old chats in several waves and reports "complete" after the first quick one,
+    // so the chats count as done only once nothing new has arrived for 3 minutes.
     sock.ev.on("messages.upsert", (u) => void this.onMessages(u.messages).catch((e) => this.log(`messages: ${e}`)));
     sock.ev.on("messages.update", (u) => void this.onUpdates(u).catch((e) => this.log(`updates: ${e}`)));
     sock.ev.on("contacts.upsert", (c) => void this.onContacts(c));
@@ -162,13 +163,12 @@ export class Link {
     for (const c of contactNames(h.contacts ?? [], this.lid)) this.names.set(c.phone, c.name);
     for (const chat of h.chats ?? []) rememberLid(this.lid, chat.id, chat.pnJid ?? chat.phoneNumber);
     const threads = toThreads(h.messages ?? [], this.lid, this.names);
-    if (this.historyOpen) this.armHistoryTimer();
+    if (threads.length) this.armHistoryTimer(); // every wave pushes "done" back by 3 minutes
     for (const b of batches(threads)) {
       const { error } = await this.db.rpc("svc_wa_history", { p_link: this.row.id, p_threads: b, p_done: false });
       if (error) this.log(`history save failed: ${error.message}`);
     }
     if (threads.length) this.log(`history chunk: ${threads.length} chats (${h.progress ?? "?"}%)`);
-    if (h.progress === 100 || h.isLatest === true && h.progress == null) { /* WhatsApp may still send more; the status event or the idle timer finishes */ }
   }
 
   private async phoneFor(key: any): Promise<string | null> {
