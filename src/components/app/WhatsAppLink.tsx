@@ -43,7 +43,8 @@ export function useWhatsAppLink() {
       sb.from("wa_links").select(COLS).eq("workspace_id", ws).maybeSingle(),
       sb.rpc("wa_link_overview", { p_workspace: ws }),
     ]);
-    if (e) setError(e.message);
+    // Before the database part is switched on, say so plainly instead of showing a database error.
+    if (e) setError(/wa_links|PGRST205|42P01|schema cache/i.test(`${e.code ?? ""} ${e.message}`) ? "Linking is being switched on for your account — check back shortly." : e.message);
     setRow((data as LinkRow | null) ?? null);
     setOverview((o as Overview | null) ?? null);
   }, [ws]);
