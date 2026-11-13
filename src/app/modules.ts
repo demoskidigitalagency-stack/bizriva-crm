@@ -12,7 +12,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   BarChart3, BookOpen, Boxes, Bot, CalendarCheck, CreditCard, FileText, HelpCircle, Images, LayoutDashboard,
   Megaphone, MessageSquare, Package, Plug, Send, Settings, ShieldCheck, ShoppingBag, Store, Truck, Users,
-  UsersRound, Wallet, Workflow, History, ListChecks, Bike, Building2, ClipboardList, CalendarDays, Telescope, Sunrise, PhoneCall,
+  UsersRound, Wallet, Workflow, History, ListChecks, Bike, Building2, ClipboardList, CalendarDays, Telescope, Sunrise, PhoneCall, Smartphone,
 } from "lucide-react";
 
 /** How real a module is today. Shown honestly in the UI — never overstated. */
@@ -24,7 +24,7 @@ export type BuildState =
 
 export type Phase = "Foundation" | "MVP" | "Later";
 
-export type Source = "Sandala" | "Kobolink" | "Bizriva" | "Prompt" | "Review 2026-11-04" | "Review 2026-11-05" | "Review 2026-11-06";
+export type Source = "Sandala" | "Kobolink" | "Bizriva" | "Prompt" | "Review 2026-11-04" | "Review 2026-11-05" | "Review 2026-11-06" | "Review 2026-11-13";
 
 export interface ModuleDef {
   id: string;
@@ -120,6 +120,10 @@ export const MODULES: ModuleDef[] = [
   // Growth
   { id: "ads", label: "Ads and Attribution", path: "/ads", icon: Megaphone, group: "Growth", phase: "Later", state: "practice", sources: ["Kobolink", "Prompt"], decision: "Agreed",
     submenus: ["Connect Meta Ads (Facebook login, ad account)", "Sync campaigns and daily spend", "Create an ad: product, picture, words in English or Pidgin, WhatsApp or order form, audience, budget, previews", "Meta policy pre-check", "Created paused; start and pause from Bizriva", "Scale or fix advice from delivered sales", "Send delivered sales to Meta (Conversions API)", "Campaigns with return on delivered sales", "Lead sources"], summary: "Trace revenue back to the ad that started the chat." },
+
+  { id: "whatsapp", label: "WhatsApp Growth", path: "/whatsapp", icon: Smartphone, group: "Growth", phase: "MVP", state: "partial", sources: ["Review 2026-11-13"], decision: "Agreed",
+    submenus: ["Link your WhatsApp with a pairing code or QR (no Meta approval needed)", "Old chats brought in from the phone", "Every number saved as a contact and lead", "Tag chats by the product they asked about", "Download all contacts (.vcf) for your phone or Google Contacts", "Replies and broadcasts sent from your own number, paced", "Cloud Status, group posting and multi-number (next)"],
+    summary: "Connect the WhatsApp you already use and turn every past and new chat into a saved lead. Needs Bizriva's WhatsApp server switched on." },
 
   // Money
   { id: "payments", label: "Payments", path: "/payments", icon: Wallet, group: "Money", phase: "Later", state: "practice", sources: ["Kobolink", "Prompt"], decision: "Agreed",

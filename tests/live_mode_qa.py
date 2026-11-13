@@ -195,6 +195,17 @@ async def handle(route):
             return await route.fulfill(status=200, headers=hdr, body=json.dumps({"appId": None, "configId": None, "hasSecret": False, "verifyToken": "pv-0123456789abcdef", "updatedAt": NOW, "numbers": 0, "onApp": 0}))
         if fn == "platform_meta":
             return await route.fulfill(status=200, headers=hdr, body=json.dumps(FIX.get("platform")))
+        if fn == "wa_link_overview":
+            return await route.fulfill(status=200, headers=hdr, body=json.dumps({"workerOnline": FIX.get("wa_worker", False), "cloudNumber": False, "whatsappContacts": 2, "withoutOrder": 1}))
+        if fn == "link_whatsapp_device":
+            FIX["wa_links"] = [{"phone": body.get("p_phone"), "method": body.get("p_method"), "status": "waiting", "pairing_code": "ABCD1234", "qr": None, "code_at": NOW, "wa_name": None,
+                                "history_status": None, "history_messages": 0, "history_chats": 0, "tagged": 0, "last_seen_at": NOW, "last_error": None, "connected_at": None}]
+            return await route.fulfill(status=200, headers=hdr, body=json.dumps({"phone": body.get("p_phone"), "workerOnline": False}))
+        if fn == "unlink_whatsapp_device":
+            FIX["wa_links"] = []
+            return await route.fulfill(status=200, headers=hdr, body=json.dumps("removed_check_phone"))
+        if fn == "tag_chats_by_product":
+            return await route.fulfill(status=200, headers=hdr, body=json.dumps({"tagged": 2, "products": 2}))
         if fn == "admin_is":
             return await route.fulfill(status=200, headers=hdr, body="true")
         if fn == "admin_overview":
@@ -621,6 +632,32 @@ async def main():
         ok("importing a chat on real data goes to the server, with who sent each message", len(ic) == 1 and ic[0][2].get("p_workspace") == WS and len(ic[0][2]["p_messages"]) > 3
            and any(m["out"] for m in ic[0][2]["p_messages"]) and any(not m["out"] for m in ic[0][2]["p_messages"]) and ic[0][2].get("p_file") == "WhatsApp Chat with Chioma Eze.txt", ic[:1])
         ok("and shows how many messages came in", "messages imported from WhatsApp Chat with Chioma Eze.txt" in await pg.locator("main").inner_text())
+
+        # WhatsApp Growth: link the number already in use with a pairing code (no Meta), then save every customer.
+        FIX["wa_links"] = []
+        FIX["contact_identities"] = [{"external_id": "2348031234567", "contacts": {"name": "Ada Obi", "tags": ["Asked about: Glow Body Cream", "No order yet"]}},
+                                     {"external_id": "2348051112222", "contacts": {"name": None, "tags": []}}]
+        await ready("/whatsapp")
+        t = await pg.locator("main").inner_text()
+        ok("WhatsApp Growth says honestly when Bizriva's WhatsApp server is off", "server isn't switched on yet" in t)
+        lf = pg.get_by_role("form", name="Link my WhatsApp")
+        await lf.get_by_label("Your WhatsApp number").fill("0803 123 4567")
+        await lf.get_by_role("button", name="Link my WhatsApp").click(); await pg.wait_for_timeout(500)
+        ok("linking needs the risk box ticked first", not any(w[0] == "rpc" and w[1] == "link_whatsapp_device" for w in writes) and "understand the risk" in await pg.locator("main").inner_text())
+        await lf.get_by_label("I understand the risk").click()
+        await lf.get_by_role("button", name="Link my WhatsApp").click(); await pg.wait_for_timeout(1500)
+        lk = [w for w in writes if w[0] == "rpc" and w[1] == "link_whatsapp_device"]
+        ok("the number goes to the server in international form, with the method and the risk accepted", len(lk) == 1 and lk[0][2] == {"p_workspace": WS, "p_phone": "2348031234567", "p_method": "code", "p_risk_ack": True}, lk[:1])
+        ok("then the pairing code shows with the steps in WhatsApp", await pg.get_by_label("Pairing code").inner_text() == "ABCD-1234" and "Link with phone number instead" in await pg.locator("main").inner_text())
+        await pg.get_by_role("button", name="Tag chats by product").click(); await pg.wait_for_timeout(800)
+        ok("tag chats by product runs on the server and says how many", any(w[0] == "rpc" and w[1] == "tag_chats_by_product" for w in writes) and "2 customers tagged" in await pg.locator("main").inner_text())
+        async with pg.expect_download() as dl:
+            await pg.get_by_role("button", name="Download contacts (.vcf)").click()
+        vcf = open(await (await dl.value).path(), encoding="utf-8").read()
+        ok("contacts download as a .vcf, named with the product, nameless ones as Customer 1234",
+           "FN:Ada Obi - Glow Body Cream" in vcf and "TEL;TYPE=CELL:+2348031234567" in vcf and "FN:Customer 2222" in vcf, vcf[:200])
+        await pg.get_by_role("button", name="Cancel").click(); await pg.wait_for_timeout(1000)
+        ok("cancel unlinks and says how to finish on the phone", any(w[0] == "rpc" and w[1] == "unlink_whatsapp_device" for w in writes) and "Linked devices" in await pg.locator("main").inner_text())
 
         # Switch back to sample data.
         await pg.get_by_role("button", name=re.compile("Showing your real data")).click()

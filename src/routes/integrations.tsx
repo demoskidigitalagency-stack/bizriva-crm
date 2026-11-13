@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Section, StatusBadge } from "@/components/app/primitives";
 import { useActions, useDb, useLive, useWorkspace } from "@/domain/store";
 import { WhatsAppConnect } from "@/components/app/WhatsAppConnect";
+import { WhatsAppLink } from "@/components/app/WhatsAppLink";
 import { EmailConnect } from "@/components/app/EmailConnect";
 import { WebChatConnect } from "@/components/app/WebChatConnect";
 import { SmsConnect } from "@/components/app/SmsConnect";
@@ -103,9 +104,14 @@ function Integrations() {
           if (s.id === "instagram" && live.on) return null; // part of the Facebook Page connection
           if (s.id === "whatsapp" && live.on) {
             return (
-              <Section key={s.id} title={i.name} description={i.what} className="md:col-span-2">
-                <WhatsAppConnect />
-              </Section>
+              <div key={s.id} className="space-y-3 md:col-span-2">
+                <Section title="WhatsApp — link your number (pairing code)" description="Works now without Meta's approval: your phone keeps working and your old chats come in. More on the WhatsApp Growth page.">
+                  <WhatsAppLink />
+                </Section>
+                <Section title={i.name} description={i.what}>
+                  <WhatsAppConnect />
+                </Section>
+              </div>
             );
           }
           return (

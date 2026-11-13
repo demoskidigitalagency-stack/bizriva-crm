@@ -50,6 +50,7 @@ import { Route as TemplatesRouteImport } from './routes/templates'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as TodayRouteImport } from './routes/today'
 import { Route as WelcomeRouteImport } from './routes/welcome'
+import { Route as WhatsappRouteImport } from './routes/whatsapp'
 import { Route as WorkflowHistoryRouteImport } from './routes/workflow-history'
 import { Route as AdsNewRouteImport } from './routes/ads_.new'
 import { Route as ChatKeyRouteImport } from './routes/chat.$key'
@@ -275,6 +276,11 @@ const WelcomeRoute = WelcomeRouteImport.update({
   path: '/welcome',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WhatsappRoute = WhatsappRouteImport.update({
+  id: '/whatsapp',
+  path: '/whatsapp',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const WorkflowHistoryRoute = WorkflowHistoryRouteImport.update({
   id: '/workflow-history',
   path: '/workflow-history',
@@ -413,6 +419,7 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/today': typeof TodayRoute
   '/welcome': typeof WelcomeRoute
+  '/whatsapp': typeof WhatsappRoute
   '/workflow-history': typeof WorkflowHistoryRoute
   '/ads/new': typeof AdsNewRoute
   '/chat/$key': typeof ChatKeyRoute
@@ -474,6 +481,7 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/today': typeof TodayRoute
   '/welcome': typeof WelcomeRoute
+  '/whatsapp': typeof WhatsappRoute
   '/workflow-history': typeof WorkflowHistoryRoute
   '/ads/new': typeof AdsNewRoute
   '/chat/$key': typeof ChatKeyRoute
@@ -537,6 +545,7 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/today': typeof TodayRoute
   '/welcome': typeof WelcomeRoute
+  '/whatsapp': typeof WhatsappRoute
   '/workflow-history': typeof WorkflowHistoryRoute
   '/ads_/new': typeof AdsNewRoute
   '/chat/$key': typeof ChatKeyRoute
@@ -601,6 +610,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/today'
     | '/welcome'
+    | '/whatsapp'
     | '/workflow-history'
     | '/ads/new'
     | '/chat/$key'
@@ -662,6 +672,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/today'
     | '/welcome'
+    | '/whatsapp'
     | '/workflow-history'
     | '/ads/new'
     | '/chat/$key'
@@ -724,6 +735,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/today'
     | '/welcome'
+    | '/whatsapp'
     | '/workflow-history'
     | '/ads_/new'
     | '/chat/$key'
@@ -787,6 +799,7 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   TodayRoute: typeof TodayRoute
   WelcomeRoute: typeof WelcomeRoute
+  WhatsappRoute: typeof WhatsappRoute
   WorkflowHistoryRoute: typeof WorkflowHistoryRoute
   AdsNewRoute: typeof AdsNewRoute
   ChatKeyRoute: typeof ChatKeyRoute
@@ -1085,6 +1098,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WelcomeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/whatsapp': {
+      id: '/whatsapp'
+      path: '/whatsapp'
+      fullPath: '/whatsapp'
+      preLoaderRoute: typeof WhatsappRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/workflow-history': {
       id: '/workflow-history'
       path: '/workflow-history'
@@ -1295,6 +1315,7 @@ const rootRouteChildren: RootRouteChildren = {
   TermsRoute: TermsRoute,
   TodayRoute: TodayRoute,
   WelcomeRoute: WelcomeRoute,
+  WhatsappRoute: WhatsappRoute,
   WorkflowHistoryRoute: WorkflowHistoryRoute,
   AdsNewRoute: AdsNewRoute,
   ChatKeyRoute: ChatKeyRoute,

@@ -44,6 +44,7 @@ const JOURNEY = [
 ];
 
 const FEATURES = [
+  { t: "Link the WhatsApp you already use", d: "Pairing code or QR, like WhatsApp Web — no Meta approval to wait for. Your phone keeps working, your old chats come in, and every number is saved as a lead." },
   { t: "Every platform, one inbox", d: "WhatsApp, Instagram, Messenger, TikTok and website chats in one list for the whole team, with \"Needs reply\" first." },
   { t: "AI sales agent that doesn't make things up", d: "Replies, sells and sends payment links — only from your products and knowledge base. Hands over to a person when it isn't sure." },
   { t: "COD verification", d: "A confirmation queue with risk scores from history, city and order value. High-risk orders alert you before dispatch." },
@@ -63,6 +64,7 @@ const FEATURES = [
 type Cell = "yes" | "no" | "part";
 const COMPARE: { row: string; cells: [Cell, Cell, Cell, Cell, Cell] }[] = [
   { row: "Shared inbox for a whole team", cells: ["yes", "no", "no", "no", "no"] },
+  { row: "Old chats in, every number saved as a lead", cells: ["yes", "no", "no", "no", "no"] },
   { row: "CRM: every customer's history in one place", cells: ["yes", "no", "no", "no", "no"] },
   { row: "COD confirmation and risk check", cells: ["yes", "no", "no", "part", "no"] },
   { row: "Order forms with packages and gifts", cells: ["yes", "no", "part", "yes", "no"] },
@@ -90,8 +92,9 @@ const FAQ = [
   { q: "I already have a WordPress site and order forms. Do I have to change them?", a: "No. Connect Elementor, Gravity Forms, WPForms, Contact Form 7, Fluent Forms, WooCommerce, Shopify, Google Forms, Typeform, Jotform or Tally in a few minutes — or anything else through Zapier or Make. Your pages stay as they are; the orders just land in Bizriva." },
   { q: "Can I create my Facebook and Instagram ads in Bizriva?", a: "Yes. Connect your Meta ad account, pick a product and a picture, choose ad text in English or Pidgin, set the states, age and budget, and preview it. The ad is created paused in your own Meta account — Meta charges your card, never us — and starts when you press Start. Bizriva also sends your delivered sales back to Meta, so it finds more people who actually pay." },
   { q: "Can customers pay without leaving WhatsApp?", a: "Almost. WhatsApp's own in-chat payments aren't available in Nigeria yet, so Bizriva does the next best thing: each customer gets their own account number (or a payment link) right in the chat. They transfer from their bank app, and within seconds the order is marked paid and a receipt lands back in their WhatsApp — no screenshots to check." },
-  { q: "Do I need the WhatsApp Business API?", a: "Yes — Bizriva connects to the official WhatsApp Cloud API, so your team shares one number safely. We guide you through Meta's business verification. You can start in Practice Mode today while that's approved." },
-  { q: "What happens to my old WhatsApp chats?", a: "Export any chat from WhatsApp and import it into Bizriva. It lands in that customer's history, and duplicates are skipped. Some numbers can also keep using the WhatsApp Business app alongside Bizriva." },
+  { q: "Do I need the WhatsApp Business API?", a: "No — you can start today. Link the WhatsApp you already use with a pairing code (like WhatsApp Web): no Meta approval, your phone keeps working, and your chats come in. Or connect through the official WhatsApp Cloud API when you want Meta-approved templates and a number your whole team shares. You can use both." },
+  { q: "Is linking my number safe?", a: "Linking works like WhatsApp Web, not through Meta, so it's an unofficial connection and WhatsApp can restrict numbers that spam. Bizriva protects your number: it only messages people who wrote to you first, paces every message like a person typing, caps marketing messages per day and stops anyone who replies STOP. You confirm you understand this before linking." },
+  { q: "What happens to my old WhatsApp chats?", a: "Link your number and the chats WhatsApp shares with a new device come into Bizriva — each customer saved as a contact and a lead, with their chat, and tagged with the products they asked about. How far back depends on what WhatsApp sends (usually months). You can still import a single exported chat any time." },
   { q: "How do you count revenue on cash-on-delivery?", a: "Created, confirmed and delivered are counted separately. Cash-on-delivery only counts as revenue once it's delivered — so your numbers match your bank, not your hopes." },
   { q: "Will the AI agent say something wrong to my customers?", a: "It only answers from your product list and the answers you write in the knowledge base. It won't invent prices or promises, and it hands over to a person when asked or unsure." },
   { q: "Can my riders and staff use it?", a: "Yes. Six roles — owner, manager, sales, support, dispatcher and finance — each see what they need. Agents get a call list on their phone; riders get a simple phone view to mark drops delivered." },
@@ -165,7 +168,7 @@ function Faq() {
 
 function Welcome() {
   const [nav, setNav] = useState(false);
-  const links = [["#problem", "Why"], ["#how", "How it works"], ["#features", "Features"], ["#team", "Order to cash"], ["#brief", "Money Brief"], ["#pay", "Payments"], ["#compare", "Compare"], ["#pricing", "Pricing"], ["#faq", "FAQ"]] as const;
+  const links = [["#problem", "Why"], ["#whatsapp", "WhatsApp"], ["#how", "How it works"], ["#features", "Features"], ["#team", "Order to cash"], ["#brief", "Money Brief"], ["#pay", "Payments"], ["#compare", "Compare"], ["#pricing", "Pricing"], ["#faq", "FAQ"]] as const;
   return (
     <div className="lp">
       <style>{CSS}</style>
@@ -176,7 +179,7 @@ function Welcome() {
             <span className="lp-logo" aria-hidden="true">B</span> Bizriva
           </Link>
           <nav className="hidden flex-1 items-center gap-6 text-sm font-medium md:flex" aria-label="Page sections">
-            {links.map(([h, l]) => <a key={h} href={h} className="hover:text-[var(--green)]">{l}</a>)}
+            {links.filter(([h]) => h !== "#team" && h !== "#brief").map(([h, l]) => <a key={h} href={h} className="whitespace-nowrap hover:text-[var(--green)]">{l}</a>)}
           </nav>
           <div className="ml-auto hidden items-center gap-3 md:flex">
             <Link to="/account" className="text-sm font-semibold hover:text-[var(--green)]">Sign in</Link>
@@ -228,6 +231,31 @@ function Welcome() {
                 </li>
               ))}
             </ol>
+          </div>
+        </section>
+
+        {/* Your WhatsApp */}
+        <section id="whatsapp" className="lp-wrap grid gap-12 py-20 lg:grid-cols-2 lg:items-center">
+          <div className="min-w-0">
+            <p className="lp-kicker">Already have thousands of chats?</p>
+            <h2 className="lp-display mt-3 text-4xl font-extrabold leading-tight sm:text-5xl">Every unsaved number in your WhatsApp is a sale you haven't followed up.</h2>
+            <p className="mt-4 text-[var(--ink-soft)]">Link the WhatsApp you already use with a pairing code — like WhatsApp Web, no Meta approval to wait for. Your phone keeps working. Bizriva brings in your chats, saves every number as a lead, and tags each one with the product they asked about, so you know exactly who to follow up and what to offer.</p>
+            <ul className="mt-6 grid gap-2 text-sm sm:grid-cols-2">
+              {["Link in a minute: pairing code or QR", "Old chats come in, with the customer's name", "Every number saved as a contact and a lead", "Tagged: “Asked about: Hair dryer”, “No order yet”", "Download all contacts (.vcf) so they see your Status", "Replies go out from your own number, paced"].map((x) => (
+                <li key={x} className="lp-ticket"><Check className="size-4 shrink-0 text-[var(--green)]" /> {x}</li>
+              ))}
+            </ul>
+            <p className="lp-mono mt-4 text-xs text-[var(--ink-soft)]">Unofficial connection: Bizriva only messages people who wrote to you first and paces every send to protect your number.</p>
+          </div>
+          <div className="lp-brief" aria-label="Example: chats brought in and tagged">
+            <p className="lp-mono text-[11px] tracking-[0.18em] text-[var(--ink-soft)]">EXAMPLE · WHATSAPP LINKED · +234 803 ··· 4567</p>
+            <p className="mt-2 font-semibold">1,893 chats in · 1,893 customers saved · 1,240 tagged by product</p>
+            <ul className="lp-mono mt-3 space-y-1 text-[12px]">
+              <li>Chioma E. · Asked about: Bone Straight 20″ · No order yet</li>
+              <li>Tunde A. · Asked about: Hair dryer · No order yet</li>
+              <li>Kemi B. · Asked about: Glow Body Cream · 2 orders</li>
+            </ul>
+            <p className="mt-3 text-sm font-semibold">Today: follow up the 412 people who asked about the Bone Straight 20″.</p>
           </div>
         </section>
 

@@ -231,7 +231,7 @@ async def main():
             ok("landing page has no app sidebar", await pg.get_by_role("link", name="Order Forms", exact=True).count() == 0)
             ok("landing page sections", all([await pg.locator(f"section#{x}").count() == 1 for x in ["problem", "how", "features", "compare", "pricing", "faq"]]))
             await pg.get_by_role("button", name="What happens to my old WhatsApp chats?").click()
-            ok("FAQ opens", await pg.get_by_text(re.compile("Export any chat from WhatsApp")).count() == 1)
+            ok("FAQ opens", await pg.get_by_text(re.compile("chats WhatsApp shares with a new device come into Bizriva")).count() == 1)
             await pg.get_by_role("link", name=re.compile("^Start free")).first.click(); await pg.wait_for_timeout(800)
             ok("Start free goes to sign-up", "/account" in pg.url)
         await step("welcome", t_welcome())

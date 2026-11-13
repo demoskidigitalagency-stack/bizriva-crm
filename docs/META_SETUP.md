@@ -1,5 +1,8 @@
 # Switching on "Connect WhatsApp" for every business (one time, for Bizriva)
 
+> Don't want to wait for Meta? Businesses can link the WhatsApp they already use with a pairing code
+> today (WhatsApp Growth page). That needs Bizriva's WhatsApp server running — see `worker/README.md`.
+
 Bizriva becomes a **Meta Tech Provider** once. After that, any business connects
 WhatsApp from Bizriva in about 5 minutes: they log in with Facebook in Meta's window,
 then pick a new number or scan a QR code to keep using the WhatsApp Business app
