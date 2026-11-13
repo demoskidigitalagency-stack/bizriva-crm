@@ -7,7 +7,22 @@ this server only holds the line.
 
 Run **one copy only**. Two copies would fight over the same numbers.
 
-## Railway (recommended)
+## Where it runs now: Render (free)
+
+Service `bizriva-whatsapp` on Render's Free plan (https://bizriva-whatsapp.onrender.com), built
+from this public repo with Root Directory `worker` (Docker). Free services sleep after 15 minutes
+without visits, so Supabase visits `/` every 10 minutes (`bizriva-wa-keepalive` cron job,
+migration 20261113030000). Render may still restart a free service now and then; links reconnect
+by themselves within about a minute.
+
+Public-repo services don't redeploy on push: after changing `worker/`, open the service in Render →
+**Manual Deploy → Deploy latest commit**.
+
+To move to an always-on paid host later, deploy the same folder there with the same three
+variables (keep the same `WA_SESSION_KEY`, or every business links again), then delete the Render
+service so only one copy runs.
+
+## Railway (alternative, $5/month)
 
 1. railway.com → sign in with GitHub → **New project → Deploy from GitHub repo** → `bizriva-crm`.
 2. Service **Settings → Source → Root directory**: `worker`. Railway reads `worker/railway.json`
