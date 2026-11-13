@@ -274,13 +274,16 @@ export function ChatsSynced() {
   const [cov, setCov] = useState<Coverage | null>(null);
   const [bf, setBf] = useState<Backfill | null>(null);
   const [msg, setMsg] = useState("");
+  const [off, setOff] = useState(false);
   const load = useCallback(async () => {
     const sb = supabase(); if (!sb || !ws) return;
-    const [{ data: c }, { data: b }] = await Promise.all([
+    const [{ data: c, error: ce }, { data: b }] = await Promise.all([
       sb.rpc("wa_history_coverage", { p_workspace: ws }),
       sb.from("wa_links").select("status, backfill_status, backfill_round, backfill_done, backfill_total, backfill_added, backfill_at, backfill_error").eq("workspace_id", ws).maybeSingle(),
     ]);
-    setCov((c as Coverage | null) ?? null); setBf((b as Backfill | null) ?? null);
+    // Until the database part is switched on, say so instead of waiting forever.
+    if (ce) { setOff(true); return; }
+    setOff(false); setCov((c as Coverage | null) ?? null); setBf((b as Backfill | null) ?? null);
   }, [ws]);
   useEffect(() => { void load(); }, [load]);
   const active = bf?.backfill_status === "queued" || bf?.backfill_status === "running";
@@ -293,6 +296,7 @@ export function ChatsSynced() {
     if (error) return setMsg(error.message);
     await load();
   };
+  if (off) return <p className="p-4 text-sm text-muted-foreground" role="status">The month-by-month view is being switched on — check back shortly.</p>;
   if (!cov) return <p className="p-4 text-sm text-muted-foreground" role="status">Checking your chats…</p>;
   const max = Math.max(1, ...cov.months.map((m) => m.messages));
   const pct = bf && bf.backfill_total ? Math.round((bf.backfill_done / bf.backfill_total) * 100) : 0;
