@@ -208,6 +208,9 @@ async def handle(route):
         if fn == "wa_history_coverage":
             return await route.fulfill(status=200, headers=hdr, body=json.dumps({"oldest": "2026-08-16T10:00:00+00:00", "newest": NOW, "messages": 5797, "chats": 256,
                 "months": [{"month": "2026-11", "messages": 1365, "chats": 82}, {"month": "2026-10", "messages": 3925, "chats": 182}, {"month": "2026-09", "messages": 428, "chats": 7}, {"month": "2026-08", "messages": 79, "chats": 6}]}))
+        if fn == "request_wa_save_contacts":
+            for l in FIX.get("wa_links", []): l.update({"save_status": "running", "save_done": 60, "save_total": 256, "save_saved": 58, "save_failed": 2})
+            return await route.fulfill(status=200, headers=hdr, body="null")
         if fn == "request_wa_backfill":
             for l in FIX.get("wa_links", []): l.update({"backfill_status": "running", "backfill_round": 1, "backfill_done": 40, "backfill_total": 256, "backfill_added": 312})
             return await route.fulfill(status=200, headers=hdr, body="null")
@@ -682,6 +685,10 @@ async def main():
         await pg.get_by_role("button", name="Bring in older messages").click(); await pg.wait_for_timeout(1500)
         ok("bring in older messages asks the server and shows progress", any(w[0] == "rpc" and w[1] == "request_wa_backfill" for w in writes)
            and "chat 40 of 256 · 312 older messages so far" in await pg.locator("main").inner_text())
+        await pg.get_by_role("button", name="Save to my phone").click(); await pg.wait_for_timeout(1500)
+        sv = [w for w in writes if w[0] == "rpc" and w[1] == "request_wa_save_contacts"]
+        ok("save to my phone sends the name format and who, then shows progress", len(sv) == 1 and sv[0][2].get("p_template") and sv[0][2].get("p_who") == "all"
+           and "Saving to your phone: 60 of 256 · 58 saved, 2 failed" in await pg.locator("main").inner_text(), sv[:1])
         FIX["wa_links"][0].update({"status": "waiting"})
         await ready("/whatsapp")
         await pg.get_by_role("button", name="Tag chats by product").click(); await pg.wait_for_timeout(800)

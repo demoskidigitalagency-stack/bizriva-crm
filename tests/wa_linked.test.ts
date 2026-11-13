@@ -102,3 +102,24 @@ describe("session encryption", () => {
     expect(() => keyFrom("short")).toThrow();
   });
 });
+
+describe("names for the phone", () => {
+  test("saved name format matches the app's", async () => {
+    const { savedName } = await import("../worker/src/parse");
+    const { savedName: appName } = await import("../src/lib/vcard");
+    const tags = ["No order yet", "Asked about: 4ft 3-in-1 Multi Table"];
+    expect(savedName("233538699550", "David Dapaah", tags, "{name} - {product}")).toBe("David Dapaah - 4ft 3-in-1 Multi Table");
+    expect(savedName("233538699550", null, [], "{name} - {product}")).toBe("Customer 9550");
+    expect(savedName("233538699550", "David", tags, "{name} {last4}")).toBe(appName({ phone: "233538699550", name: "David", tags }, "{name} {last4}"));
+  });
+  test("chat names from history, including hidden ids", async () => {
+    const { chatNames } = await import("../worker/src/parse");
+    const lid = new Map<string, string>();
+    expect(chatNames([
+      { id: "233538699550@s.whatsapp.net", name: "David Kumasi" },
+      { id: "888@lid", pnJid: "233571871528@s.whatsapp.net", displayName: "Ama" },
+      { id: "120363@g.us", name: "Group" },
+      { id: "233500000000@s.whatsapp.net" },
+    ], lid)).toEqual([{ phone: "233538699550", name: "David Kumasi" }, { phone: "233571871528", name: "Ama" }]);
+  });
+});

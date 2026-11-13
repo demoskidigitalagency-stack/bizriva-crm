@@ -120,3 +120,25 @@ export function contactNames(contacts: any[], lid: Map<string, string>): { phone
 export function pause(purpose: string | null, rand = Math.random): number {
   return purpose === "marketing" ? 6000 + Math.floor(rand() * 9000) : 2000 + Math.floor(rand() * 3000);
 }
+
+/** Name to save on the phone. Tokens: {name}, {product} (first "Asked about" tag), {last4}. Same rule as src/lib/vcard.ts. */
+export function savedName(phone: string, name: string | null, tags: string[], template: string): string {
+  const digits = phone.replace(/\D/g, "");
+  const product = tags.find((t) => t.startsWith("Asked about: "))?.slice("Asked about: ".length) ?? "";
+  const base = (name ?? "").trim() || `Customer ${digits.slice(-4)}`;
+  const out = (template.trim() || "{name}").replaceAll("{name}", base).replaceAll("{product}", product).replaceAll("{last4}", digits.slice(-4))
+    .replace(/\s*[-–|,]\s*$/, "").replace(/\s{2,}/g, " ").trim();
+  return (out || base).slice(0, 100);
+}
+
+/** Chats from history → names (the name saved on the phone for that chat). */
+export function chatNames(chats: any[], lid: Map<string, string>): { phone: string; name: string }[] {
+  const out: { phone: string; name: string }[] = [];
+  for (const c of chats ?? []) {
+    rememberLid(lid, c?.id, c?.pnJid);
+    const phone = chatPhone({ remoteJid: c?.id, remoteJidAlt: c?.pnJid }, lid);
+    const name = String(c?.name ?? c?.displayName ?? "").trim();
+    if (phone && name) out.push({ phone, name: name.slice(0, 120) });
+  }
+  return out;
+}

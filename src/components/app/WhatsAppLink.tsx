@@ -190,6 +190,24 @@ export function SavedContacts() {
   const [msg, setMsg] = useState("");
   const [template, setTemplate] = useState(() => { try { return localStorage.getItem("bizriva.vcfTemplate") ?? "{name} - {product}"; } catch { return "{name} - {product}"; } });
   const [who, setWho] = useState<"all" | "asked" | "no_order">("all");
+  // Save to my phone (automatic, through the linked WhatsApp).
+  const [sv, setSv] = useState<{ status: string; save_status: string | null; save_done: number; save_total: number; save_saved: number; save_failed: number; save_error: string | null } | null>(null);
+  const loadSave = useCallback(async () => {
+    const sb = supabase(); if (!sb || !ws) return;
+    const { data, error } = await sb.from("wa_links").select("status, save_status, save_done, save_total, save_saved, save_failed, save_error").eq("workspace_id", ws).maybeSingle();
+    setSv(error ? null : (data as typeof sv));
+  }, [ws]);
+  useEffect(() => { void loadSave(); }, [loadSave]);
+  const saving = sv?.save_status === "queued" || sv?.save_status === "running";
+  useEffect(() => { if (!saving) return; const t = setInterval(() => void loadSave(), 4000); return () => clearInterval(t); }, [saving, loadSave]);
+  const saveToPhone = async () => {
+    const sb = supabase(); if (!sb || !ws) return;
+    setMsg("");
+    try { localStorage.setItem("bizriva.vcfTemplate", template); } catch { /* private mode */ }
+    const { error } = await sb.rpc("request_wa_save_contacts", { p_workspace: ws, p_template: template, p_who: who });
+    if (error) return setMsg(error.message);
+    await loadSave();
+  };
 
   const tag = async () => {
     const sb = supabase(); if (!sb || !ws) return;
@@ -245,7 +263,19 @@ export function SavedContacts() {
           </div>
         </div>
         <p className="text-xs text-muted-foreground">Name format: {"{name}"}, {"{product}"} and {"{last4}"}. Customers without a name are saved as “Customer 1234”.</p>
-        <Button size="sm" disabled={!!busy} onClick={() => void download()}>{busy === "vcf" ? "Preparing…" : "Download contacts (.vcf)"}</Button>
+        <div className="flex flex-wrap gap-2">
+          {sv?.status === "connected" && <Button size="sm" disabled={!!busy || saving} onClick={() => void saveToPhone()}>{saving ? "Saving to your phone…" : "Save to my phone"}</Button>}
+          <Button size="sm" variant={sv?.status === "connected" ? "outline" : "default"} disabled={!!busy} onClick={() => void download()}>{busy === "vcf" ? "Preparing…" : "Download contacts (.vcf)"}</Button>
+        </div>
+        {sv?.status === "connected" && <p className="text-xs text-muted-foreground">“Save to my phone” saves each customer straight into your phone's contacts through your linked WhatsApp, about one a second — so they can see your Status. Keep WhatsApp open on the phone while it runs.</p>}
+        {saving && sv && <div className="space-y-1" role="status">
+          <p className="text-xs">Saving to your phone: {sv.save_done.toLocaleString()} of {sv.save_total ? sv.save_total.toLocaleString() : "…"} · {sv.save_saved.toLocaleString()} saved{sv.save_failed ? `, ${sv.save_failed} failed` : ""}</p>
+          <div className="h-2 overflow-hidden rounded bg-muted" role="progressbar" aria-label="Saving to your phone" aria-valuenow={sv.save_total ? Math.round((sv.save_done / sv.save_total) * 100) : 0} aria-valuemin={0} aria-valuemax={100}>
+            <div className="h-2 rounded bg-primary transition-all" style={{ width: `${sv.save_total ? (sv.save_done / sv.save_total) * 100 : 3}%` }} />
+          </div>
+        </div>}
+        {sv?.save_status === "done" && <p className="text-xs">Last time: <b>{sv.save_saved.toLocaleString()}</b> saved to your phone{sv.save_failed ? `, ${sv.save_failed} failed` : ""}.</p>}
+        {sv?.save_status === "failed" && <p className="text-xs text-destructive">Saving stopped: {sv.save_error}</p>}
       </div>
       {msg && <p className="text-xs" role="status">{msg}</p>}
     </div>

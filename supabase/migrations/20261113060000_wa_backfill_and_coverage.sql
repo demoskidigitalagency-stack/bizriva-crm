@@ -12,7 +12,17 @@ alter table public.wa_links
   add column backfill_total int not null default 0,
   add column backfill_added int not null default 0,
   add column backfill_at timestamptz,
-  add column backfill_error text check (length(backfill_error) <= 300);
+  add column backfill_error text check (length(backfill_error) <= 300),
+  -- "Save to my phone": save each WhatsApp customer in the phone's own contacts.
+  add column save_status text check (save_status in ('queued', 'running', 'done', 'failed')),
+  add column save_template text not null default '{name}' check (length(save_template) <= 80),
+  add column save_who text not null default 'all' check (save_who in ('all', 'asked', 'no_order')),
+  add column save_done int not null default 0,
+  add column save_total int not null default 0,
+  add column save_saved int not null default 0,
+  add column save_failed int not null default 0,
+  add column save_at timestamptz,
+  add column save_error text check (length(save_error) <= 300);
 
 create or replace function public.request_wa_backfill(p_workspace uuid) returns void
 language plpgsql security definer set search_path = public as $$
@@ -45,12 +55,12 @@ end $$;
 -- The heartbeat now also says whether older messages were asked for.
 drop function public.svc_wa_worker_beat(text, int);
 create function public.svc_wa_worker_beat(p_version text, p_links int)
-returns table(id uuid, workspace_id uuid, phone text, method text, status text, backfill_status text)
+returns table(id uuid, workspace_id uuid, phone text, method text, status text, backfill_status text, save_status text)
 language plpgsql security definer set search_path = public as $$
 #variable_conflict use_column
 begin
   update private.wa_worker set last_at = now(), version = left(p_version, 40), links = greatest(coalesce(p_links, 0), 0) where private.wa_worker.id;
-  return query select l.id, l.workspace_id, l.phone, l.method, l.status, l.backfill_status from wa_links l where l.status not in ('logged_out', 'failed');
+  return query select l.id, l.workspace_id, l.phone, l.method, l.status, l.backfill_status, l.save_status from wa_links l where l.status not in ('logged_out', 'failed');
 end $$;
 
 -- The oldest message Bizriva has in each chat from this number, oldest chats last (busiest first).
@@ -86,14 +96,62 @@ begin
   end if;
 end $$;
 
+-- Save to my phone: the owner picks the name format and who to save.
+create or replace function public.request_wa_save_contacts(p_workspace uuid, p_template text, p_who text) returns void
+language plpgsql security definer set search_path = public as $$
+declare cur wa_links;
+begin
+  if not private.has_role(p_workspace, array['owner', 'manager']::member_role[]) then raise exception 'Not allowed' using errcode = '42501'; end if;
+  select * into cur from wa_links where workspace_id = p_workspace;
+  if cur.id is null or cur.status <> 'connected' then raise exception 'Link your WhatsApp first'; end if;
+  if cur.save_status in ('queued', 'running') then return; end if;
+  update wa_links set save_status = 'queued', save_template = coalesce(nullif(btrim(left(p_template, 80)), ''), '{name}'),
+    save_who = case when p_who in ('all', 'asked', 'no_order') then p_who else 'all' end,
+    save_done = 0, save_total = 0, save_saved = 0, save_failed = 0, save_at = now(), save_error = null where id = cur.id;
+  insert into activity_log(workspace_id, actor, entity, entity_id, action, detail) values (p_workspace, auth.uid(), 'workspace', p_workspace, 'whatsapp_save_contacts_requested', jsonb_build_object('who', p_who));
+end $$;
+
+create or replace function public.svc_wa_save_targets(p_link uuid)
+returns table(wa text, name text, tags text[], template text)
+language sql stable security definer set search_path = public as $$
+  select ci.external_id, k.name, k.tags, l.save_template
+  from wa_links l
+  join contact_identities ci on ci.workspace_id = l.workspace_id and ci.channel = 'whatsapp'
+  join contacts k on k.id = ci.contact_id
+  where l.id = p_link and ci.external_id ~ '^\d{7,15}$'
+    and (l.save_who = 'all' or (l.save_who = 'asked' and exists (select 1 from unnest(k.tags) t where t like 'Asked about: %'))
+         or (l.save_who = 'no_order' and 'No order yet' = any(k.tags)))
+  order by k.created_at
+$$;
+
+-- Keys: status, done, total, saved, failed, error.
+create or replace function public.svc_wa_save_progress(p_link uuid, p_patch jsonb) returns void
+language plpgsql security definer set search_path = public as $$
+declare ws uuid;
+begin
+  update wa_links set
+    save_status = coalesce(p_patch ->> 'status', save_status),
+    save_done = coalesce((p_patch ->> 'done')::int, save_done),
+    save_total = coalesce((p_patch ->> 'total')::int, save_total),
+    save_saved = coalesce((p_patch ->> 'saved')::int, save_saved),
+    save_failed = coalesce((p_patch ->> 'failed')::int, save_failed),
+    save_error = case when p_patch ? 'error' then left(p_patch ->> 'error', 300) else save_error end,
+    save_at = now()
+  where id = p_link returning workspace_id into ws;
+  if p_patch ->> 'status' = 'done' then
+    insert into activity_log(workspace_id, entity, entity_id, action, detail)
+      select ws, 'workspace', ws, 'whatsapp_contacts_saved', jsonb_build_object('saved', save_saved, 'failed', save_failed) from wa_links where id = p_link;
+  end if;
+end $$;
+
 do $$
 declare f text;
 begin
-  foreach f in array array['svc_wa_worker_beat(text, int)', 'svc_wa_backfill_targets(uuid, int)', 'svc_wa_backfill_progress(uuid, jsonb)'] loop
+  foreach f in array array['svc_wa_worker_beat(text, int)', 'svc_wa_backfill_targets(uuid, int)', 'svc_wa_backfill_progress(uuid, jsonb)', 'svc_wa_save_targets(uuid)', 'svc_wa_save_progress(uuid, jsonb)'] loop
     execute format('revoke execute on function public.%s from public, anon, authenticated', f);
     execute format('grant execute on function public.%s to service_role', f);
   end loop;
-  foreach f in array array['request_wa_backfill(uuid)', 'wa_history_coverage(uuid)'] loop
+  foreach f in array array['request_wa_backfill(uuid)', 'wa_history_coverage(uuid)', 'request_wa_save_contacts(uuid, text, text)'] loop
     execute format('revoke execute on function public.%s from public, anon', f);
     execute format('grant execute on function public.%s to authenticated', f);
   end loop;
@@ -135,7 +193,15 @@ begin
         'done', lk.backfill_done, 'total', nullif(lk.backfill_total, 0), 'unit', 'chats',
         'detail', case when lk.backfill_round > 0 then 'Round ' || lk.backfill_round || ' · ' else '' end || lk.backfill_added || ' older messages so far · keep WhatsApp open on the phone',
         'at', lk.backfill_at, 'link', '/whatsapp');
-    elsif lk.backfill_status = 'failed' then
+    end if;
+    if lk.save_status in ('queued', 'running') then
+      running := running || jsonb_build_object('key', 'wa_save', 'title', 'Saving customers to your phone', 'state', 'running',
+        'done', lk.save_done, 'total', nullif(lk.save_total, 0), 'unit', 'contacts',
+        'detail', lk.save_saved || ' saved' || case when lk.save_failed > 0 then ', ' || lk.save_failed || ' failed' else '' end || ' · keep WhatsApp open on the phone', 'at', lk.save_at, 'link', '/whatsapp');
+    elsif lk.save_status = 'failed' then
+      problems := problems || jsonb_build_object('key', 'wa_save', 'title', 'Saving contacts to your phone stopped', 'detail', lk.save_error, 'at', lk.save_at, 'link', '/whatsapp');
+    end if;
+    if lk.backfill_status = 'failed' then
       problems := problems || jsonb_build_object('key', 'wa_backfill', 'title', 'Bringing in older messages stopped', 'detail', lk.backfill_error, 'at', lk.backfill_at, 'link', '/whatsapp');
     end if;
   end if;

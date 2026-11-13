@@ -5,9 +5,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import QRCode from "qrcode";
 import pino from "pino";
 import { dbAuthState } from "./auth.ts";
-import { batches, chatPhone, contactNames, pause, rememberLid, textOf, toRow, toThreads } from "./parse.ts";
+import { batches, chatNames, chatPhone, contactNames, pause, rememberLid, savedName, textOf, toRow, toThreads } from "./parse.ts";
 
-export interface LinkRow { id: string; workspace_id: string; phone: string; method: "code" | "qr"; status: string; backfill_status?: string | null }
+export interface LinkRow { id: string; workspace_id: string; phone: string; method: "code" | "qr"; status: string; backfill_status?: string | null; save_status?: string | null }
 
 const logger = pino({ level: process.env.LOG_LEVEL ?? "warn" });
 const MARKETING_PER_DAY = Number(process.env.MARKETING_PER_DAY ?? 500);
@@ -32,6 +32,8 @@ export class Link {
   private auth: Awaited<ReturnType<typeof dbAuthState>> | null = null;
   private earlyCloses = 0;
   private backfilling = false;
+  private saving = false;
+  private namesSent = 0;
 
   private db: SupabaseClient;
   private key: Buffer;
@@ -101,6 +103,7 @@ export class Link {
       const history = await this.patch({ status: "connected", pairing_code: null, qr: null, wa_name: sock.user?.name ?? null });
       this.log("connected");
       if (history === "syncing") this.armHistoryTimer();
+      else if (this.namesSent === 0) setTimeout(() => void this.refreshNames(), 20_000); // fill names for chats already in
       this.sendTimer ??= setInterval(() => void this.sendQueued(), 3000);
     }
     if (u.connection === "close") {
@@ -155,6 +158,7 @@ export class Link {
     if (!this.historyOpen) return;
     this.historyOpen = false;
     if (this.historyTimer) clearTimeout(this.historyTimer);
+    await this.pushNames();
     await this.db.rpc("svc_wa_history", { p_link: this.row.id, p_threads: [], p_done: true });
     this.log("history done");
   }
@@ -162,8 +166,9 @@ export class Link {
   private async onHistory(h: any) {
     for (const m of h.lidPnMappings ?? []) rememberLid(this.lid, m.lid, m.pn);
     for (const c of contactNames(h.contacts ?? [], this.lid)) this.names.set(c.phone, c.name);
-    for (const chat of h.chats ?? []) rememberLid(this.lid, chat.id, chat.pnJid ?? chat.phoneNumber);
+    for (const c of chatNames(h.chats ?? [], this.lid)) this.names.set(c.phone, c.name);
     const threads = toThreads(h.messages ?? [], this.lid, this.names);
+    for (const t of threads) if (t.name && !this.names.has(t.wa)) this.names.set(t.wa, t.name);
     if (threads.length) this.armHistoryTimer(); // every wave pushes "done" back by 3 minutes
     for (const b of batches(threads)) {
       const { error } = await this.db.rpc("svc_wa_history", { p_link: this.row.id, p_threads: b, p_done: false });
@@ -318,6 +323,59 @@ export class Link {
     } catch (e) {
       await this.backfillPatch({ status: "failed", error: e instanceof Error ? e.message : String(e) });
     } finally { this.backfilling = false; }
+  }
+
+  /** Send every name collected (phone address book, chat names, WhatsApp names) to fill customers without one. */
+  async pushNames(): Promise<void> {
+    const all = [...this.names].map(([phone, name]) => ({ phone, name }));
+    for (let i = 0; i < all.length; i += 500) {
+      const { data, error } = await this.db.rpc("svc_wa_names", { p_link: this.row.id, p_contacts: all.slice(i, i + 500) });
+      if (error) this.log(`names failed: ${error.message}`); else this.namesSent += Number(data ?? 0);
+    }
+    this.log(`names: ${all.length} known, ${this.namesSent} customers named`);
+  }
+
+  /** Ask WhatsApp to send the phone's saved contacts again (names), then fill blanks. */
+  async refreshNames(): Promise<void> {
+    if (!this.sock) return;
+    try { await this.sock.resyncAppState(["critical_unblock_low", "regular_high", "regular_low", "regular", "critical_block"], true); }
+    catch (e) { this.log(`resync names: ${e instanceof Error ? e.message : e}`); }
+    await new Promise((r) => setTimeout(r, 5000));
+    await this.pushNames();
+  }
+
+  /**
+   * "Save to my phone": save each WhatsApp customer in the phone's own contacts (WhatsApp's
+   * "save to phone" for linked devices), named with the owner's format, so they see the Status.
+   * Paced at about one a second; at most 2,000 a run.
+   */
+  async saveContacts(): Promise<void> {
+    if (this.saving || !this.sock || this.stopped) return;
+    this.saving = true;
+    const patch = async (p: Record<string, unknown>) => { const { error } = await this.db.rpc("svc_wa_save_progress", { p_link: this.row.id, p_patch: p }); if (error) this.log(`save progress: ${error.message}`); };
+    try {
+      await this.refreshNames(); // best names first
+      const { data, error } = await this.db.rpc("svc_wa_save_targets", { p_link: this.row.id });
+      if (error) throw new Error(error.message);
+      const rows = ((data ?? []) as { wa: string; name: string | null; tags: string[]; template: string }[]).slice(0, 2000);
+      await patch({ status: "running", done: 0, total: rows.length });
+      let saved = 0, failed = 0;
+      for (let i = 0; i < rows.length; i++) {
+        if (!this.sock || this.stopped) throw new Error("WhatsApp disconnected — tap Save to my phone again once it's back");
+        const r = rows[i]!;
+        const full = savedName(r.wa, r.name, r.tags ?? [], r.template ?? "{name}");
+        try {
+          await this.sock.addOrEditContact(`${r.wa}@s.whatsapp.net`, { fullName: full, firstName: full.split(" ")[0] ?? full, pnJid: `${r.wa}@s.whatsapp.net`, saveOnPrimaryAddressbook: true });
+          saved++;
+        } catch (e) { failed++; if (failed <= 3) this.log(`save ${r.wa.slice(0, 5)}…: ${e instanceof Error ? e.message : e}`); }
+        if (i % 20 === 19) await patch({ done: i + 1, saved, failed });
+        await new Promise((res) => setTimeout(res, 900 + Math.floor(Math.random() * 400)));
+      }
+      await patch({ status: "done", done: rows.length, saved, failed });
+      this.log(`saved ${saved} contacts to the phone (${failed} failed)`);
+    } catch (e) {
+      await patch({ status: "failed", error: e instanceof Error ? e.message : String(e) });
+    } finally { this.saving = false; }
   }
 
   /** Stop holding the line. logout = also remove the device from the owner's WhatsApp. */
