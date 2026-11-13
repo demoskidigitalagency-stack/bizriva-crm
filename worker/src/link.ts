@@ -29,6 +29,8 @@ export class Link {
   private retries = 0;
   private marketing = { day: "", n: 0 };
   private flush: (() => Promise<void>) | null = null;
+  private auth: Awaited<ReturnType<typeof dbAuthState>> | null = null;
+  private earlyCloses = 0;
 
   private db: SupabaseClient;
   private key: Buffer;
@@ -45,7 +47,9 @@ export class Link {
 
   async start(): Promise<void> {
     if (this.stopped) return;
-    const auth = await dbAuthState(this.db, this.row.id, this.key);
+    // Load the session once; reconnects reuse it (a fresh pairing must not wait on the database).
+    this.auth ??= await dbAuthState(this.db, this.row.id, this.key);
+    const auth = this.auth;
     this.flush = auth.flush;
     this.wasRegistered = !!(auth.state.creds.registered || auth.state.creds.me);
     if (!waVersion) { try { waVersion = (await fetchLatestBaileysVersion()).version; } catch { /* use Baileys' built-in version */ } }
@@ -55,6 +59,7 @@ export class Link {
       markOnlineOnConnect: false,         // the owner's phone keeps getting notifications
       syncFullHistory: true,
       generateHighQualityLinkPreview: false,
+      qrTimeout: 45_000,                  // each QR lives 45 s (about 4–5 minutes in all)
     });
     this.sock = sock;
     sock.ev.on("creds.update", () => void auth.saveCreds());
@@ -85,6 +90,7 @@ export class Link {
         }
       } else {
         await this.patch({ status: "waiting", qr: await QRCode.toDataURL(u.qr, { margin: 1, width: 280 }), pairing_code: null, last_error: null });
+        this.log("QR ready");
       }
     }
     if (u.connection === "open") {
@@ -97,7 +103,10 @@ export class Link {
     }
     if (u.connection === "close") {
       if (this.sendTimer) { clearInterval(this.sendTimer); this.sendTimer = null; }
-      const code = (u.lastDisconnect?.error as any)?.output?.statusCode as number | undefined;
+      const err = u.lastDisconnect?.error as any;
+      const code = err?.output?.statusCode as number | undefined;
+      const why = String(err?.message ?? "closed");
+      this.log(`closed: ${code ?? "?"} ${why}${this.wasRegistered ? "" : " (not linked yet)"}`);
       this.sock = null;
       if (this.stopped) return;
       if (code === DisconnectReason.loggedOut) {
@@ -113,9 +122,21 @@ export class Link {
         this.stopped = true; return;
       }
       if (!this.wasRegistered && code !== DisconnectReason.restartRequired) {
-        await this.patch({ status: "failed", pairing_code: null, qr: null, last_error: "The code expired before it was used. Tap “Link my WhatsApp” to get a new one." });
-        this.stopped = true; return;
+        // All the QR codes / the pairing code ran out without being used.
+        if (/QR refs attempts ended/i.test(why) || (this.row.method === "code" && this.codeAsked && code === DisconnectReason.timedOut)) {
+          await this.patch({ status: "failed", pairing_code: null, qr: null, last_error: "The code expired before it was used. Tap “Link my WhatsApp” to get a new one." });
+          this.stopped = true; return;
+        }
+        // The line dropped while waiting: try again quietly a few times before giving up.
+        if (++this.earlyCloses > 3) {
+          await this.patch({ status: "failed", pairing_code: null, qr: null, last_error: `WhatsApp closed the connection before linking (${code ?? "?"} ${why.slice(0, 80)}). Try again in a minute.` });
+          this.stopped = true; return;
+        }
+        this.codeAsked = false;
+        setTimeout(() => void this.start().catch((e) => this.log(`restart failed: ${e}`)), 2000);
+        return;
       }
+      if (code === DisconnectReason.restartRequired) await this.flush?.().catch(() => {});
       if (this.wasRegistered && code !== DisconnectReason.restartRequired) await this.patch({ status: "reconnecting" });
       const wait = code === DisconnectReason.restartRequired ? 500 : Math.min(60_000, 2000 * 2 ** this.retries++);
       setTimeout(() => void this.start().catch((e) => this.log(`restart failed: ${e}`)), wait);
