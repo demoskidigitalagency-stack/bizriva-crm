@@ -93,6 +93,19 @@ export function mediaPath(workspaceId: string, messageId: string, ext: string): 
   return `${workspaceId}/wa/${messageId}.${ext}`;
 }
 
+/** The Facebook/Instagram ad a customer tapped to start this chat, if WhatsApp says so. */
+export function adOf(message: any): { id: string; headline: string | null; url: string | null } | null {
+  const m = unwrap(message);
+  if (!m) return null;
+  for (const part of Object.values(m) as any[]) {
+    const ad = part?.contextInfo?.externalAdReply;
+    if (!ad || (!ad.sourceId && !ad.sourceUrl)) continue;
+    if (ad.sourceType && String(ad.sourceType).toLowerCase() !== "ad") continue;
+    return { id: String(ad.sourceId ?? ""), headline: ad.title ? String(ad.title).slice(0, 200) : null, url: ad.sourceUrl ? String(ad.sourceUrl).slice(0, 500) : null };
+  }
+  return null;
+}
+
 function at(ts: any): string {
   const n = typeof ts === "object" && ts !== null && "low" in ts ? Number(ts.low) : Number(ts);
   return Number.isFinite(n) && n > 0 ? new Date(n * 1000).toISOString() : new Date().toISOString();

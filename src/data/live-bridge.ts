@@ -46,6 +46,7 @@ export function liveActions(w: LiveWriter, getDb: () => Database, reload: () => 
     trackForm: () => {},
     addContact: (input) => run(w.addContact(input), "Customer saved"),
     updateContactDetails: (id, patch) => run(w.updateContactDetails(id, patch)),
+    setContactPersonal: (id, personal) => run(w.setContactPersonal(id, personal), personal ? "Marked as personal — no assistant replies or marketing" : "Treated as a customer again"),
     createOrder: (input) => run(w.createOrder(input), "Order saved — numbered and given to an agent"),
     editOrder: (id, input) => run(w.editOrder(id, input), "Order updated"),
     cancelOrder: (id, reason) => run(w.cancelOrder(id, reason), "Order cancelled"),

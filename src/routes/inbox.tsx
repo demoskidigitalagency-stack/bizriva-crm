@@ -243,7 +243,7 @@ function Thread({ conversation }: { conversation: Conversation }) {
 function CustomerPanel({ conversation }: { conversation: Conversation }) {
   const db = useDb();
   const ws = useWorkspace();
-  const { updateContactDetails } = useActions();
+  const { updateContactDetails, setContactPersonal } = useActions();
   const [ordering, setOrdering] = useState(false);
   const c = db.contacts.find((x) => x.id === conversation.contactId);
   const found = useMemo(() => extractDetails(conversation), [conversation]);
@@ -281,6 +281,12 @@ function CustomerPanel({ conversation }: { conversation: Conversation }) {
           {lead && <div className="flex justify-between gap-2"><dt className="text-muted-foreground">Lead stage</dt><dd><StatusBadge tone="brand">{LEAD_STAGES.find((s) => s.id === lead.stage)?.label}</StatusBadge></dd></div>}
           {interest && <div className="flex justify-between gap-2"><dt className="text-muted-foreground">Interested in</dt><dd className="text-right">{interest.productName}</dd></div>}
         </dl>
+        <div className="border-t p-3">
+          <Button size="sm" variant={c.tags.includes("Personal") ? "secondary" : "outline"} className="w-full" onClick={() => setContactPersonal(c.id, !c.tags.includes("Personal"))}>
+            {c.tags.includes("Personal") ? "Personal contact — make customer again" : "Not a customer? Mark as personal"}
+          </Button>
+          <p className="mt-1.5 text-xs text-muted-foreground">{c.tags.includes("Personal") ? "The assistant, follow-ups and marketing leave this person alone." : "Family and friends: the assistant, follow-ups and marketing will leave them alone."}</p>
+        </div>
       </Section>
 
       <Section title="Found in this chat" description="Pulled from the customer's messages">

@@ -1,6 +1,6 @@
 // bun test tests/wa_linked.test.ts — WhatsApp linked device (worker/src/parse.ts, worker/src/auth.ts).
 import { describe, expect, test } from "bun:test";
-import { batches, chatPhone, contactNames, mediaOf, mediaPath, pause, phoneOfJid, rememberLid, textOf, toRow, toThreads } from "../worker/src/parse";
+import { adOf, batches, chatPhone, contactNames, mediaOf, mediaPath, pause, phoneOfJid, rememberLid, textOf, toRow, toThreads } from "../worker/src/parse";
 import { keyFrom, open, seal } from "../worker/src/auth";
 
 const CUST = "2348031112222";
@@ -138,5 +138,16 @@ describe("files in a chat", () => {
   test("plain text has no file; an unknown file type is recognised but has no extension", () => {
     expect(mediaOf({ conversation: "hello" })).toBeNull();
     expect(mediaOf({ documentMessage: { mimetype: "application/zip", fileName: "a.zip" } })).toMatchObject({ kind: "document", ext: null });
+  });
+});
+
+describe("which ad started the chat", () => {
+  test("a click-to-WhatsApp message carries the ad", () => {
+    const m = { extendedTextMessage: { text: "What's the price?", contextInfo: { externalAdReply: { sourceType: "ad", sourceId: "1202", title: "6ft game table", sourceUrl: "https://fb.me/abc" } } } };
+    expect(adOf(m)).toEqual({ id: "1202", headline: "6ft game table", url: "https://fb.me/abc" });
+  });
+  test("an ordinary message, or a link preview that isn't an ad, has none", () => {
+    expect(adOf({ conversation: "Hello" })).toBeNull();
+    expect(adOf({ extendedTextMessage: { text: "see", contextInfo: { externalAdReply: { sourceType: "post", sourceId: "9", title: "x" } } } })).toBeNull();
   });
 });

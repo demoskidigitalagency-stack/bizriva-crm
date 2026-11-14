@@ -5,7 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import QRCode from "qrcode";
 import pino from "pino";
 import { dbAuthState } from "./auth.ts";
-import { batches, chatNames, chatPhone, contactNames, MEDIA_MAX_BYTES, mediaOf, mediaPath, pause, rememberLid, savedName, textOf, toRow, toThreads } from "./parse.ts";
+import { adOf, batches, chatNames, chatPhone, contactNames, MEDIA_MAX_BYTES, mediaOf, mediaPath, pause, rememberLid, savedName, textOf, toRow, toThreads } from "./parse.ts";
 
 export interface LinkRow { id: string; workspace_id: string; phone: string; method: "code" | "qr"; status: string; backfill_status?: string | null; save_status?: string | null }
 
@@ -196,7 +196,7 @@ export class Link {
       if (!wa || !msg.key?.id) continue;
       const r = toRow({ ...msg, key: { ...msg.key, remoteJid: `${wa}@s.whatsapp.net` } }, this.lid);
       if (!r) continue;
-      type Saved = { status?: string; message?: string } | null;
+      type Saved = { status?: string; message?: string; contact?: string } | null;
       let saved: Saved;
       if (r.out) {
         if (this.sentIds.has(r.id)) continue; // sent by Bizriva itself
@@ -206,7 +206,12 @@ export class Link {
         const type = Object.keys(msg.message ?? {})[0] ?? "message";
         const { data } = await this.db.rpc("svc_whatsapp_inbound", { p_workspace: this.row.workspace_id, p_wa_id: wa, p_name: msg.pushName ?? null, p_msg_id: r.id, p_body: r.body, p_type: type, p_at: r.at });
         saved = data as Saved;
-        if (saved?.status === "saved") void this.wakeAssistant();
+        if (saved?.status === "saved") {
+          // Came from a click-to-WhatsApp ad: credit the customer to that ad (first touch only).
+          const ad = adOf(msg.message);
+          if (ad && saved.contact) await this.db.rpc("svc_attribute_ad", { p_workspace: this.row.workspace_id, p_contact: saved.contact, p_ad_id: ad.id, p_headline: ad.headline, p_url: ad.url, p_channel: "whatsapp" });
+          void this.wakeAssistant();
+        }
       }
       // Photos, videos, voice notes and documents: keep the file so the chat shows it, not just "[video]".
       if (saved?.status === "saved" && saved.message && mediaOf(msg.message)) this.queueMedia(saved.message, msg);

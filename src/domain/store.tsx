@@ -136,6 +136,8 @@ export interface StoreActions {
   sendBroadcast: (broadcastId: ID) => void;
   addCampaignSpend: (campaignId: ID, amount: number, revenue?: number) => void;
   updateContactDetails: (contactId: ID, patch: Partial<Pick<Contact, "firstName" | "lastName" | "phone" | "city" | "address" | "landmark">>) => void;
+  /** Personal contacts (family, friends) are never answered by the assistant, never get follow-ups or marketing, and aren't leads. */
+  setContactPersonal: (contactId: ID, personal: boolean) => void;
   simulateIncoming: (conversationId: ID, text: string) => void;
   sendProductCard: (conversationId: ID, productId: ID) => void;
   updateWorkspace: (patch: Partial<Pick<Database["workspaces"][number], "name" | "currency">>) => void;
@@ -784,6 +786,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setDb((d) => ({ ...d, campaigns: d.campaigns.map((c) => (c.id === campaignId ? { ...c, spend: c.spend + amount, revenue: c.revenue + revenue } : c)) }));
   }, []);
 
+
+  const setContactPersonal = useCallback((contactId: ID, personal: boolean) => {
+    setDb((d) => {
+      const next: Database = {
+        ...d,
+        contacts: d.contacts.map((c) => (c.id === contactId ? { ...c, tags: personal ? [...new Set([...c.tags, "Personal"])] : c.tags.filter((t) => t !== "Personal") } : c)),
+      };
+      return logActivity(next, contactId, personal ? "Marked as personal" : "No longer personal", "system", personal ? "No assistant replies, follow-ups or marketing" : "Treated as a customer again");
+    });
+  }, []);
 
   const updateContactDetails = useCallback((contactId: ID, patch: Partial<Pick<Contact, "firstName" | "lastName" | "phone" | "city" | "address" | "landmark">>) => {
     setDb((d) => {
@@ -1587,11 +1599,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
         sendReply, markNotificationsRead, setWorkspace: setWorkspaceId, setOrderStatus, recordCodCheck, setDeliveryStatus, markRemitted,
         saveProduct, adjustStock, mergeContacts, startLead, resetPracticeData, saveRecord, removeRecord, updateSettings, updateAgent,
         setIntegration, assignRider, moveStock, recordPayment, logRun, retryRun, sendBroadcast, addCampaignSpend,
-        editOrder, cancelOrder, updateContactDetails, simulateIncoming, sendProductCard, updateWorkspace, submitLeadForm,
+        editOrder, cancelOrder, updateContactDetails, setContactPersonal, simulateIncoming, sendProductCard, updateWorkspace, submitLeadForm,
         submitOrderForm, trackForm, simulateFormTraffic, recordDeposit, requestBalance, issueInvoice, flagComplaint, resolveComplaint,
         toggleSetupStep, importProducts, addPolicyStarters, importChatHistory, saveFacts, removeFact, sendPaymentLink, receiveIntake, connectMeta, disconnectMeta, syncMeta, setCapi, publishAd, setAdStatus, connectPayments, disconnectPayments, updatePayments, requestPayment, simulatePayment, matchPayment, sendOrderMessage,
         assignOrders, runAssignmentNow, logAttempt, setOnDuty, sendToPartner, partnerAction, payCommission, messageContact,
-  }), [editOrder, cancelOrder, addContact, createOrder, setLeadStage, setLeadOutcome, assignOwner, setLifecycle, completeTask, snoozeTask, addTask, addNote, logCall, sendReply, markNotificationsRead, setOrderStatus, recordCodCheck, setDeliveryStatus, markRemitted, saveProduct, adjustStock, mergeContacts, startLead, resetPracticeData, saveRecord, removeRecord, updateSettings, updateAgent, setIntegration, assignRider, moveStock, recordPayment, logRun, retryRun, sendBroadcast, addCampaignSpend, updateContactDetails, simulateIncoming, sendProductCard, updateWorkspace, submitLeadForm, submitOrderForm, trackForm, simulateFormTraffic, recordDeposit, requestBalance, issueInvoice, flagComplaint, resolveComplaint, toggleSetupStep, importProducts, addPolicyStarters, importChatHistory, saveFacts, removeFact, sendPaymentLink, receiveIntake, connectMeta, disconnectMeta, syncMeta, setCapi, publishAd, setAdStatus, connectPayments, disconnectPayments, updatePayments, requestPayment, simulatePayment, matchPayment, sendOrderMessage, assignOrders, runAssignmentNow, logAttempt, setOnDuty, sendToPartner, partnerAction, payCommission, messageContact]);
+  }), [setContactPersonal, editOrder, cancelOrder, addContact, createOrder, setLeadStage, setLeadOutcome, assignOwner, setLifecycle, completeTask, snoozeTask, addTask, addNote, logCall, sendReply, markNotificationsRead, setOrderStatus, recordCodCheck, setDeliveryStatus, markRemitted, saveProduct, adjustStock, mergeContacts, startLead, resetPracticeData, saveRecord, removeRecord, updateSettings, updateAgent, setIntegration, assignRider, moveStock, recordPayment, logRun, retryRun, sendBroadcast, addCampaignSpend, updateContactDetails, simulateIncoming, sendProductCard, updateWorkspace, submitLeadForm, submitOrderForm, trackForm, simulateFormTraffic, recordDeposit, requestBalance, issueInvoice, flagComplaint, resolveComplaint, toggleSetupStep, importProducts, addPolicyStarters, importChatHistory, saveFacts, removeFact, sendPaymentLink, receiveIntake, connectMeta, disconnectMeta, syncMeta, setCapi, publishAd, setAdStatus, connectPayments, disconnectPayments, updatePayments, requestPayment, simulatePayment, matchPayment, sendOrderMessage, assignOrders, runAssignmentNow, logAttempt, setOnDuty, sendToPartner, partnerAction, payCommission, messageContact]);
 
   const liveLayer = useMemo(() => {
     const sb = supabase();
