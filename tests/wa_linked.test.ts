@@ -1,6 +1,6 @@
 // bun test tests/wa_linked.test.ts — WhatsApp linked device (worker/src/parse.ts, worker/src/auth.ts).
 import { describe, expect, test } from "bun:test";
-import { batches, chatPhone, contactNames, pause, phoneOfJid, rememberLid, textOf, toRow, toThreads } from "../worker/src/parse";
+import { batches, chatPhone, contactNames, mediaOf, mediaPath, pause, phoneOfJid, rememberLid, textOf, toRow, toThreads } from "../worker/src/parse";
 import { keyFrom, open, seal } from "../worker/src/auth";
 
 const CUST = "2348031112222";
@@ -121,5 +121,22 @@ describe("names for the phone", () => {
       { id: "120363@g.us", name: "Group" },
       { id: "233500000000@s.whatsapp.net" },
     ], lid)).toEqual([{ phone: "233538699550", name: "David Kumasi" }, { phone: "233571871528", name: "Ama" }]);
+  });
+});
+
+describe("files in a chat", () => {
+  test("a video is recognised with its type, size and storage path", () => {
+    const f = mediaOf({ videoMessage: { mimetype: "video/mp4", fileLength: { low: 2_500_000, high: 0 }, caption: "see it" } });
+    expect(f).toEqual({ kind: "video", mime: "video/mp4", ext: "mp4", name: null, bytes: 2_500_000 });
+    expect(mediaPath("ws-1", "msg-1", f!.ext!)).toBe("ws-1/wa/msg-1.mp4");
+  });
+  test("voice notes, photos inside disappearing messages and documents", () => {
+    expect(mediaOf({ audioMessage: { mimetype: "audio/ogg; codecs=opus", ptt: true, fileLength: 9000 } })).toMatchObject({ kind: "audio", mime: "audio/ogg", ext: "ogg" });
+    expect(mediaOf({ ephemeralMessage: { message: { imageMessage: { mimetype: "image/jpeg" } } } })).toMatchObject({ kind: "image", ext: "jpg", bytes: 0 });
+    expect(mediaOf({ documentMessage: { mimetype: "application/pdf", fileName: "invoice.pdf" } })).toMatchObject({ kind: "document", ext: "pdf", name: "invoice.pdf" });
+  });
+  test("plain text has no file; an unknown file type is recognised but has no extension", () => {
+    expect(mediaOf({ conversation: "hello" })).toBeNull();
+    expect(mediaOf({ documentMessage: { mimetype: "application/zip", fileName: "a.zip" } })).toMatchObject({ kind: "document", ext: null });
   });
 });

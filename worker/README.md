@@ -52,6 +52,8 @@ SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… WA_SESSION_KEY=… npm start
 - Linked → old chats arrive in chunks → `svc_wa_history` (imported history); when WhatsApp
   says it's done (or nothing arrives for 3 minutes) the chats are tagged by product.
 - New messages → `svc_whatsapp_inbound`; replies typed on the phone → `svc_whatsapp_echo`.
+- Photos, videos, voice notes and documents (both directions, up to 16 MB) are downloaded into
+  `chat-media/<workspace>/wa/` and recorded with `svc_wa_media`, so the chat shows the file.
 - Every 3 s: queued replies → `svc_wa_claim` → sent, paced → `svc_whatsapp_result`.
 - Unlink in Bizriva → logs out of WhatsApp and deletes the session.
 - `GET /` is the health check.

@@ -64,6 +64,35 @@ export function textOf(message: any): string | null {
   return null;
 }
 
+const MEDIA_EXT: Record<string, string> = {
+  "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "video/mp4": "mp4", "video/3gpp": "3gp",
+  "audio/ogg": "ogg", "audio/mpeg": "mp3", "audio/mp4": "m4a", "audio/aac": "aac", "audio/amr": "amr", "application/pdf": "pdf", "text/plain": "txt",
+  "application/msword": "doc", "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+  "application/vnd.ms-excel": "xls", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+};
+/** Largest file kept in a chat (the storage bucket's limit). */
+export const MEDIA_MAX_BYTES = 16 * 1024 * 1024;
+
+export interface MediaInfo { kind: "image" | "video" | "audio" | "document" | "sticker"; mime: string; ext: string | null; name: string | null; bytes: number }
+
+/** The photo, video, voice note, document or sticker a message carries, if any. `ext` is null for a file type the chat can't keep. */
+export function mediaOf(message: any): MediaInfo | null {
+  const m = unwrap(message);
+  if (!m) return null;
+  const part = m.imageMessage ?? m.videoMessage ?? m.audioMessage ?? m.documentMessage ?? m.stickerMessage;
+  if (!part) return null;
+  const kind = m.imageMessage ? "image" : m.videoMessage ? "video" : m.audioMessage ? "audio" : m.documentMessage ? "document" : "sticker";
+  const mime = String(part.mimetype ?? "").split(";")[0]!.trim().toLowerCase();
+  const len = part.fileLength;
+  const bytes = typeof len === "object" && len !== null && "low" in len ? Number(len.low) : Number(len ?? 0);
+  return { kind, mime, ext: MEDIA_EXT[mime] ?? null, name: m.documentMessage?.fileName ? String(m.documentMessage.fileName).slice(0, 200) : null, bytes: Number.isFinite(bytes) ? bytes : 0 };
+}
+
+/** Where a linked number's chat file is stored: <workspace>/wa/<message id>.<ext> */
+export function mediaPath(workspaceId: string, messageId: string, ext: string): string {
+  return `${workspaceId}/wa/${messageId}.${ext}`;
+}
+
 function at(ts: any): string {
   const n = typeof ts === "object" && ts !== null && "low" in ts ? Number(ts.low) : Number(ts);
   return Number.isFinite(n) && n > 0 ? new Date(n * 1000).toISOString() : new Date().toISOString();

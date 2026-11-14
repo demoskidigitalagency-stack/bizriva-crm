@@ -1,11 +1,11 @@
 // One business's linked WhatsApp number: pairing, history, live messages, sending.
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import makeWASocket, { Browsers, DisconnectReason, fetchLatestBaileysVersion, type WASocket } from "baileys";
+import makeWASocket, { Browsers, DisconnectReason, downloadMediaMessage, fetchLatestBaileysVersion, type WASocket } from "baileys";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import QRCode from "qrcode";
 import pino from "pino";
 import { dbAuthState } from "./auth.ts";
-import { batches, chatNames, chatPhone, contactNames, pause, rememberLid, savedName, textOf, toRow, toThreads } from "./parse.ts";
+import { batches, chatNames, chatPhone, contactNames, MEDIA_MAX_BYTES, mediaOf, mediaPath, pause, rememberLid, savedName, textOf, toRow, toThreads } from "./parse.ts";
 
 export interface LinkRow { id: string; workspace_id: string; phone: string; method: "code" | "qr"; status: string; backfill_status?: string | null; save_status?: string | null }
 
@@ -34,6 +34,7 @@ export class Link {
   private backfilling = false;
   private saving = false;
   private namesSent = 0;
+  private mediaQueue: Promise<void> = Promise.resolve();
 
   private db: SupabaseClient;
   private key: Buffer;
@@ -195,15 +196,48 @@ export class Link {
       if (!wa || !msg.key?.id) continue;
       const r = toRow({ ...msg, key: { ...msg.key, remoteJid: `${wa}@s.whatsapp.net` } }, this.lid);
       if (!r) continue;
+      type Saved = { status?: string; message?: string } | null;
+      let saved: Saved;
       if (r.out) {
         if (this.sentIds.has(r.id)) continue; // sent by Bizriva itself
-        await this.db.rpc("svc_whatsapp_echo", { p_workspace: this.row.workspace_id, p_wa_id: wa, p_msg_id: r.id, p_body: r.body, p_at: r.at });
+        const { data } = await this.db.rpc("svc_whatsapp_echo", { p_workspace: this.row.workspace_id, p_wa_id: wa, p_msg_id: r.id, p_body: r.body, p_at: r.at });
+        saved = data as Saved;
       } else {
         const type = Object.keys(msg.message ?? {})[0] ?? "message";
         const { data } = await this.db.rpc("svc_whatsapp_inbound", { p_workspace: this.row.workspace_id, p_wa_id: wa, p_name: msg.pushName ?? null, p_msg_id: r.id, p_body: r.body, p_type: type, p_at: r.at });
-        if ((data as any)?.status === "saved") void this.wakeAssistant();
+        saved = data as Saved;
+        if (saved?.status === "saved") void this.wakeAssistant();
       }
+      // Photos, videos, voice notes and documents: keep the file so the chat shows it, not just "[video]".
+      if (saved?.status === "saved" && saved.message && mediaOf(msg.message)) this.queueMedia(saved.message, msg);
     }
+  }
+
+  /** Files are saved one at a time, after the text, so a burst of videos can't hold up new messages. */
+  private queueMedia(messageId: string, msg: any) {
+    this.mediaQueue = this.mediaQueue.then(() => this.saveMedia(messageId, msg)).catch((e) => this.log(`media: ${e}`));
+  }
+
+  private async saveMedia(messageId: string, msg: any) {
+    const f = mediaOf(msg.message);
+    if (!f) return;
+    const mark = (path: string | null, error: string | null) =>
+      this.db.rpc("svc_wa_media", { p_link: this.row.id, p_message: messageId, p_kind: f.kind, p_name: f.name, p_path: path, p_error: error });
+    await mark(null, null); // the chat shows "Saving video…"
+    let path: string | null = null, err: string | null = null;
+    try {
+      if (!f.ext) throw new Error(`This file type (${f.mime || "unknown"}) can't be kept in the chat — open WhatsApp to see it`);
+      if (f.bytes > MEDIA_MAX_BYTES) throw new Error("File is larger than 16 MB — open WhatsApp to see it");
+      const sock = this.sock;
+      if (!sock) throw new Error("WhatsApp was reconnecting — open WhatsApp to see it");
+      const buf = await downloadMediaMessage(msg, "buffer", {}, { logger, reuploadRequest: sock.updateMediaMessage }) as Buffer;
+      if (buf.byteLength > MEDIA_MAX_BYTES) throw new Error("File is larger than 16 MB — open WhatsApp to see it");
+      path = mediaPath(this.row.workspace_id, messageId, f.ext);
+      const up = await this.db.storage.from("chat-media").upload(path, buf, { contentType: f.mime, upsert: true });
+      if (up.error) throw new Error(up.error.message);
+    } catch (e) { err = (e instanceof Error ? e.message : String(e)).slice(0, 300); path = null; }
+    const { error } = await mark(path, err);
+    if (error) this.log(`media save failed: ${error.message}`);
   }
 
   private async wakeAssistant() {
