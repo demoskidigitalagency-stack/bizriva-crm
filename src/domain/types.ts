@@ -406,6 +406,9 @@ export interface Product {
   careGuide?: string;
   /** Other words and prices customers use for it in chats ("4-in-1", "6,900") — used to tag WhatsApp chats. */
   aliases?: string[];
+  /** Photo (https), e.g. brought across from Shopify or WooCommerce. */
+  imageUrl?: string;
+  sku?: string;
   /** Days a customer usually takes to finish it — drives re-order reminders. */
   reorderDays?: number;
   /** Options (size, colour…) with their own price and stock. When set, the customer picks one. */

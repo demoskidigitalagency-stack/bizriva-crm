@@ -8,7 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EmptyState, KpiCard, Section, StatusBadge } from "@/components/app/primitives";
-import { useActions, useDb, useWorkspace } from "@/domain/store";
+import { useActions, useDb, useLive, useWorkspace } from "@/domain/store";
+import { supabase } from "@/lib/supabase";
 import type { Product } from "@/domain/types";
 import { CARE_STARTERS } from "@/domain/receipt";
 import { formatCurrency, formatPercent } from "@/lib/format";
@@ -136,7 +137,20 @@ const SAMPLE_CSV = "name,category,price,cost,stock,description\nBody Wave 22\",H
 
 function ImportProducts({ onClose }: { onClose: () => void }) {
   const { importProducts } = useActions();
+  const live = useLive();
   const [text, setText] = useState("");
+  const [shop, setShop] = useState({ url: "", key: "", secret: "", busy: false, error: "", from: "" });
+  const readShop = async () => {
+    const sb = supabase();
+    if (!live.on || !sb) { setShop((s) => ({ ...s, error: "Importing from a shop works once your business is live." })); return; }
+    setShop((s) => ({ ...s, busy: true, error: "" }));
+    const { data, error } = await sb.functions.invoke("catalog-import", { body: { url: shop.url, ...(shop.key ? { key: shop.key, secret: shop.secret } : {}) } });
+    let msg = error ? "Couldn't read that shop" : "";
+    if (error && "context" in error) { try { msg = (await (error as { context: Response }).context.json()).error ?? msg; } catch { /* keep */ } }
+    const items = ((data as { items?: { name: string; description: string; price: number; category: string; image: string | null; sku: string | null; stock: number | null }[] } | null)?.items ?? []);
+    setShop((s) => ({ ...s, busy: false, error: msg, from: (data as { platform?: string } | null)?.platform ?? "" }));
+    if (items.length) setResult({ ok: items.map((i) => ({ name: i.name, category: i.category, price: i.price, cost: 0, stock: Math.max(0, i.stock ?? 0), reorderLevel: 5, description: i.description, active: true, ...(i.image?.startsWith("https://") ? { imageUrl: i.image } : {}), ...(i.sku ? { sku: i.sku } : {}) })), bad: 0 });
+  };
   const [result, setResult] = useState<{ ok: Omit<Product, "id">[]; bad: number } | null>(null);
   const [done, setDone] = useState(0);
   const parse = (raw: string) => {
@@ -158,11 +172,25 @@ function ImportProducts({ onClose }: { onClose: () => void }) {
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-lg">
-        <DialogHeader><DialogTitle>Import products from CSV</DialogTitle><DialogDescription>Columns: name, category, price, cost, stock, description. Name and price are required. Export a CSV from Excel, Google Sheets, Shopify or WooCommerce.</DialogDescription></DialogHeader>
+        <DialogHeader><DialogTitle>Import products</DialogTitle><DialogDescription>Columns: name, category, price, cost, stock, description. Name and price are required. Export a CSV from Excel, Google Sheets, Shopify or WooCommerce.</DialogDescription></DialogHeader>
         {done ? (
           <p className="text-sm text-success" role="status">{done} product{done === 1 ? "" : "s"} added to the catalogue.</p>
         ) : (
           <div className="space-y-3 text-sm">
+            <div className="space-y-2 rounded-md border p-3">
+              <p className="font-medium">From your Shopify or WooCommerce shop</p>
+              <Input aria-label="Shop web address" placeholder="myshop.com or myshop.myshopify.com" value={shop.url} onChange={(e) => setShop((s) => ({ ...s, url: e.target.value }))} />
+              <details className="text-xs text-muted-foreground"><summary className="cursor-pointer">Private shop? Add a key (not stored)</summary>
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  <Input aria-label="API key" placeholder="Shopify Admin token or Woo consumer key" value={shop.key} onChange={(e) => setShop((s) => ({ ...s, key: e.target.value }))} />
+                  <Input aria-label="API secret" type="password" placeholder="Woo consumer secret" value={shop.secret} onChange={(e) => setShop((s) => ({ ...s, secret: e.target.value }))} />
+                </div>
+              </details>
+              <Button size="sm" variant="outline" disabled={shop.busy || shop.url.trim().length < 4} onClick={() => void readShop()}>{shop.busy ? "Reading the shop…" : "Read products"}</Button>
+              {shop.error && <p role="alert" className="text-xs text-destructive">{shop.error}</p>}
+              {shop.from && result?.ok.length ? <p className="text-xs text-muted-foreground">Found on {shop.from === "shopify" ? "Shopify" : "WooCommerce"}, with photos where the shop has them.</p> : null}
+            </div>
+            <p className="text-xs text-muted-foreground">…or a CSV file:</p>
             <Input type="file" accept=".csv,text/csv" aria-label="CSV file" onChange={async (e) => { const f = e.target.files?.[0]; if (f) { const t = await f.text(); setText(t); parse(t); } }} />
             <Textarea rows={5} aria-label="CSV text" placeholder="…or paste CSV here" value={text} onChange={(e) => { setText(e.target.value); parse(e.target.value); }} />
             <Button size="sm" variant="ghost" className="px-0" onClick={() => { setText(SAMPLE_CSV); parse(SAMPLE_CSV); }}>Use a sample</Button>
@@ -234,7 +262,7 @@ function Products() {
                   const margin = p.price ? ((p.price - p.cost) / p.price) * 100 : 0;
                   return (
                     <tr key={p.id} className="hover:bg-muted/40">
-                      <td className="px-3 py-2"><span className="block font-medium">{p.name} {p.active === false && <StatusBadge>Hidden</StatusBadge>}</span><span className="block text-xs text-muted-foreground">{p.category}{p.deposit ? ` · deposit ${money(p.deposit)}` : ""}</span></td>
+                      <td className="px-3 py-2"><div className="flex items-center gap-2">{p.imageUrl && <img src={p.imageUrl} alt="" loading="lazy" referrerPolicy="no-referrer" className="size-9 shrink-0 rounded object-cover" />}<div><span className="block font-medium">{p.name} {p.active === false && <StatusBadge>Hidden</StatusBadge>}</span><span className="block text-xs text-muted-foreground">{p.category}{p.deposit ? ` · deposit ${money(p.deposit)}` : ""}</span></div></div></td>
                       <td className="num px-3 py-2 text-right">{money(p.price)}</td>
                       <td className="num px-3 py-2 text-right text-muted-foreground">{money(p.cost)}</td>
                       <td className="num px-3 py-2 text-right">{formatPercent(margin)}</td>
