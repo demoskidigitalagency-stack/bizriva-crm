@@ -140,6 +140,7 @@ export const PHASES: StatusPhase[] = [
       { id: "p6-status", label: "Status posts: text, photo, video, now or scheduled, repeat; views and viewers by name", weight: 3, done: true, doneOn: "2026-11-15", note: "Live on the WhatsApp Growth page" },
       { id: "p6-groups", label: "Post to many groups at once, now or later; group collections", weight: 2, done: true, doneOn: "2026-11-15", note: "Live on the WhatsApp Growth page" },
       { id: "p6-broadcast", label: "Message customers who wrote first, by tag, paced, with STOP", weight: 2, done: true, doneOn: "2026-11-15", note: "Live on the WhatsApp Growth page" },
+      { id: "p6-followup-tags", label: "Follow-up stage and source tags kept up to date on every message", weight: 2, done: true, doneOn: "2026-11-15", note: "Sent details · Replied after price · Got price, went quiet · No price sent yet; Facebook ad / likely / unknown. Personal contacts and customers with an order are left alone" },
       { id: "p6-summaries", label: "Chat summaries, location and next step written automatically for every chat", weight: 2, done: false, note: "Done once by hand for Dxmart's chats (14 Nov); automatic for new chats once the AI key is added" },
       { id: "p6-old-media", label: "Recover photos and videos from old imported chats", weight: 1, done: false, note: "Not started — WhatsApp may resend recent ones from the phone" },
       { id: "p6-always-on", label: "WhatsApp server always on (paid host)", weight: 1, done: false, note: "Runs on Render's free plan, which can sleep; needs a paid plan" },

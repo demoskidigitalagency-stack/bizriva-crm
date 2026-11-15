@@ -82,7 +82,7 @@ Modules: 36 of 36 practice ready · 0 partly working · 0 planned.
 | Phase 3 — Sales and commerce | 22% | 9/9 | 100% |
 | Phase 4 — More channels | 11% | 5/5 | 100% |
 | Phase 5 — Intelligence and monetisation | 15% | 7/7 | 100% |
-| Phase 6 — WhatsApp Growth (linked number) | 15% | 12/15 | 85% |
+| Phase 6 — WhatsApp Growth (linked number) | 15% | 13/16 | 86% |
 
 ### Phase 1 — Core communication — 91%
 
@@ -149,7 +149,7 @@ _Know which ad made the money; charge for the product._
 - [x] Super Admin console
 - [x] All 15 acceptance tests pass end to end — On the live database with Meta and Claude simulated (supabase/tests/acceptance.sql)
 
-### Phase 6 — WhatsApp Growth (linked number) — 85%
+### Phase 6 — WhatsApp Growth (linked number) — 86%
 
 _The WhatsApp the business already uses works inside Bizriva: every chat saved, segmented and followed up; Status and groups run from here._
 
@@ -165,6 +165,7 @@ _The WhatsApp the business already uses works inside Bizriva: every chat saved, 
 - [x] Status posts: text, photo, video, now or scheduled, repeat; views and viewers by name _(2026-11-15)_ — Live on the WhatsApp Growth page
 - [x] Post to many groups at once, now or later; group collections _(2026-11-15)_ — Live on the WhatsApp Growth page
 - [x] Message customers who wrote first, by tag, paced, with STOP _(2026-11-15)_ — Live on the WhatsApp Growth page
+- [x] Follow-up stage and source tags kept up to date on every message _(2026-11-15)_ — Sent details · Replied after price · Got price, went quiet · No price sent yet; Facebook ad / likely / unknown. Personal contacts and customers with an order are left alone
 - [ ] Chat summaries, location and next step written automatically for every chat — Done once by hand for Dxmart's chats (14 Nov); automatic for new chats once the AI key is added
 - [ ] Recover photos and videos from old imported chats — Not started — WhatsApp may resend recent ones from the phone
 - [ ] WhatsApp server always on (paid host) — Runs on Render's free plan, which can sleep; needs a paid plan
