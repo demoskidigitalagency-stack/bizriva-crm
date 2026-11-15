@@ -104,6 +104,7 @@ function Builder({ form }: { form: OrderForm }) {
 
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="flex items-center gap-3"><Switch checked={d.payOnDelivery} onCheckedChange={(v) => set({ payOnDelivery: v })} aria-label="Pay on delivery" /> Pay on delivery</label>
+        <label className="flex items-center gap-3"><Switch checked={!!d.showRecent} onCheckedChange={(v) => set({ showRecent: v })} aria-label="Recent order pop-ups" /> Recent order pop-ups <span className="text-xs text-muted-foreground">(“Someone in Kumasi ordered … 2 h ago” — real orders from the last 14 days, town only)</span></label>
         <label className="flex items-center gap-3"><Switch checked={d.active} onCheckedChange={(v) => set({ active: v })} aria-label="Form accepting orders" /> Accepting orders</label>
         <label className="flex items-center gap-3"><Switch checked={d.pixels.meta} onCheckedChange={(v) => set({ pixels: { ...d.pixels, meta: v } })} aria-label="Meta purchase event" /> Send purchase event to Meta</label>
         <label className="flex items-center gap-3"><Switch checked={d.pixels.tiktok} onCheckedChange={(v) => set({ pixels: { ...d.pixels, tiktok: v } })} aria-label="TikTok purchase event" /> Send purchase event to TikTok</label>

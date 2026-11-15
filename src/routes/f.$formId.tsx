@@ -11,6 +11,31 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+function ago(m: number): string {
+  if (m < 60) return `${m} min ago`;
+  if (m < 60 * 24) return `${Math.round(m / 60)} h ago`;
+  const d = Math.round(m / 1440);
+  return d === 1 ? "yesterday" : `${d} days ago`;
+}
+
+/** "Someone in Kumasi ordered … 2 h ago" — only real orders from the server, never made up. */
+function RecentOrders({ list }: { list: NonNullable<FormData["recent"]> }) {
+  const [i, setI] = useState(-1);
+  useEffect(() => {
+    if (!list.length) return;
+    const first = setTimeout(() => setI(0), 6000);
+    const t = setInterval(() => setI((x) => (x + 1) % (list.length * 2)), 7000); // shown, then hidden, in turn
+    return () => { clearTimeout(first); clearInterval(t); };
+  }, [list.length]);
+  const r = i >= 0 && i % 2 === 0 ? list[i / 2] : null;
+  if (!r) return null;
+  return (
+    <div role="status" className="fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-sm rounded-lg border bg-background px-3 py-2 text-sm shadow-lg">
+      Someone{r.town ? ` in ${r.town}` : ""} ordered{r.product ? ` the ${r.product}` : ""} · <span className="text-muted-foreground">{ago(r.minutes)}</span>
+    </div>
+  );
+}
+
 export const Route = createFileRoute("/f/$formId")({
   head: () => ({ meta: [{ title: "Order · Bizriva" }, { name: "robots", content: "noindex" }] }),
   component: PublicForm,
@@ -21,6 +46,7 @@ const FN = `${import.meta.env.VITE_SUPABASE_URL ?? "https://xjhzkciowmklxrtwsikm
 interface FormData {
   headline: string; banner?: string | null; product: string; description?: string | null; business: string; currency: string;
   packages: { id: string; label: string; qty: number; price: number; gift?: string }[]; fields: string[]; pay_on_delivery: boolean; thank_you: string;
+  recent?: { town: string | null; product: string | null; minutes: number }[];
 }
 
 function visitorId(): string {
@@ -73,6 +99,7 @@ function PublicForm() {
   const ready = v.name.trim() && v.phone.replace(/\D/g, "").length >= 10 && (!need("address") || v.address.trim()) && pkg;
   return (
     <main className="mx-auto max-w-md space-y-5 px-4 py-8">
+      {form.recent && form.recent.length > 0 && <RecentOrders list={form.recent} />}
       <header className="space-y-1">
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{form.business}</p>
         <h1 className="text-2xl font-bold">{form.headline}</h1>

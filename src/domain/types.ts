@@ -763,6 +763,8 @@ export interface OrderForm {
   packages: OrderFormPackage[];
   fields: OrderFormField[];
   payOnDelivery: boolean;
+  /** Show "Someone in Kumasi just ordered…" notices on the form — only ever from real orders, town only, no names. */
+  showRecent?: boolean;
   /** One purchase event per order to the ad platforms (sent by the backend). */
   pixels: { meta: boolean; tiktok: boolean };
   thankYou: string;
