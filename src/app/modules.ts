@@ -10,6 +10,7 @@
  */
 import type { LucideIcon } from "lucide-react";
 import {
+  Scissors,
   BarChart3, BookOpen, Boxes, Bot, CalendarCheck, CreditCard, FileText, HelpCircle, Images, LayoutDashboard,
   Megaphone, MessageSquare, Package, Plug, Send, Settings, ShieldCheck, ShoppingBag, Store, Truck, Users,
   UsersRound, Wallet, Workflow, History, ListChecks, Bike, Building2, ClipboardList, CalendarDays, Telescope, Sunrise, PhoneCall, Smartphone, Activity,
@@ -24,7 +25,7 @@ export type BuildState =
 
 export type Phase = "Foundation" | "MVP" | "Later";
 
-export type Source = "Sandala" | "Kobolink" | "Bizriva" | "Prompt" | "Review 2026-11-04" | "Review 2026-11-05" | "Review 2026-11-06" | "Review 2026-11-13";
+export type Source = "Sandala" | "Kobolink" | "Bizriva" | "Prompt" | "Review 2026-11-04" | "Review 2026-11-05" | "Review 2026-11-06" | "Review 2026-11-13" | "Review 2026-11-15";
 
 export interface ModuleDef {
   id: string;
@@ -39,6 +40,8 @@ export interface ModuleDef {
   summary: string;
   /** Agreement status from the crosswalk discussion. */
   decision: "Agreed" | "Agreed";
+  /** Only shown when this industry pack is switched on. */
+  pack?: string;
 }
 
 export const GROUPS = [
@@ -124,6 +127,9 @@ export const MODULES: ModuleDef[] = [
   { id: "ads", label: "Ads and Attribution", path: "/ads", icon: Megaphone, group: "Growth", phase: "Later", state: "practice", sources: ["Kobolink", "Prompt"], decision: "Agreed",
     submenus: ["Connect Meta Ads (Facebook login, ad account)", "Sync campaigns and daily spend", "Create an ad: product, picture, words in English or Pidgin, WhatsApp or order form, audience, budget, previews", "Meta policy pre-check", "Created paused; start and pause from Bizriva", "Scale or fix advice from delivered sales", "Send delivered sales to Meta (Conversions API)", "Campaigns with return on delivered sales", "Lead sources"], summary: "Trace revenue back to the ad that started the chat." },
 
+  { id: "tailor", label: "Tailoring", path: "/tailor", icon: Scissors, group: "Commerce", phase: "MVP", state: "live", sources: ["Review 2026-11-15"], decision: "Agreed", pack: "tailor",
+    submenus: ["Jobs board: booked → cutting → sewing → fitting → finishing → ready → delivered", "Measurements per client, several sets each", "Fabric stock in yards, taken off when cutting starts", "Group orders (aso-ebi, weddings): one job per member"],
+    summary: "The tailor and fashion pack. Switch it on in Settings → Industry packs." },
   { id: "whatsapp", label: "WhatsApp Growth", path: "/whatsapp", icon: Smartphone, group: "Growth", phase: "MVP", state: "live", sources: ["Review 2026-11-13"], decision: "Agreed",
     submenus: ["Link your WhatsApp with a pairing code or QR (no Meta approval needed)", "Old chats brought in from the phone", "Every number saved as a contact and lead", "Tag chats by the product they asked about", "Download all contacts (.vcf) for your phone or Google Contacts", "Replies and broadcasts sent from your own number, paced", "Cloud Status, group posting and multi-number (next)"],
     summary: "Connect the WhatsApp you already use and turn every past and new chat into a saved lead. Needs Bizriva's WhatsApp server switched on." },
@@ -219,7 +225,6 @@ export const FUTURE: FutureIdea[] = [
   { id: "fx-escrow", bucket: "Parked for later", title: "Buyer protection (escrow)", from: "WaContacts", goesInto: "Payments", needs: "A licensed payments partner", summary: "Hold the buyer's payment until delivery is confirmed, with automatic release timers." },
   { id: "fx-marketplace", bucket: "Parked for later", title: "Public marketplace and seller directory", from: "WaContacts, StitchBook", goesInto: "Store", needs: "A decision to run a marketplace", summary: "Browse sellers by category and state, with SEO pages." },
   { id: "fx-digital", bucket: "Parked for later", title: "Digital downloads", from: "WaContacts", goesInto: "Products, Store", needs: "Payments and file storage", summary: "Sell ebooks and courses with automatic delivery after payment." },
-  { id: "fx-tailor-pack", bucket: "Parked for later", title: "Tailor and fashion industry pack", from: "StitchBook", goesInto: "CRM, Orders, Inventory", needs: "Core Bizriva live first", summary: "Measurements per client, garment stages from cutting to delivery, fabric stock and group orders, switched on per business." },
   { id: "fx-banking", bucket: "Parked for later", title: "Transfers and bill payments", from: "Xara", goesInto: "Payments", needs: "A financial licence or licensed partner", summary: "Money movement inside the chat. Out of scope unless a partner provides it." },
   { id: "fx-reviews", bucket: "Parked for later", title: "Google reviews on the store", from: "WaContacts", goesInto: "Store", needs: "Google Business Profile access", summary: "Show real reviews on the store page." },
 ];

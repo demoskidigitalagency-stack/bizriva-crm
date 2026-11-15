@@ -63,7 +63,7 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
         {GROUPS.map((group) => (
           <div key={group} className="mb-3">
             <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/50">{group}</p>
-            {MODULES.filter((m) => m.group === group).map((item) => {
+            {MODULES.filter((m) => m.group === group && (!m.pack || (db.settings.packs ?? []).includes(m.pack))).map((item) => {
               const active = item.path === "/" ? path === "/" : path === item.path || path.startsWith(`${item.path}/`);
               const planned = item.state === "planned";
               return (

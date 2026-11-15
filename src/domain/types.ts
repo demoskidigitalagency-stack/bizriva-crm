@@ -688,6 +688,8 @@ export interface AgentConfig {
 
 export interface BusinessSettings {
   businessName: string;
+  /** Industry packs switched on (Settings → Industry packs), e.g. "tailor". */
+  packs?: string[];
   /** Website chat bubble (real data): greeting, colour, ask for a phone number. */
   webchat?: { greeting?: string; color?: string; askPhone?: boolean };
   /** Website chat public key (real data); missing = turned off. */

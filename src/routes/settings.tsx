@@ -130,7 +130,7 @@ function BusinessForm() {
     if (!time.test(d.quietStart) || !time.test(d.quietEnd)) return setError("Quiet hours use 24-hour time, like 21:00.");
     const optOutKeywords = kw.split(",").map((x) => x.trim().toUpperCase()).filter(Boolean);
     if (!optOutKeywords.length) return setError("Keep at least one opt-out keyword, such as STOP.");
-    updateSettings({ ...d, businessName: d.businessName.trim(), optOutKeywords });
+    updateSettings({ ...d, packs: db.settings.packs ?? [], businessName: d.businessName.trim(), optOutKeywords });
     if (currency !== ws.currency) updateWorkspace({ currency });
     setError("");
     setSaved(true);
@@ -158,6 +158,12 @@ function BusinessForm() {
           <div className="space-y-1.5"><Label htmlFor="df">Delivery fee</Label><Input id="df" inputMode="numeric" value={d.deliveryFee} onChange={num("deliveryFee")} /></div>
           <div className="space-y-1.5"><Label htmlFor="fo">Free delivery on orders over</Label><Input id="fo" inputMode="numeric" value={d.freeDeliveryOver} onChange={num("freeDeliveryOver")} /></div>
           <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="pl">Payment link ({"{{order}}"} is replaced by the order number)</Label><Input id="pl" value={d.paymentLinkTemplate} onChange={(e) => setD({ ...d, paymentLinkTemplate: e.target.value })} /></div>
+        </div>
+      </Section>
+      <Section title="Industry packs" description="Extra pages for your kind of business. Switched on here, they appear in the menu.">
+        <div className="p-4 text-sm">
+          <label className="flex items-start gap-3"><Switch checked={(db.settings.packs ?? []).includes("tailor")} onCheckedChange={(v) => updateSettings({ packs: v ? [...new Set([...(db.settings.packs ?? []), "tailor"])] : (db.settings.packs ?? []).filter((p) => p !== "tailor") })} aria-label="Tailor and fashion pack" />
+            <span><span className="font-medium">Tailor and fashion</span><span className="block text-xs text-muted-foreground">Client measurements, garment jobs from cutting to delivery, fabric stock in yards and group orders (aso-ebi, weddings).</span></span></label>
         </div>
       </Section>
       <Section title="Customer notifications" description="Which channel each update goes out on">

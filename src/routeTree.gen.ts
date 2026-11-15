@@ -46,6 +46,7 @@ import { Route as RidersRouteImport } from './routes/riders'
 import { Route as RoadmapRouteImport } from './routes/roadmap'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as StoreRouteImport } from './routes/store'
+import { Route as TailorRouteImport } from './routes/tailor'
 import { Route as TeamRouteImport } from './routes/team'
 import { Route as TemplatesRouteImport } from './routes/templates'
 import { Route as TermsRouteImport } from './routes/terms'
@@ -257,6 +258,11 @@ const StoreRoute = StoreRouteImport.update({
   path: '/store',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TailorRoute = TailorRouteImport.update({
+  id: '/tailor',
+  path: '/tailor',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TeamRoute = TeamRouteImport.update({
   id: '/team',
   path: '/team',
@@ -421,6 +427,7 @@ export interface FileRoutesByFullPath {
   '/roadmap': typeof RoadmapRoute
   '/settings': typeof SettingsRoute
   '/store': typeof StoreRoute
+  '/tailor': typeof TailorRoute
   '/team': typeof TeamRoute
   '/templates': typeof TemplatesRoute
   '/terms': typeof TermsRoute
@@ -484,6 +491,7 @@ export interface FileRoutesByTo {
   '/roadmap': typeof RoadmapRoute
   '/settings': typeof SettingsRoute
   '/store': typeof StoreRoute
+  '/tailor': typeof TailorRoute
   '/team': typeof TeamRoute
   '/templates': typeof TemplatesRoute
   '/terms': typeof TermsRoute
@@ -549,6 +557,7 @@ export interface FileRoutesById {
   '/roadmap': typeof RoadmapRoute
   '/settings': typeof SettingsRoute
   '/store': typeof StoreRoute
+  '/tailor': typeof TailorRoute
   '/team': typeof TeamRoute
   '/templates': typeof TemplatesRoute
   '/terms': typeof TermsRoute
@@ -615,6 +624,7 @@ export interface FileRouteTypes {
     | '/roadmap'
     | '/settings'
     | '/store'
+    | '/tailor'
     | '/team'
     | '/templates'
     | '/terms'
@@ -678,6 +688,7 @@ export interface FileRouteTypes {
     | '/roadmap'
     | '/settings'
     | '/store'
+    | '/tailor'
     | '/team'
     | '/templates'
     | '/terms'
@@ -742,6 +753,7 @@ export interface FileRouteTypes {
     | '/roadmap'
     | '/settings'
     | '/store'
+    | '/tailor'
     | '/team'
     | '/templates'
     | '/terms'
@@ -807,6 +819,7 @@ export interface RootRouteChildren {
   RoadmapRoute: typeof RoadmapRoute
   SettingsRoute: typeof SettingsRoute
   StoreRoute: typeof StoreRoute
+  TailorRoute: typeof TailorRoute
   TeamRoute: typeof TeamRoute
   TemplatesRoute: typeof TemplatesRoute
   TermsRoute: typeof TermsRoute
@@ -1083,6 +1096,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StoreRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/tailor': {
+      id: '/tailor'
+      path: '/tailor'
+      fullPath: '/tailor'
+      preLoaderRoute: typeof TailorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/team': {
       id: '/team'
       path: '/team'
@@ -1331,6 +1351,7 @@ const rootRouteChildren: RootRouteChildren = {
   RoadmapRoute: RoadmapRoute,
   SettingsRoute: SettingsRoute,
   StoreRoute: StoreRoute,
+  TailorRoute: TailorRoute,
   TeamRoute: TeamRoute,
   TemplatesRoute: TemplatesRoute,
   TermsRoute: TermsRoute,
@@ -1348,13 +1369,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
