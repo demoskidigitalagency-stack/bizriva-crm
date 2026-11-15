@@ -775,7 +775,7 @@ export function codRisk(db: Database, order: OrderSummary): CodRisk {
 
 /* ------------------------------------------------------- inbox views */
 
-export type InboxView = "needs_reply" | "all" | "unread" | "new" | "unverified" | "dispatched" | "cancelled" | "complaints" | "mine";
+export type InboxView = "needs_reply" | "all" | "unread" | "new" | "unverified" | "dispatched" | "cancelled" | "complaints" | "mine" | "personal";
 
 export const INBOX_VIEWS: { id: InboxView; label: string }[] = [
   { id: "needs_reply", label: "Needs reply" },
@@ -787,6 +787,7 @@ export const INBOX_VIEWS: { id: InboxView; label: string }[] = [
   { id: "cancelled", label: "Cancelled or out of town" },
   { id: "complaints", label: "Complaints" },
   { id: "mine", label: "Assigned to me" },
+  { id: "personal", label: "Personal" },
 ];
 
 /**
@@ -795,6 +796,10 @@ export const INBOX_VIEWS: { id: InboxView; label: string }[] = [
  */
 export function inboxMatches(db: Database, c: Database["conversations"][number], view: InboxView, me: ID): boolean {
   const orders = () => db.orders.filter((o) => o.contactId === c.contactId);
+  // Family and friends on the owner's own WhatsApp only show under "Personal".
+  const personal = !!db.contacts.find((x) => x.id === c.contactId)?.tags.includes("Personal");
+  if (view === "personal") return personal;
+  if (personal) return false;
   switch (view) {
     case "needs_reply": return c.awaitingReply;
     case "unread": return c.unread;
