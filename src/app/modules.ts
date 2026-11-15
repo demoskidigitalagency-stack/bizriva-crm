@@ -222,8 +222,6 @@ export const FUTURE: FutureIdea[] = [
   { id: "fx-fb-leads", bucket: "Needs the backend", title: "Facebook and Instagram Lead Ads", from: "Review 2026-11-05", goesInto: "Website & Forms, Ads", needs: "Meta app review (leads_retrieval)", summary: "Instant-form leads arrive directly with their campaign, no Zapier needed." },
   // Parked for later
   { id: "fx-escrow", bucket: "Parked for later", title: "Buyer protection (escrow)", from: "WaContacts", goesInto: "Payments", needs: "A licensed payments partner", summary: "Hold the buyer's payment until delivery is confirmed, with automatic release timers." },
-  { id: "fx-marketplace", bucket: "Parked for later", title: "Public marketplace and seller directory", from: "WaContacts, StitchBook", goesInto: "Store", needs: "A decision to run a marketplace", summary: "Browse sellers by category and state, with SEO pages." },
-  { id: "fx-digital", bucket: "Parked for later", title: "Digital downloads", from: "WaContacts", goesInto: "Products, Store", needs: "Payments and file storage", summary: "Sell ebooks and courses with automatic delivery after payment." },
+  
   { id: "fx-banking", bucket: "Parked for later", title: "Transfers and bill payments", from: "Xara", goesInto: "Payments", needs: "A financial licence or licensed partner", summary: "Money movement inside the chat. Out of scope unless a partner provides it." },
-  { id: "fx-reviews", bucket: "Parked for later", title: "Google reviews on the store", from: "WaContacts", goesInto: "Store", needs: "Google Business Profile access", summary: "Show real reviews on the store page." },
 ];

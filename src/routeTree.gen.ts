@@ -28,6 +28,7 @@ import { Route as ConnectionsRouteImport } from './routes/connections'
 import { Route as CrmRouteImport } from './routes/crm'
 import { Route as DataDeletionRouteImport } from './routes/data-deletion'
 import { Route as DeliveryRouteImport } from './routes/delivery'
+import { Route as DirectoryRouteImport } from './routes/directory'
 import { Route as FollowUpsRouteImport } from './routes/follow-ups'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as InboxRouteImport } from './routes/inbox'
@@ -70,6 +71,7 @@ import { Route as DTokenRouteImport } from './routes/d.$token'
 import { Route as FFormIdRouteImport } from './routes/f.$formId'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as MetaCallbackRouteImport } from './routes/meta.callback'
+import { Route as SSlugRouteImport } from './routes/s.$slug'
 import { Route as CrmContactsIndexRouteImport } from './routes/crm/contacts/index'
 import { Route as CrmContactsContactIdRouteImport } from './routes/crm/contacts/$contactId'
 
@@ -166,6 +168,11 @@ const DataDeletionRoute = DataDeletionRouteImport.update({
 const DeliveryRoute = DeliveryRouteImport.update({
   id: '/delivery',
   path: '/delivery',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DirectoryRoute = DirectoryRouteImport.update({
+  id: '/directory',
+  path: '/directory',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FollowUpsRoute = FollowUpsRouteImport.update({
@@ -378,6 +385,11 @@ const MetaCallbackRoute = MetaCallbackRouteImport.update({
   path: '/meta/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SSlugRoute = SSlugRouteImport.update({
+  id: '/s/$slug',
+  path: '/s/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CrmContactsIndexRoute = CrmContactsIndexRouteImport.update({
   id: '/contacts/',
   path: '/contacts/',
@@ -409,6 +421,7 @@ export interface FileRoutesByFullPath {
   '/crm': typeof CrmRouteWithChildren
   '/data-deletion': typeof DataDeletionRoute
   '/delivery': typeof DeliveryRoute
+  '/directory': typeof DirectoryRoute
   '/follow-ups': typeof FollowUpsRoute
   '/help': typeof HelpRoute
   '/inbox': typeof InboxRoute
@@ -450,6 +463,7 @@ export interface FileRoutesByFullPath {
   '/f/$formId': typeof FFormIdRoute
   '/invite/$token': typeof InviteTokenRoute
   '/meta/callback': typeof MetaCallbackRoute
+  '/s/$slug': typeof SSlugRoute
   '/crm/': typeof CrmIndexRoute
   '/crm/contacts/$contactId': typeof CrmContactsContactIdRoute
   '/crm/contacts/': typeof CrmContactsIndexRoute
@@ -473,6 +487,7 @@ export interface FileRoutesByTo {
   '/connections': typeof ConnectionsRoute
   '/data-deletion': typeof DataDeletionRoute
   '/delivery': typeof DeliveryRoute
+  '/directory': typeof DirectoryRoute
   '/follow-ups': typeof FollowUpsRoute
   '/help': typeof HelpRoute
   '/inbox': typeof InboxRoute
@@ -514,6 +529,7 @@ export interface FileRoutesByTo {
   '/f/$formId': typeof FFormIdRoute
   '/invite/$token': typeof InviteTokenRoute
   '/meta/callback': typeof MetaCallbackRoute
+  '/s/$slug': typeof SSlugRoute
   '/crm': typeof CrmIndexRoute
   '/crm/contacts/$contactId': typeof CrmContactsContactIdRoute
   '/crm/contacts': typeof CrmContactsIndexRoute
@@ -539,6 +555,7 @@ export interface FileRoutesById {
   '/crm': typeof CrmRouteWithChildren
   '/data-deletion': typeof DataDeletionRoute
   '/delivery': typeof DeliveryRoute
+  '/directory': typeof DirectoryRoute
   '/follow-ups': typeof FollowUpsRoute
   '/help': typeof HelpRoute
   '/inbox': typeof InboxRoute
@@ -580,6 +597,7 @@ export interface FileRoutesById {
   '/f/$formId': typeof FFormIdRoute
   '/invite/$token': typeof InviteTokenRoute
   '/meta/callback': typeof MetaCallbackRoute
+  '/s/$slug': typeof SSlugRoute
   '/crm/': typeof CrmIndexRoute
   '/crm/contacts/$contactId': typeof CrmContactsContactIdRoute
   '/crm/contacts/': typeof CrmContactsIndexRoute
@@ -606,6 +624,7 @@ export interface FileRouteTypes {
     | '/crm'
     | '/data-deletion'
     | '/delivery'
+    | '/directory'
     | '/follow-ups'
     | '/help'
     | '/inbox'
@@ -647,6 +666,7 @@ export interface FileRouteTypes {
     | '/f/$formId'
     | '/invite/$token'
     | '/meta/callback'
+    | '/s/$slug'
     | '/crm/'
     | '/crm/contacts/$contactId'
     | '/crm/contacts/'
@@ -670,6 +690,7 @@ export interface FileRouteTypes {
     | '/connections'
     | '/data-deletion'
     | '/delivery'
+    | '/directory'
     | '/follow-ups'
     | '/help'
     | '/inbox'
@@ -711,6 +732,7 @@ export interface FileRouteTypes {
     | '/f/$formId'
     | '/invite/$token'
     | '/meta/callback'
+    | '/s/$slug'
     | '/crm'
     | '/crm/contacts/$contactId'
     | '/crm/contacts'
@@ -735,6 +757,7 @@ export interface FileRouteTypes {
     | '/crm'
     | '/data-deletion'
     | '/delivery'
+    | '/directory'
     | '/follow-ups'
     | '/help'
     | '/inbox'
@@ -776,6 +799,7 @@ export interface FileRouteTypes {
     | '/f/$formId'
     | '/invite/$token'
     | '/meta/callback'
+    | '/s/$slug'
     | '/crm/'
     | '/crm/contacts/$contactId'
     | '/crm/contacts/'
@@ -801,6 +825,7 @@ export interface RootRouteChildren {
   CrmRoute: typeof CrmRouteWithChildren
   DataDeletionRoute: typeof DataDeletionRoute
   DeliveryRoute: typeof DeliveryRoute
+  DirectoryRoute: typeof DirectoryRoute
   FollowUpsRoute: typeof FollowUpsRoute
   HelpRoute: typeof HelpRoute
   InboxRoute: typeof InboxRoute
@@ -833,6 +858,7 @@ export interface RootRouteChildren {
   FFormIdRoute: typeof FFormIdRoute
   InviteTokenRoute: typeof InviteTokenRoute
   MetaCallbackRoute: typeof MetaCallbackRoute
+  SSlugRoute: typeof SSlugRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -968,6 +994,13 @@ declare module '@tanstack/react-router' {
       path: '/delivery'
       fullPath: '/delivery'
       preLoaderRoute: typeof DeliveryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/directory': {
+      id: '/directory'
+      path: '/directory'
+      fullPath: '/directory'
+      preLoaderRoute: typeof DirectoryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/follow-ups': {
@@ -1264,6 +1297,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MetaCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/s/$slug': {
+      id: '/s/$slug'
+      path: '/s/$slug'
+      fullPath: '/s/$slug'
+      preLoaderRoute: typeof SSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/crm/contacts/': {
       id: '/crm/contacts/'
       path: '/contacts'
@@ -1333,6 +1373,7 @@ const rootRouteChildren: RootRouteChildren = {
   CrmRoute: CrmRouteWithChildren,
   DataDeletionRoute: DataDeletionRoute,
   DeliveryRoute: DeliveryRoute,
+  DirectoryRoute: DirectoryRoute,
   FollowUpsRoute: FollowUpsRoute,
   HelpRoute: HelpRoute,
   InboxRoute: InboxRoute,
@@ -1365,6 +1406,7 @@ const rootRouteChildren: RootRouteChildren = {
   FFormIdRoute: FFormIdRoute,
   InviteTokenRoute: InviteTokenRoute,
   MetaCallbackRoute: MetaCallbackRoute,
+  SSlugRoute: SSlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

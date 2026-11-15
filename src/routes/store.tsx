@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Section, StatusBadge } from "@/components/app/primitives";
-import { useActions, useDb, useWorkspace } from "@/domain/store";
+import { useActions, useDb, useLive, useWorkspace } from "@/domain/store";
+import { PublicStoreSettings } from "@/components/app/PublicStoreSettings";
 import { formatCurrency } from "@/lib/format";
 
 export const Route = createFileRoute("/store")({
@@ -71,6 +72,7 @@ function ShareKit() {
 
 function Store() {
   const db = useDb();
+  const live = useLive();
   const ws = useWorkspace();
   const { updateSettings } = useActions();
   const s = db.settings;
@@ -85,8 +87,9 @@ function Store() {
       <div>
         <p className="text-xs font-semibold uppercase tracking-wider text-primary">Commerce</p>
         <h1 className="text-2xl font-bold">Store</h1>
-        <p className="mt-1 text-sm text-muted-foreground">A simple shop page built from your catalogue. Orders from it land in Orders like any other. Publishing it on the web comes with the backend.</p>
+        <p className="mt-1 text-sm text-muted-foreground">A simple shop page built from your catalogue. Orders from it land in Orders like any other.</p>
       </div>
+      {live.on && <PublicStoreSettings />}
 
       <Section title="Store settings">
         <div className="grid gap-4 p-4 sm:grid-cols-2">
