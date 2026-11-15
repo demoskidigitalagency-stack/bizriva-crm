@@ -114,7 +114,7 @@ export function liveWriter(sb: SupabaseClient, ws: string, getDb: () => Database
       return fail((await sb.from("payments").insert({ workspace_id: ws, order_id: orderId, contact_id: o.contactId, kind: PAY_KIND(o.amountPaid ?? 0, amt, o.total), method: PAY_METHOD_DB[method], amount: amt })).error);
     },
     async saveProduct(p: CreateLike["product"]): Promise<Result> {
-      const row = { workspace_id: ws, name: p.name, category: p.category, price: p.price, cost: p.cost, stock: p.stock, reorder_level: p.reorderLevel, description: p.description ?? null, active: p.active !== false, deposit: p.deposit ?? 0, care_guide: p.careGuide ?? null, reorder_days: p.reorderDays ?? null, ...(p.aliases ? { aliases: p.aliases } : {}), ...(p.imageUrl !== undefined ? { image_url: p.imageUrl || null } : {}) };
+      const row = { workspace_id: ws, name: p.name, category: p.category, price: p.price, cost: p.cost, stock: p.stock, reorder_level: p.reorderLevel, description: p.description ?? null, active: p.active !== false, deposit: p.deposit ?? 0, care_guide: p.careGuide ?? null, reorder_days: p.reorderDays ?? null, ...(p.aliases ? { aliases: p.aliases } : {}), ...(p.imageUrl !== undefined ? { image_url: p.imageUrl || null } : {}), ...(p.digitalPath !== undefined ? { digital_path: p.digitalPath || null, digital_name: p.digitalName || null } : {}) };
       const saved = isUuid(p.id) ? await sb.from("products").update(row).eq("id", p.id!).select("id").single() : await sb.from("products").insert(row).select("id").single();
       if (saved.error) return fail(saved.error);
       if (!p.variants) return {};

@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { EmptyState, KpiCard, Section, StatusBadge } from "@/components/app/primitives";
 import { useActions, useDb, useLive, useWorkspace } from "@/domain/store";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/app/auth";
 import type { Product } from "@/domain/types";
 import { CARE_STARTERS } from "@/domain/receipt";
 import { formatCurrency, formatPercent } from "@/lib/format";
@@ -21,18 +22,32 @@ export const Route = createFileRoute("/products")({
   component: Products,
 });
 
-type Draft = { id?: string; name: string; category: string; price: string; cost: string; stock: string; reorderLevel: string; description: string; active: boolean; deposit: string; careGuide: string; aliases: string; variants: { id: string; name: string; price: string; stock: string }[] };
+type Draft = { id?: string; name: string; category: string; price: string; cost: string; stock: string; reorderLevel: string; description: string; active: boolean; deposit: string; careGuide: string; aliases: string; digitalPath: string; digitalName: string; variants: { id: string; name: string; price: string; stock: string }[] };
 const toDraft = (p?: Product): Draft => ({
   ...(p ? { id: p.id } : {}),
   name: p?.name ?? "", category: p?.category ?? "", price: p ? String(p.price) : "", cost: p ? String(p.cost) : "",
   stock: p ? String(p.stock) : "0", reorderLevel: p ? String(p.reorderLevel) : "5",
-  description: p?.description ?? "", active: p?.active !== false, deposit: p?.deposit ? String(p.deposit) : "", careGuide: p?.careGuide ?? "", aliases: (p?.aliases ?? []).join(", "),
+  description: p?.description ?? "", active: p?.active !== false, deposit: p?.deposit ? String(p.deposit) : "", careGuide: p?.careGuide ?? "", aliases: (p?.aliases ?? []).join(", "), digitalPath: p?.digitalPath ?? "", digitalName: p?.digitalName ?? "",
   variants: (p?.variants ?? []).map((v) => ({ id: v.id, name: v.name, price: String(v.price), stock: String(v.stock) })),
 });
 
 function ProductDialog({ product, open, onOpenChange }: { product?: Product | undefined; open: boolean; onOpenChange: (o: boolean) => void }) {
   const { saveProduct } = useActions();
+  const live = useLive();
+  const { current } = useAuth();
+  const [uploading, setUploading] = useState(false);
   const [d, setD] = useState<Draft>(toDraft(product));
+  const uploadDigital = async (f: File | undefined) => {
+    const sb = supabase();
+    if (!f || !sb || !current) return;
+    if (f.size > 16 * 1024 * 1024) { setError("Files can be up to 16 MB (WhatsApp's document limit on linked numbers)."); return; }
+    setUploading(true);
+    const path = `${current.workspaceId}/digital/${crypto.randomUUID()}-${f.name.replace(/[^\w.-]+/g, "_").slice(-80)}`;
+    const up = await sb.storage.from("chat-media").upload(path, f, { contentType: f.type || "application/octet-stream" });
+    setUploading(false);
+    if (up.error) { setError(up.error.message.includes("mime") ? "Use a PDF, EPUB, ZIP, Word, Excel, audio or video file." : up.error.message); return; }
+    setD((x) => ({ ...x, digitalPath: path, digitalName: f.name.slice(0, 200) }));
+  };
   const [error, setError] = useState("");
   useEffect(() => { if (open) { setD(toDraft(product)); setError(""); } }, [open, product]);
 
@@ -47,7 +62,7 @@ function ProductDialog({ product, open, onOpenChange }: { product?: Product | un
     if (opts.some((v) => !v.name.trim() || !(num(v.price) > 0))) return setError("Each option needs a name and a price above zero.");
     if (new Set(opts.map((v) => v.name.trim().toLowerCase())).size !== opts.length) return setError("Two options have the same name.");
     const variants = opts.map((v) => ({ id: v.id, name: v.name.trim(), price: num(v.price), stock: Math.max(0, Math.round(num(v.stock) || 0)) }));
-    saveProduct({ ...(d.id ? { id: d.id } : {}), variants, name: d.name.trim(), category: d.category.trim() || "General", price: num(d.price), cost: num(d.cost) || 0, stock: Math.max(0, Math.round(num(d.stock) || 0)), reorderLevel: Math.max(0, Math.round(num(d.reorderLevel) || 0)), description: d.description.trim(), active: d.active, deposit, careGuide: d.careGuide.trim(), aliases: d.aliases.split(",").map((a) => a.trim()).filter((a) => a.length >= 3).slice(0, 30) });
+    saveProduct({ ...(d.id ? { id: d.id } : {}), variants, name: d.name.trim(), category: d.category.trim() || "General", price: num(d.price), cost: num(d.cost) || 0, stock: Math.max(0, Math.round(num(d.stock) || 0)), reorderLevel: Math.max(0, Math.round(num(d.reorderLevel) || 0)), description: d.description.trim(), active: d.active, deposit, careGuide: d.careGuide.trim(), aliases: d.aliases.split(",").map((a) => a.trim()).filter((a) => a.length >= 3).slice(0, 30), digitalPath: d.digitalPath, digitalName: d.digitalName });
     onOpenChange(false);
   };
   const set = (k: keyof Draft) => (e: React.ChangeEvent<HTMLInputElement>) => { setD((x) => ({ ...x, [k]: e.target.value })); setError(""); };
@@ -91,6 +106,15 @@ function ProductDialog({ product, open, onOpenChange }: { product?: Product | un
             )}
             {d.variants.length > 0 && <p className="text-xs text-muted-foreground">The AI agent asks which option and charges its price.</p>}
           </fieldset>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label htmlFor="pdig">Digital download (ebook, course, template)</Label>
+            {d.digitalPath ? (
+              <p className="flex items-center justify-between gap-2 rounded-md border px-3 py-1.5 text-sm"><span className="truncate">{d.digitalName || "File attached"}</span><button type="button" className="text-xs text-destructive" onClick={() => setD((x) => ({ ...x, digitalPath: "", digitalName: "" }))}>Remove</button></p>
+            ) : live.on ? (
+              <Input id="pdig" type="file" disabled={uploading} accept=".pdf,.epub,.zip,.doc,.docx,.xls,.xlsx,audio/*,video/mp4,.txt" onChange={(e) => void uploadDigital(e.target.files?.[0])} />
+            ) : <p className="text-xs text-muted-foreground">Works once your business is live.</p>}
+            <p className="text-xs text-muted-foreground">Sent to the customer in their WhatsApp chat automatically, once their order is fully paid.</p>
+          </div>
           <div className="space-y-1.5 sm:col-span-2">
             <Label htmlFor="palias">Other names customers use (for tagging WhatsApp chats)</Label>
             <Input id="palias" value={d.aliases} onChange={(e) => setD((x) => ({ ...x, aliases: e.target.value }))} placeholder="4-in-1, snooker, 6,900" />

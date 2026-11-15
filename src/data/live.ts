@@ -255,7 +255,7 @@ export function toDatabase(raw: RawData, now = new Date()): Database {
   const products: Product[] = raw.products.map((p) => ({
     id: p["id"], name: p["name"], category: p["category"] ?? "General", price: num(p["promo_price"] ?? p["price"]), cost: num(p["cost"]), stock: num(p["stock"]), reorderLevel: num(p["reorder_level"]),
     ...(p["description"] ? { description: p["description"] } : {}), active: p["active"] !== false, ...(num(p["deposit"]) ? { deposit: num(p["deposit"]) } : {}),
-    ...(p["care_guide"] ? { careGuide: p["care_guide"] } : {}), ...(Array.isArray(p["aliases"]) && p["aliases"].length ? { aliases: p["aliases"] as string[] } : {}), ...(p["image_url"] ? { imageUrl: p["image_url"] as string } : {}), ...(p["reorder_days"] ? { reorderDays: num(p["reorder_days"]) } : {}),
+    ...(p["care_guide"] ? { careGuide: p["care_guide"] } : {}), ...(Array.isArray(p["aliases"]) && p["aliases"].length ? { aliases: p["aliases"] as string[] } : {}), ...(p["image_url"] ? { imageUrl: p["image_url"] as string } : {}), ...(p["digital_path"] ? { digitalPath: p["digital_path"] as string, digitalName: String(p["digital_name"] ?? "") } : {}), ...(p["reorder_days"] ? { reorderDays: num(p["reorder_days"]) } : {}),
     ...(variantsBy.get(p["id"])?.length ? { variants: variantsBy.get(p["id"])! } : {}),
   }));
   const media: MediaAsset[] = (raw.media ?? []).map((m) => ({

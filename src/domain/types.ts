@@ -409,6 +409,9 @@ export interface Product {
   /** Photo (https), e.g. brought across from Shopify or WooCommerce. */
   imageUrl?: string;
   sku?: string;
+  /** Digital download: the file sent to the customer on WhatsApp once the order is fully paid. */
+  digitalPath?: string;
+  digitalName?: string;
   /** Days a customer usually takes to finish it — drives re-order reminders. */
   reorderDays?: number;
   /** Options (size, colour…) with their own price and stock. When set, the customer picks one. */
