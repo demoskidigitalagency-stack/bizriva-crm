@@ -1,6 +1,6 @@
 // bun test tests/wa_linked.test.ts — WhatsApp linked device (worker/src/parse.ts, worker/src/auth.ts).
 import { describe, expect, test } from "bun:test";
-import { batches, chatPhone, contactNames, pause, phoneOfJid, rememberLid, textOf, toRow, toThreads } from "../worker/src/parse";
+import { adOf, batches, chatPhone, groupRows, isPersonChat, statusJids, contactNames, mediaOf, mediaPath, pause, phoneOfJid, rememberLid, textOf, toRow, toThreads } from "../worker/src/parse";
 import { keyFrom, open, seal } from "../worker/src/auth";
 
 const CUST = "2348031112222";
@@ -121,5 +121,65 @@ describe("names for the phone", () => {
       { id: "120363@g.us", name: "Group" },
       { id: "233500000000@s.whatsapp.net" },
     ], lid)).toEqual([{ phone: "233538699550", name: "David Kumasi" }, { phone: "233571871528", name: "Ama" }]);
+  });
+});
+
+describe("files in a chat", () => {
+  test("a video is recognised with its type, size and storage path", () => {
+    const f = mediaOf({ videoMessage: { mimetype: "video/mp4", fileLength: { low: 2_500_000, high: 0 }, caption: "see it" } });
+    expect(f).toEqual({ kind: "video", mime: "video/mp4", ext: "mp4", name: null, bytes: 2_500_000 });
+    expect(mediaPath("ws-1", "msg-1", f!.ext!)).toBe("ws-1/wa/msg-1.mp4");
+  });
+  test("voice notes, photos inside disappearing messages and documents", () => {
+    expect(mediaOf({ audioMessage: { mimetype: "audio/ogg; codecs=opus", ptt: true, fileLength: 9000 } })).toMatchObject({ kind: "audio", mime: "audio/ogg", ext: "ogg" });
+    expect(mediaOf({ ephemeralMessage: { message: { imageMessage: { mimetype: "image/jpeg" } } } })).toMatchObject({ kind: "image", ext: "jpg", bytes: 0 });
+    expect(mediaOf({ documentMessage: { mimetype: "application/pdf", fileName: "invoice.pdf" } })).toMatchObject({ kind: "document", ext: "pdf", name: "invoice.pdf" });
+  });
+  test("plain text has no file; an unknown file type is recognised but has no extension", () => {
+    expect(mediaOf({ conversation: "hello" })).toBeNull();
+    expect(mediaOf({ documentMessage: { mimetype: "application/zip", fileName: "a.zip" } })).toMatchObject({ kind: "document", ext: null });
+  });
+});
+
+describe("which ad started the chat", () => {
+  test("a click-to-WhatsApp message carries the ad", () => {
+    const m = { extendedTextMessage: { text: "What's the price?", contextInfo: { externalAdReply: { sourceType: "ad", sourceId: "1202", title: "6ft game table", sourceUrl: "https://fb.me/abc" } } } };
+    expect(adOf(m)).toEqual({ id: "1202", headline: "6ft game table", url: "https://fb.me/abc" });
+  });
+  test("an ordinary message, or a link preview that isn't an ad, has none", () => {
+    expect(adOf({ conversation: "Hello" })).toBeNull();
+    expect(adOf({ extendedTextMessage: { text: "see", contextInfo: { externalAdReply: { sourceType: "post", sourceId: "9", title: "x" } } } })).toBeNull();
+  });
+});
+
+describe("Status posts are not chat messages", () => {
+  test("a Status (with the poster in remoteJidAlt) has no chat phone", () => {
+    expect(chatPhone({ remoteJid: "status@broadcast", remoteJidAlt: "233596888569@s.whatsapp.net" }, new Map())).toBeNull();
+    expect(toRow({ key: { remoteJid: "status@broadcast", remoteJidAlt: "233596888569@s.whatsapp.net", id: "S1" }, message: { videoMessage: { mimetype: "video/mp4" } }, messageTimestamp: 1 }, new Map())).toBeNull();
+  });
+  test("groups, broadcast lists and channels aren't person chats; numbers and hidden ids are", () => {
+    expect(isPersonChat("120363@g.us")).toBe(false);
+    expect(isPersonChat("12345@broadcast")).toBe(false);
+    expect(isPersonChat("1203@newsletter")).toBe(false);
+    expect(isPersonChat("233596888569@s.whatsapp.net")).toBe(true);
+    expect(isPersonChat("19283746@lid")).toBe(true);
+    expect(chatPhone({ remoteJid: "233596888569@s.whatsapp.net" }, new Map())).toBe("233596888569");
+  });
+});
+
+describe("Status and groups", () => {
+  test("Status recipients: valid numbers only, once each", () => {
+    expect(statusJids(["233244000111", "233244000111", "abc", "12", 2348031234567])).toEqual(["233244000111@s.whatsapp.net", "2348031234567@s.whatsapp.net"]);
+  });
+  test("groups: name, size, whether the business is an admin, admins-only groups", () => {
+    const all = {
+      "1203-1@g.us": { id: "1203-1@g.us", subject: "Resellers Accra", announce: true, participants: [{ id: "233500000001@s.whatsapp.net" }, { id: "99887766@lid", phoneNumber: "233244000999@s.whatsapp.net", admin: "superadmin" }] },
+      "1203-2@g.us": { id: "1203-2@g.us", subject: "Ankara Lovers", size: 250, participants: [{ id: "233500000002@s.whatsapp.net" }] },
+      "status@broadcast": { id: "status@broadcast" },
+    };
+    expect(groupRows(all, ["233244000999:12@s.whatsapp.net"])).toEqual([
+      { jid: "1203-2@g.us", name: "Ankara Lovers", size: 250, admin: false, announce: false },
+      { jid: "1203-1@g.us", name: "Resellers Accra", size: 2, admin: true, announce: true },
+    ]);
   });
 });

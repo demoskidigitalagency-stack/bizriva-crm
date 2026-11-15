@@ -69,6 +69,9 @@ export function liveWriter(sb: SupabaseClient, ws: string, getDb: () => Database
       const first = patch.firstName ?? c.firstName; const last = patch.lastName ?? c.lastName;
       return fail((await sb.from("contacts").update({ name: `${first} ${last}`.trim(), phone: patch.phone ?? c.phone, location: patch.city ?? c.city, address: patch.address ?? c.address ?? null, landmark: patch.landmark ?? c.landmark ?? null, updated_at: new Date().toISOString() }).eq("id", contactId)).error);
     },
+    async setContactPersonal(contactId: ID, personal: boolean): Promise<Result> {
+      return fail((await sb.rpc("set_contact_personal", { p_contact: contactId, p_personal: personal })).error);
+    },
     async createOrder(input: CreateLike["order"]): Promise<Result> {
       const db = getDb();
       const lines = input.items.filter((i) => i.qty > 0).map((i) => ({ ...i, p: db.products.find((p) => p.id === i.productId) })).filter((l) => l.p);

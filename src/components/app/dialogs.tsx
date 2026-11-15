@@ -383,7 +383,7 @@ export function PickCustomer({ open, onOpenChange, onPick }: { open: boolean; on
           {matches.map((c) => (
             <li key={c.id}>
               <button type="button" onClick={() => onPick(c.id)} className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm hover:bg-muted/50">
-                <PersonAvatar name={fullName(c)} />
+                <PersonAvatar name={fullName(c)} src={c.avatarUrl} />
                 <span className="min-w-0 flex-1 truncate">{fullName(c)}</span>
                 <span className="text-xs text-muted-foreground">{c.phone}</span>
               </button>

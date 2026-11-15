@@ -161,6 +161,8 @@ export interface Contact {
   firstName: string;
   lastName: string;
   phone: string;
+  /** Real data: the customer's WhatsApp profile picture (a short-lived link), when they show it. */
+  avatarUrl?: string;
   email?: string;
   countryCode: string;
   city: string;

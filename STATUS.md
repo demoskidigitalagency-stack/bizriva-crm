@@ -5,9 +5,9 @@ Generated from `src/app/status.ts` and `src/app/modules.ts` by `bun run status`.
 | Track | Progress | |
 | --- | ---: | --- |
 | **Frontend — Practice Mode** (every page and button works on sample data) | **100%** | `████████████████████` |
-| **Backend — Live** (works for real: auth, database, WhatsApp, AI) | **94%** | `███████████████████░` |
+| **Backend — Live** (works for real: auth, database, WhatsApp, AI) | **93%** | `███████████████████░` |
 
-Modules: 34 of 34 practice ready · 0 partly working · 0 planned.
+Modules: 36 of 36 practice ready · 0 partly working · 0 planned.
 
 ## Frontend track
 
@@ -20,6 +20,7 @@ Modules: 34 of 34 practice ready · 0 partly working · 0 planned.
 | ✅ | Overview | Dashboard | MVP | Practice ready | Bizriva, Sandala, Prompt |
 | ✅ | Overview | Today | MVP | Practice ready | Bizriva |
 | ✅ | Overview | Money Brief | MVP | Practice ready | Review 2026-11-04 |
+| ✅ | Overview | Live status | MVP | Live | Review 2026-11-13 |
 | ✅ | Overview | Calendar | MVP | Practice ready | Review 2026-11-04 |
 | ✅ | Customers | Inbox | MVP | Practice ready | Sandala, Kobolink, Prompt |
 | ✅ | Customers | CRM | MVP | Practice ready | Bizriva, Sandala, Prompt |
@@ -41,6 +42,7 @@ Modules: 34 of 34 practice ready · 0 partly working · 0 planned.
 | ✅ | Automation | Automation Builder | Later | Practice ready | Bizriva, Prompt |
 | ✅ | Automation | Workflow History | Later | Practice ready | Sandala, Prompt |
 | ✅ | Growth | Ads and Attribution | Later | Practice ready | Kobolink, Prompt |
+| ✅ | Growth | WhatsApp Growth | MVP | Live | Review 2026-11-13 |
 | ✅ | Money | Payments | Later | Practice ready | Kobolink, Prompt |
 | ✅ | Insights | Analytics | MVP | Practice ready | Kobolink, Prompt |
 | ✅ | Workspace | Team and Roles | MVP | Practice ready | Kobolink, Prompt |
@@ -80,6 +82,7 @@ Modules: 34 of 34 practice ready · 0 partly working · 0 planned.
 | Phase 3 — Sales and commerce | 22% | 9/9 | 100% |
 | Phase 4 — More channels | 11% | 5/5 | 100% |
 | Phase 5 — Intelligence and monetisation | 15% | 7/7 | 100% |
+| Phase 6 — WhatsApp Growth (linked number) | 15% | 13/16 | 86% |
 
 ### Phase 1 — Core communication — 91%
 
@@ -91,7 +94,7 @@ _Real WhatsApp messages land in a shared, saved inbox for several agents._
 - [x] Workspaces with row-level isolation applied and tested _(2026-11-05)_ — 31 tables applied; isolation tested on the live database; security advisor clean except the two intended sign-up functions
 - [x] Roles and permissions enforced on the server _(2026-11-06)_ — Owners protected, owner-only owner invites, delete rights, append-only activity log, server-only money and webhook tables, same-business links. supabase/tests/loopholes_and_rules.sql 68/68 on the live database
 - [x] Contacts, leads and conversations saved for real (no sample data) _(2026-11-06)_ — Signed in, every screen reads and writes your real business (customers, leads, chats, orders, tasks, notes, merges); one tap back to Practice Mode. tests/live_mode_qa.py 23/23, supabase/tests/tasks_notes_merge.sql 19/19
-- [ ] WhatsApp Cloud API number connected — Connect screen ready (Integrations, owner only, keys in Vault). Needs your verified Meta Business number
+- [ ] WhatsApp Cloud API number connected — Meta business verified (14 Nov); Bizriva's App ID, configuration and app secret are saved and Meta's webhook reaches Bizriva. Left: connect a business number under Integrations → WhatsApp (best a separate number from your personal one)
 - [x] Inbound webhook: signature checked, duplicates ignored _(2026-11-06)_ — whatsapp-webhook Edge Function: Meta verify check, HMAC-SHA256 with each business's app secret, one save per Meta message id, STOP opt-out, delivery ticks. Tested on the live project: supabase/tests/whatsapp_e2e.md
 - [x] Send replies, media and templates from the inbox _(2026-11-06)_ — Replies, photos, videos, voice notes and documents (paperclip in the Inbox, private storage per business, 1-hour link for Meta) and approved templates outside 24 hours; customers' files are saved into the chat. Storage rules 9/9 on the live project; sending reached Meta in testing
 - [x] Inbox updates live; assignment and transfer _(2026-11-06)_ — Inbox reloads the moment the database changes; handed-over chats go to the on-duty sales/support teammate with the fewest open chats; transfer from the chat; only team members; every hand-over and transfer logged. 7/7 on the live project
@@ -103,7 +106,7 @@ _Instant first replies from real catalogue data, and follow-ups that respect the
 - [x] Products with variants, prices and stock
 - [x] Media library in cloud storage
 - [x] Knowledge base _(2026-11-06)_ — Knowledge entries saved to the database with keywords; policy starters add in one tap
-- [ ] AI agent answers only from catalogue and knowledge base — Built and deployed (ai-reply): this business's data only, price check, handover rules, owner's own key in Vault. Tested live up to the AI service; answers for real once you add your Anthropic key
+- [ ] AI agent answers only from catalogue and knowledge base — Built and deployed (ai-reply): this business's data only, price check, handover rules, owner's own key in Vault. Off until switched on (since 14 Nov), never answers personal contacts. Answers for real once you add your Anthropic key and switch it on
 - [x] Human takeover pauses AI; hand back to AI _(2026-11-06)_ — Inbox: Take over / Let AI answer; the AI only answers chats it handles; asking for a person, complaints or doubt hand over and flag the chat. Tested on the live project
 - [x] Template management (WhatsApp-approved)
 - [x] Follow-up engine: 24-hour window, caps, quiet hours, stop on reply _(2026-11-06)_ — Server engine every 5 minutes (private.followups_tick): quiet chats, failed deliveries, unreachable customers, cancelled orders, re-order reminders; 24-hour window → template, one per customer a day, quiet hours, stops on reply/opt-out/takeover, never twice. supabase/tests/followups.sql 11/11 on the live project
@@ -145,6 +148,27 @@ _Know which ad made the money; charge for the product._
 - [x] Plans, billing and usage limits
 - [x] Super Admin console
 - [x] All 15 acceptance tests pass end to end — On the live database with Meta and Claude simulated (supabase/tests/acceptance.sql)
+
+### Phase 6 — WhatsApp Growth (linked number) — 86%
+
+_The WhatsApp the business already uses works inside Bizriva: every chat saved, segmented and followed up; Status and groups run from here._
+
+- [x] Link the WhatsApp you already use (pairing code or QR); old chats come in _(2026-11-13)_ — Bizriva's WhatsApp server on Render; chats WhatsApp shares with a new device are imported, each customer saved as a contact and a lead
+- [x] Save customers to the phone's contacts (button) and download them as .vcf _(2026-11-13)_ — Name format {name} {product} {last4}; everyone, asked about a product, or no order yet
+- [x] Photos, videos, voice notes and documents kept in the chat _(2026-11-15)_ — New files saved since 14 Nov (checked with a real video on 15 Nov). Files in old imported chats show "open WhatsApp to see it"
+- [x] Chats tagged by product as they arrive; ad that started the chat recorded _(2026-11-14)_ — "Asked about: <product>" from product names and their other names; click-to-WhatsApp ad credited to the lead
+- [x] Personal contacts kept apart: no assistant, follow-ups or marketing; own Inbox tab _(2026-11-15)_ — Mark as personal in the Inbox or Customer 360
+- [x] Inbox order matches the phone (Status updates, groups and channels no longer saved as chats) _(2026-11-15)_
+- [x] Customers' profile pictures _(2026-11-15)_ — Fetched when they write (weekly at most); hidden pictures stay as initials
+- [x] Assistant off until switched on _(2026-11-14)_
+- [x] Auto-save every new customer to the phone _(2026-11-15)_ — Live on the WhatsApp Growth page
+- [x] Status posts: text, photo, video, now or scheduled, repeat; views and viewers by name _(2026-11-15)_ — Live on the WhatsApp Growth page
+- [x] Post to many groups at once, now or later; group collections _(2026-11-15)_ — Live on the WhatsApp Growth page
+- [x] Message customers who wrote first, by tag, paced, with STOP _(2026-11-15)_ — Live on the WhatsApp Growth page
+- [x] Follow-up stage and source tags kept up to date on every message _(2026-11-15)_ — Sent details · Replied after price · Got price, went quiet · No price sent yet; Facebook ad / likely / unknown. Personal contacts and customers with an order are left alone
+- [ ] Chat summaries, location and next step written automatically for every chat — Done once by hand for Dxmart's chats (14 Nov); automatic for new chats once the AI key is added
+- [ ] Recover photos and videos from old imported chats — Not started — WhatsApp may resend recent ones from the phone
+- [ ] WhatsApp server always on (paid host) — Runs on Render's free plan, which can sleep; needs a paid plan
 
 ### Acceptance tests — 15/15
 

@@ -20,6 +20,22 @@ import { cn } from "@/lib/utils";
 
 const DELIVERY_LABEL = { queued: "Waiting to send", sent: "Sent ✓", delivered: "Delivered ✓✓", read: "Read ✓✓" } as const;
 
+/** "[photo]", "[video] caption", "[voice note]"… — the text WhatsApp files are saved with. */
+const PLACEHOLDER = /^\[(photo|image|video|voice note|audio|document|sticker|Media|photo or file[^\]]*)\]\s*/;
+const PLACEHOLDER_ONLY = /^\[(photo|image|video|voice note|audio|document|sticker|Media)\]$/;
+const FILE_WORD: Record<string, string> = { photo: "Photo", image: "Photo", video: "Video", "voice note": "Voice note", audio: "Audio", document: "Document", sticker: "Sticker" };
+/** For files from old chats, which WhatsApp doesn't hand over again. */
+function placeholderNote(body: string): string {
+  const w = PLACEHOLDER.exec(body)?.[1] ?? "";
+  return `${FILE_WORD[w] ?? "File"} from before Bizriva saved files — open WhatsApp to see it`;
+}
+function previewOf(body: string): string {
+  const w = PLACEHOLDER.exec(body)?.[1];
+  if (!w) return body;
+  const rest = body.replace(PLACEHOLDER, "").trim();
+  return `${FILE_WORD[w] ?? "File"}${rest ? `: ${rest}` : ""}`;
+}
+
 export const Route = createFileRoute("/inbox")({
   head: () => ({
     meta: [
@@ -205,7 +221,10 @@ function Thread({ conversation }: { conversation: Conversation }) {
             )}>
               {m.byAi && <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary-foreground/80">AI reply</p>}
               <MessageMedia m={m} />
-              {(!m.media || !/^\[(image|video|audio|document|sticker|Media)\]$/.test(m.body)) && <p className="whitespace-pre-wrap">{m.media ? m.body.replace(/^\[(image|video|audio|document|sticker|Media)\]\s*/, "") : m.body}</p>}
+              {PLACEHOLDER.test(m.body) && !m.media?.path
+                ? <p className="text-xs italic opacity-80">{placeholderNote(m.body)}</p>
+                : (!m.media || !PLACEHOLDER_ONLY.test(m.body)) && <p className="whitespace-pre-wrap">{m.body.replace(PLACEHOLDER, "")}</p>}
+              {PLACEHOLDER.test(m.body) && !m.media?.path && m.body.replace(PLACEHOLDER, "").trim() && <p className="mt-1 whitespace-pre-wrap">{m.body.replace(PLACEHOLDER, "")}</p>}
               <p className={cn("mt-1 text-[10px]", m.direction === "out" ? "text-primary-foreground/70" : "text-muted-foreground")}>{relativeTime(m.at)}{m.delivery && m.delivery !== "failed" ? ` · ${DELIVERY_LABEL[m.delivery]}` : ""}</p>
               {m.delivery === "failed" && <p className="mt-1 rounded bg-destructive/90 px-1.5 py-0.5 text-[11px] text-white" role="note">Not delivered{m.error ? `: ${m.error}` : ""}</p>}
             </div>
@@ -243,7 +262,7 @@ function Thread({ conversation }: { conversation: Conversation }) {
 function CustomerPanel({ conversation }: { conversation: Conversation }) {
   const db = useDb();
   const ws = useWorkspace();
-  const { updateContactDetails } = useActions();
+  const { updateContactDetails, setContactPersonal } = useActions();
   const [ordering, setOrdering] = useState(false);
   const c = db.contacts.find((x) => x.id === conversation.contactId);
   const found = useMemo(() => extractDetails(conversation), [conversation]);
@@ -281,6 +300,12 @@ function CustomerPanel({ conversation }: { conversation: Conversation }) {
           {lead && <div className="flex justify-between gap-2"><dt className="text-muted-foreground">Lead stage</dt><dd><StatusBadge tone="brand">{LEAD_STAGES.find((s) => s.id === lead.stage)?.label}</StatusBadge></dd></div>}
           {interest && <div className="flex justify-between gap-2"><dt className="text-muted-foreground">Interested in</dt><dd className="text-right">{interest.productName}</dd></div>}
         </dl>
+        <div className="border-t p-3">
+          <Button size="sm" variant={c.tags.includes("Personal") ? "secondary" : "outline"} className="w-full" onClick={() => setContactPersonal(c.id, !c.tags.includes("Personal"))}>
+            {c.tags.includes("Personal") ? "Personal contact — make customer again" : "Not a customer? Mark as personal"}
+          </Button>
+          <p className="mt-1.5 text-xs text-muted-foreground">{c.tags.includes("Personal") ? "The assistant, follow-ups and marketing leave this person alone." : "Family and friends: the assistant, follow-ups and marketing will leave them alone."}</p>
+        </div>
       </Section>
 
       <Section title="Found in this chat" description="Pulled from the customer's messages">
@@ -394,13 +419,13 @@ function Inbox() {
                         onClick={() => setSelectedId(c.id)}
                         className={cn("flex w-full items-start gap-2.5 border-b px-3 py-2.5 text-left last:border-0 hover:bg-accent/40", selected?.id === c.id && "bg-accent/40")}
                       >
-                        <PersonAvatar name={person ? fullName(person) : "Unknown"} />
+                        <PersonAvatar name={person ? fullName(person) : "Unknown"} src={person?.avatarUrl} />
                         <span className="min-w-0 flex-1">
                           <span className="flex items-center justify-between gap-2">
                             <span className={cn("truncate text-sm", c.unread ? "font-bold" : "font-semibold")}>{person ? fullName(person) : "Unknown contact"}</span>
                             <span className="shrink-0 text-[10px] text-muted-foreground">{relativeTime(c.lastMessageAt)}</span>
                           </span>
-                          <span className="block truncate text-xs text-muted-foreground">{last?.body}</span>
+                          <span className="block truncate text-xs text-muted-foreground">{last ? previewOf(last.body) : ""}</span>
                           <span className="mt-1 flex flex-wrap items-center gap-1">
                             <StatusBadge tone="neutral">{CHANNEL_LABELS[c.channel]}</StatusBadge>
                             {c.awaitingReply && <StatusBadge tone="warning">Awaiting reply</StatusBadge>}
@@ -422,7 +447,7 @@ function Inbox() {
               <header className="border-b px-4 py-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex min-w-0 items-center gap-2.5">
-                    <PersonAvatar name={fullName(contact)} size="md" />
+                    <PersonAvatar name={fullName(contact)} size="md" src={contact.avatarUrl} />
                     <div className="min-w-0">
                       <p className="truncate text-sm font-bold">{fullName(contact)}</p>
                       <p className="truncate text-xs text-muted-foreground">{contact.phone} · {CHANNEL_LABELS[selected.channel]} · {contact.city}</p>

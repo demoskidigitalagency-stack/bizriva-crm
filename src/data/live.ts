@@ -61,7 +61,10 @@ export async function fetchRaw(sb: SupabaseClient, workspaceId: string): Promise
     return [key, r.data ?? []] as const;
   }));
   const raw = { workspace: ws.data, team: team.data ?? [], ...Object.fromEntries(entries) } as RawData;
-  const paths = (raw.media ?? []).filter((m) => m["kind"] === "image" && m["storage_path"]).map((m) => String(m["storage_path"]));
+  const paths = [
+    ...(raw.media ?? []).filter((m) => m["kind"] === "image" && m["storage_path"]).map((m) => String(m["storage_path"])),
+    ...(raw.contacts ?? []).filter((c) => c["avatar_path"]).map((c) => String(c["avatar_path"])), // WhatsApp profile pictures
+  ];
   if (paths.length) {
     const s = await sb.storage.from("chat-media").createSignedUrls(paths, 3600);
     raw.mediaUrls = Object.fromEntries((s.data ?? []).filter((x) => x.signedUrl && x.path).map((x) => [x.path!, x.signedUrl]));
@@ -183,6 +186,9 @@ export function toDatabase(raw: RawData, now = new Date()): Database {
   });
   const ordersByContact = new Map<string, OrderSummary[]>();
   orders.forEach((o) => ordersByContact.set(o.contactId, [...(ordersByContact.get(o.contactId) ?? []), o]));
+  // Personal contacts (family, friends on the owner's own WhatsApp) are never leads.
+  const personalIds = new Set(raw.contacts.filter((c) => ((c["tags"] ?? []) as string[]).includes("Personal")).map((c) => c["id"] as string));
+  raw = { ...raw, leads: raw.leads.filter((l) => !personalIds.has(l["contact_id"])) };
   const leadByContact = new Map<string, Row>();
   [...raw.leads].sort((a, b) => String(a["created_at"]).localeCompare(String(b["created_at"]))).forEach((l) => leadByContact.set(l["contact_id"], l));
 
@@ -204,7 +210,7 @@ export function toDatabase(raw: RawData, now = new Date()): Database {
     const acct = raw.accounts.find((a) => a["contact_id"] === c["id"]);
     const last = [c["updated_at"], lastMsgByContact.get(c["id"]), ...mine.map((o) => o.placedAt)].filter(Boolean).sort().at(-1);
     return {
-      id: c["id"], firstName, lastName, phone: c["phone"] ?? "", ...(c["email"] ? { email: c["email"] } : {}), countryCode: "NG", city: c["location"] ?? "",
+      id: c["id"], firstName, lastName, phone: c["phone"] ?? "", ...(c["avatar_path"] && raw.mediaUrls?.[c["avatar_path"]] ? { avatarUrl: raw.mediaUrls[c["avatar_path"]] } : {}), ...(c["email"] ? { email: c["email"] } : {}), countryCode: "NG", city: c["location"] ?? "",
       lifecycle, source, ownerId: lead?.["assigned_to"] ?? owner, leadScore: num(lead?.["score"]), tags: c["tags"] ?? [], createdAt: iso(c["created_at"]), lastActivityAt: iso(last),
       totalOrders: live.length, lifetimeValue: live.reduce((n, o) => n + o.total, 0), deliveredRevenue: delivered.reduce((n, o) => n + o.total, 0),
       contributionProfit: delivered.reduce((n, o) => n + o.total - o.cogs - o.shippingFee, 0),
@@ -352,7 +358,7 @@ export function toDatabase(raw: RawData, now = new Date()): Database {
     }),
     workflows: [], workflowRuns: [], media, stockMovements: [],
     integrations: practice.integrations.map((i) => ({ ...i, status: "not_connected" as const })) as Database["integrations"],
-    agent: { ...practice.agent, ...((w["settings"]?.["agent"] ?? {}) as Partial<typeof practice.agent>) }, settings: liveSettings(w, raw.providers, raw.meta),
+    agent: { ...practice.agent, ...((w["settings"]?.["agent"] ?? {}) as Partial<typeof practice.agent>), enabled: w["settings"]?.["agent"]?.["enabled"] === true }, settings: liveSettings(w, raw.providers, raw.meta),
     orderForms: raw.forms.map((f) => ({ id: f["id"], name: f["name"], productId: f["product_id"], headline: f["headline"], ...(f["banner"] ? { banner: f["banner"] } : {}), packages: f["packages"] ?? [], fields: f["fields"] ?? ["name", "phone", "address", "city"], payOnDelivery: f["pay_on_delivery"] !== false, pixels: { meta: !!f["meta_pixel"], tiktok: !!f["tiktok_pixel"] }, thankYou: f["thank_you"] ?? "Thank you!", active: f["active"] !== false, createdAt: iso(f["created_at"]), stats: { views: 0, starts: 0, submits: 0, duplicatesBlocked: 0, dropOff: {} } })),
     formSubmissions: [],
     events: raw.events.map((e) => ({ id: e["id"], title: e["title"], kind: e["kind"], at: iso(e["starts_at"]), ...(e["contact_id"] ? { contactId: e["contact_id"] } : {}), ...(e["order_id"] ? { orderId: e["order_id"] } : {}), ...(e["note"] ? { note: e["note"] } : {}) })),

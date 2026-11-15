@@ -111,7 +111,7 @@ function CrmOverview() {
           {o.recentLeads.map((l) => (
             <li key={l.id}>
               <Link to="/crm/contacts/$contactId" params={{ contactId: l.contactId }} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-muted/40">
-                <PersonAvatar name={fullName(l.contact)} />
+                <PersonAvatar name={fullName(l.contact)} src={l.contact.avatarUrl} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-medium">{fullName(l.contact)}</span>
                   <span className="block truncate text-xs text-muted-foreground">{l.productInterest ?? "No product yet"} · {SOURCE_LABELS[l.source]} · {l.ownerName}</span>

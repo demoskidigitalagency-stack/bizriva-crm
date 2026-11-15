@@ -15,11 +15,39 @@ export function phoneOfJid(jid: string | null | undefined): string | null {
 /** The customer's phone for a chat. Newer WhatsApp chats use hidden ids (@lid); map them through what WhatsApp told us. */
 export function chatPhone(key: { remoteJid?: string | null; remoteJidAlt?: string | null } | null | undefined, lid: Map<string, string>): string | null {
   if (!key) return null;
+  // Status posts (status@broadcast), broadcast lists, channels and groups aren't a chat with one person.
+  // WhatsApp puts the poster's number in remoteJidAlt for a Status, so check before falling back to it.
+  if (!isPersonChat(key.remoteJid)) return null;
   const direct = phoneOfJid(key.remoteJid) ?? phoneOfJid(key.remoteJidAlt);
   if (direct) return direct;
   const j = String(key.remoteJid ?? "");
   if (j.endsWith("@lid")) return lid.get(j.split(":")[0]!.replace(/@lid$/, "")) ?? lid.get(j) ?? null;
   return null;
+}
+
+/** A one-to-one chat (a phone number or a hidden @lid id), not a Status, broadcast list, channel or group. */
+export function isPersonChat(jid: string | null | undefined): boolean {
+  const j = String(jid ?? "");
+  return j.endsWith("@s.whatsapp.net") || j.endsWith("@lid");
+}
+
+/** The business's groups as Bizriva lists them; `me` are the business's own ids (phone and hidden). */
+export function groupRows(all: Record<string, any> | null | undefined, me: string[]): { jid: string; name: string; size: number; admin: boolean; announce: boolean }[] {
+  const mine = new Set(me.filter(Boolean).map((j) => j.split(":")[0]!.split("@")[0]!));
+  return Object.values(all ?? {})
+    .filter((g: any) => typeof g?.id === "string" && g.id.endsWith("@g.us"))
+    .map((g: any) => {
+      const parts: any[] = Array.isArray(g.participants) ? g.participants : [];
+      const self = parts.find((p) => [p?.id, p?.phoneNumber, p?.lid].some((x) => typeof x === "string" && mine.has(x.split(":")[0]!.split("@")[0]!)));
+      return { jid: g.id as string, name: String(g.subject ?? "").slice(0, 200), size: Number(g.size ?? parts.length) || parts.length,
+        admin: !!self && (self.admin === "admin" || self.admin === "superadmin" || !!self.isAdmin), announce: !!g.announce };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** Who may see a Status: phone numbers → WhatsApp ids, without duplicates or bad numbers. */
+export function statusJids(phones: unknown[]): string[] {
+  return [...new Set((phones ?? []).map(String).filter((p) => /^\d{7,15}$/.test(p)))].map((p) => `${p}@s.whatsapp.net`);
 }
 
 /** Record a hidden-id → phone pair (from history, contacts or WhatsApp's mapping updates). */
@@ -61,6 +89,48 @@ export function textOf(message: any): string | null {
   if (m.templateButtonReplyMessage?.selectedDisplayText) return String(m.templateButtonReplyMessage.selectedDisplayText);
   if (m.productMessage) return cap("[product]", m.productMessage.product?.title);
   if (m.orderMessage) return "[order]";
+  return null;
+}
+
+const MEDIA_EXT: Record<string, string> = {
+  "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "video/mp4": "mp4", "video/3gpp": "3gp",
+  "audio/ogg": "ogg", "audio/mpeg": "mp3", "audio/mp4": "m4a", "audio/aac": "aac", "audio/amr": "amr", "application/pdf": "pdf", "text/plain": "txt",
+  "application/msword": "doc", "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+  "application/vnd.ms-excel": "xls", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+};
+/** Largest file kept in a chat (the storage bucket's limit). */
+export const MEDIA_MAX_BYTES = 16 * 1024 * 1024;
+
+export interface MediaInfo { kind: "image" | "video" | "audio" | "document" | "sticker"; mime: string; ext: string | null; name: string | null; bytes: number }
+
+/** The photo, video, voice note, document or sticker a message carries, if any. `ext` is null for a file type the chat can't keep. */
+export function mediaOf(message: any): MediaInfo | null {
+  const m = unwrap(message);
+  if (!m) return null;
+  const part = m.imageMessage ?? m.videoMessage ?? m.audioMessage ?? m.documentMessage ?? m.stickerMessage;
+  if (!part) return null;
+  const kind = m.imageMessage ? "image" : m.videoMessage ? "video" : m.audioMessage ? "audio" : m.documentMessage ? "document" : "sticker";
+  const mime = String(part.mimetype ?? "").split(";")[0]!.trim().toLowerCase();
+  const len = part.fileLength;
+  const bytes = typeof len === "object" && len !== null && "low" in len ? Number(len.low) : Number(len ?? 0);
+  return { kind, mime, ext: MEDIA_EXT[mime] ?? null, name: m.documentMessage?.fileName ? String(m.documentMessage.fileName).slice(0, 200) : null, bytes: Number.isFinite(bytes) ? bytes : 0 };
+}
+
+/** Where a linked number's chat file is stored: <workspace>/wa/<message id>.<ext> */
+export function mediaPath(workspaceId: string, messageId: string, ext: string): string {
+  return `${workspaceId}/wa/${messageId}.${ext}`;
+}
+
+/** The Facebook/Instagram ad a customer tapped to start this chat, if WhatsApp says so. */
+export function adOf(message: any): { id: string; headline: string | null; url: string | null } | null {
+  const m = unwrap(message);
+  if (!m) return null;
+  for (const part of Object.values(m) as any[]) {
+    const ad = part?.contextInfo?.externalAdReply;
+    if (!ad || (!ad.sourceId && !ad.sourceUrl)) continue;
+    if (ad.sourceType && String(ad.sourceType).toLowerCase() !== "ad") continue;
+    return { id: String(ad.sourceId ?? ""), headline: ad.title ? String(ad.title).slice(0, 200) : null, url: ad.sourceUrl ? String(ad.sourceUrl).slice(0, 500) : null };
+  }
   return null;
 }
 

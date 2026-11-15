@@ -39,7 +39,7 @@ function Group({ g }: { g: DuplicateGroup }) {
             className={cn("rounded-md border p-3 text-left text-sm hover:border-primary/50", keep === c.id && "border-primary bg-accent/40")}
           >
             <span className="flex items-center gap-2">
-              <PersonAvatar name={fullName(c)} />
+              <PersonAvatar name={fullName(c)} src={c.avatarUrl} />
               <span className="min-w-0 flex-1 truncate font-medium">{fullName(c)}</span>
               {keep === c.id && <StatusBadge tone="brand">Keep</StatusBadge>}
             </span>

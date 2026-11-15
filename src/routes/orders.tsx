@@ -268,7 +268,7 @@ function OrderPanel({ order, onClose }: { order: OrderSummary; onClose: () => vo
 
           {c && (
             <Link to="/crm/contacts/$contactId" params={{ contactId: c.id }} className="flex items-center gap-3 rounded-md border p-3 hover:bg-muted/40">
-              <PersonAvatar name={fullName(c)} size="md" />
+              <PersonAvatar name={fullName(c)} size="md" src={c.avatarUrl} />
               <span className="min-w-0">
                 <span className="block font-medium">{fullName(c)}</span>
                 <span className="block text-xs text-muted-foreground">{c.phone} · {c.city}</span>

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { CustomerMemory } from "@/components/app/CustomerMemory";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { ArrowLeft, CalendarPlus, MessageSquare, NotebookPen, Phone, ShoppingBag, Target, UserRoundCog } from "lucide-react";
+import { ArrowLeft, CalendarPlus, MessageSquare, NotebookPen, Phone, ShoppingBag, Target, UserRound, UserRoundCog } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -30,7 +30,7 @@ function Customer360Page() {
   const { contactId } = Route.useParams();
   const db = useDb();
   const ws = useWorkspace();
-  const { setLifecycle, setLeadStage, setLeadOutcome, completeTask, startLead } = useActions();
+  const { setLifecycle, setLeadStage, setLeadOutcome, completeTask, startLead, setContactPersonal } = useActions();
   const [dialog, setDialog] = useState<DialogKind>(null);
   const c360 = getCustomer360(db, contactId);
   if (!c360) throw notFound();
@@ -49,7 +49,7 @@ function Customer360Page() {
 
       <div className="flex flex-col gap-4 rounded-lg border bg-card p-4 lg:flex-row lg:items-start">
         <div className="flex min-w-0 flex-1 items-start gap-4">
-          <PersonAvatar name={name} size="lg" />
+          <PersonAvatar name={name} size="lg" src={c.avatarUrl} />
           <div className="min-w-0">
             <h1 className="text-2xl font-bold">{name}</h1>
             <p className="mt-0.5 text-sm text-muted-foreground">
@@ -77,6 +77,9 @@ function Customer360Page() {
           <Button size="sm" variant="outline" onClick={() => setDialog("note")}><NotebookPen className="size-4" /> Note</Button>
           <Button size="sm" variant="outline" onClick={() => setDialog("call")}><Phone className="size-4" /> Log call</Button>
           <Button size="sm" variant="outline" onClick={() => setDialog("assign")}><UserRoundCog className="size-4" /> Assign</Button>
+          <Button size="sm" variant={c.tags.includes("Personal") ? "secondary" : "outline"} onClick={() => setContactPersonal(c.id, !c.tags.includes("Personal"))} title="Family and friends: no assistant replies, follow-ups or marketing, and not counted as a lead">
+            <UserRound className="size-4" /> {c.tags.includes("Personal") ? "Personal — make customer" : "Mark as personal"}
+          </Button>
           <Select value={c.lifecycle} onValueChange={(v) => setLifecycle(c.id, v as Lifecycle)}>
             <SelectTrigger className="h-8 w-40" aria-label="Lifecycle"><SelectValue>{`Lifecycle: ${LIFECYCLE_META[c.lifecycle].label}`}</SelectValue></SelectTrigger>
             <SelectContent>{(Object.keys(LIFECYCLE_META) as Lifecycle[]).map((l) => <SelectItem key={l} value={l}>{LIFECYCLE_META[l].label}</SelectItem>)}</SelectContent>
