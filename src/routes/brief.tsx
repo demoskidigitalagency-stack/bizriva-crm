@@ -143,7 +143,8 @@ function Brief() {
           <label className="flex items-center gap-2">Send at <Input type="time" className="h-8 w-28" value={time} aria-label="Brief time" onChange={(e) => setTime(e.target.value)} onBlur={() => updateSettings({ brief: { ...db.settings.brief, time } })} /></label>
           <label className="flex items-center gap-2"><Checkbox checked={channels.includes("app")} onCheckedChange={() => toggle("app")} aria-label="Show in the app" /> In the app</label>
           <label className="flex items-center gap-2"><Checkbox checked={channels.includes("whatsapp")} onCheckedChange={() => toggle("whatsapp")} aria-label="Send on WhatsApp" /> WhatsApp</label>
-          <label className="flex items-center gap-2"><Checkbox checked={channels.includes("email")} onCheckedChange={() => toggle("email")} aria-label="Send by email" /> Email <StatusBadge>with backend</StatusBadge></label>
+          <label className="flex items-center gap-2"><Checkbox checked={channels.includes("email")} onCheckedChange={() => toggle("email")} aria-label="Send by email" /> Email</label>
+          {channels.includes("email") && <p className="text-xs text-muted-foreground">Goes to the owners and managers by email at the time above, once your email service is connected (Settings → Email).</p>}
           {channels.includes("whatsapp") && <p className="text-xs text-muted-foreground">Arrives in your own “Message yourself” chat through your linked WhatsApp (WhatsApp Growth → link your number). In that chat you can also ask “sales today”, “cash with riders”, “who owes”, “waiting”, “tasks” or “help”.</p>}
         </div>
       </Section>
