@@ -5,7 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import QRCode from "qrcode";
 import pino from "pino";
 import { dbAuthState } from "./auth.ts";
-import { adOf, batches, chatNames, chatPhone, contactNames, groupRows, statusJids, MEDIA_MAX_BYTES, mediaOf, mediaPath, pause, rememberLid, savedName, textOf, toRow, toThreads } from "./parse.ts";
+import { adOf, batches, chatNames, chatPhone, contactNames, groupRows, statusJids, MEDIA_MAX_BYTES, mediaOf, mediaPath, pause, phoneOfJid, rememberLid, savedName, textOf, toRow, toThreads } from "./parse.ts";
 
 export interface LinkRow { id: string; workspace_id: string; phone: string; method: "code" | "qr"; status: string; backfill_status?: string | null; save_status?: string | null }
 
@@ -29,6 +29,7 @@ export class Link {
   private historyOpen = false;
   private sendTimer: NodeJS.Timeout | null = null;
   private postTimer: NodeJS.Timeout | null = null;
+  private briefTimer: NodeJS.Timeout | null = null;
   private groupTimer: NodeJS.Timeout | null = null;
   private groupSyncSoon: NodeJS.Timeout | null = null;
   private posting = false;
@@ -118,12 +119,14 @@ export class Link {
       this.sendTimer ??= setInterval(() => void this.sendQueued(), 3000);
       setTimeout(() => void this.fillAvatars().catch((e) => this.log(`avatars: ${e}`)), 60_000);
       this.postTimer ??= setInterval(() => void this.sendPosts(), 20_000);
+      this.briefTimer ??= setInterval(() => void this.briefDue().catch((e) => this.log(`brief: ${e}`)), 60_000);
       setTimeout(() => void this.syncGroups(), 30_000);
       this.groupTimer ??= setInterval(() => void this.syncGroups(), 6 * 60 * 60 * 1000);
     }
     if (u.connection === "close") {
       if (this.sendTimer) { clearInterval(this.sendTimer); this.sendTimer = null; }
       if (this.postTimer) { clearInterval(this.postTimer); this.postTimer = null; }
+      if (this.briefTimer) { clearInterval(this.briefTimer); this.briefTimer = null; }
       if (this.groupTimer) { clearInterval(this.groupTimer); this.groupTimer = null; }
       const err = u.lastDisconnect?.error as any;
       const code = err?.output?.statusCode as number | undefined;
@@ -368,10 +371,38 @@ export class Link {
     return null;
   }
 
+  // ───────────── owner assistant + Money Brief (own "Message yourself" chat) ─────────────
+  private ownPhone(): string | null { return phoneOfJid(String(this.sock?.user?.id ?? "").replace(/:\d+@/, "@")); }
+
+  private async ownerChat(msg: any) {
+    const text = textOf(msg.message);
+    const id = `wa:${msg.key.id}`;
+    const ts = Number(msg.messageTimestamp?.low ?? msg.messageTimestamp ?? 0) * 1000;
+    if (!text || !msg.key.fromMe || this.sentIds.has(id) || (ts && Date.now() - ts > 120_000)) return;
+    const { data, error } = await this.db.rpc("svc_wa_owner_ask", { p_link: this.row.id, p_text: text.slice(0, 500) });
+    if (error) { if (!/PGRST202/.test(error.message)) this.log(`owner ask: ${error.message}`); return; }
+    if (data) await this.toOwner(String(data));
+  }
+
+  private async toOwner(text: string) {
+    const me = this.ownPhone();
+    if (!me || !this.sock) return;
+    const sent = await this.sock.sendMessage(`${me}@s.whatsapp.net`, { text });
+    if (sent?.key?.id) this.sentIds.add(`wa:${sent.key.id}`);
+  }
+
+  private async briefDue() {
+    if (!this.sock || this.stopped) return;
+    const { data, error } = await this.db.rpc("svc_wa_brief_due", { p_link: this.row.id });
+    if (error) { if (!/PGRST202/.test(error.message)) this.log(`brief: ${error.message}`); return; }
+    if (data) { await this.toOwner(String(data)); this.log("Money Brief sent to the owner's chat"); }
+  }
+
   private async onMessages(list: any[]) {
     for (const msg of list) {
       const wa = await this.phoneFor(msg.key);
       if (!wa || !msg.key?.id) continue;
+      if (wa === this.ownPhone()) { await this.ownerChat(msg); continue; } // "Message yourself": the owner assistant
       const r = toRow({ ...msg, key: { ...msg.key, remoteJid: `${wa}@s.whatsapp.net` } }, this.lid);
       if (!r) continue;
       type Saved = { status?: string; message?: string; contact?: string } | null;
@@ -608,6 +639,7 @@ export class Link {
     this.stopped = true;
     if (this.sendTimer) { clearInterval(this.sendTimer); this.sendTimer = null; }
     if (this.postTimer) { clearInterval(this.postTimer); this.postTimer = null; }
+    if (this.briefTimer) { clearInterval(this.briefTimer); this.briefTimer = null; }
     if (this.groupTimer) { clearInterval(this.groupTimer); this.groupTimer = null; }
     if (this.historyTimer) clearTimeout(this.historyTimer);
     const s = this.sock; this.sock = null;
