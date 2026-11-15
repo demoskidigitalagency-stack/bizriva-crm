@@ -182,6 +182,8 @@ export class Link {
   /** Profile pictures: fetched once a week per customer, a few at a time, into the business's private folder. */
   private avatarQueue: Promise<void> = Promise.resolve();
   private avatarAsked = new Set<string>();
+  private avatarsTried = 0;
+  private avatarsSaved = 0;
   private queueAvatar(phone: string) {
     if (this.avatarAsked.has(phone)) return;
     this.avatarAsked.add(phone);
@@ -191,10 +193,16 @@ export class Link {
   private async saveAvatar(phone: string) {
     const { data: contact } = await this.db.rpc("svc_wa_avatar_due", { p_link: this.row.id, p_phone: phone });
     if (!contact || !this.sock) return;
+    this.avatarsTried++;
     let path: string | null = null;
     try {
       // Only pictures the person shows to everyone (or to your contacts) are visible; others come back empty.
-      const url = await this.sock.profilePictureUrl(`${phone}@s.whatsapp.net`, "image", 10_000);
+      // WhatsApp sometimes never answers this request, so give up after 12 s and move on to the next customer.
+      const sock = this.sock;
+      const url = await Promise.race([
+        sock.profilePictureUrl(`${phone}@s.whatsapp.net`, "image", 10_000),
+        new Promise<undefined>((r) => setTimeout(() => r(undefined), 12_000)),
+      ]);
       if (url) {
         const r = await fetch(url, { signal: AbortSignal.timeout(15_000) });
         if (r.ok) {
@@ -208,12 +216,17 @@ export class Link {
       }
     } catch { path = null; /* hidden by their privacy settings, or no picture */ }
     await this.db.rpc("svc_wa_avatar", { p_link: this.row.id, p_contact: contact, p_path: path });
+    if (path) this.avatarsSaved++;
+    if (this.avatarsTried % 25 === 0) this.log(`profile pictures: ${this.avatarsSaved} saved of ${this.avatarsTried} checked`);
   }
 
   /** After connecting: fetch pictures for customers who don't have one yet (newest chats first). */
   private async fillAvatars() {
-    const { data } = await this.db.rpc("svc_wa_avatar_todo", { p_link: this.row.id, p_limit: 300 });
-    for (const phone of (data as string[] | null) ?? []) this.queueAvatar(phone);
+    const { data, error } = await this.db.rpc("svc_wa_avatar_todo", { p_link: this.row.id, p_limit: 300 });
+    if (error) { this.log(`profile pictures: ${error.message}`); return; }
+    const list = (data as string[] | null) ?? [];
+    if (list.length) this.log(`profile pictures: checking ${list.length} customers`);
+    for (const phone of list) this.queueAvatar(phone);
   }
 
   private async phoneFor(key: any): Promise<string | null> {
