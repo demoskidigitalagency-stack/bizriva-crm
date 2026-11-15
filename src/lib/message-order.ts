@@ -99,8 +99,12 @@ function draftFrom(text: string, products: OrderProduct[], dial: string, fallbac
   const phone = phones.map((x) => normalisePhone(x, dial)).find(Boolean) ?? "";
   const town = findTown(text);
   const named = /(?:full\s*)?name\s*(?:is)?\s*[:=-]\s*([^\n,.;\d+]+)/i.exec(text)?.[1];
-  const phoneLine = text.split("\n").find((l) => (l.match(PHONE) ?? []).length > 0) ?? "";
-  const name = cleanName(named ?? (phones.length ? phoneLine : ""), town) || fallbackName;
+  const forName = /\bfor\s+((?:Mr|Mrs|Miss|Dr|Madam|Aunty|Uncle)\.?\s+)?(\p{Lu}[\p{L}'-]+(?:\s+\p{Lu}[\p{L}'-]+){0,3})/u.exec(text);
+  let phoneLine = text.split("\n").find((l) => (l.match(PHONE) ?? []).length > 0) ?? "";
+  // Product words and quantities aren't part of the name.
+  for (const p of products) for (const re of words(p)) phoneLine = phoneLine.replace(new RegExp(re.source, "giu"), "$1 ");
+  phoneLine = phoneLine.replace(/\bfor\b.*$/i, "").replace(/\b\d{1,3}\s*(x|pcs|pieces)?\b/gi, " ");
+  const name = cleanName(named ?? (forName ? `${forName[1] ?? ""}${forName[2]}` : null) ?? (phones.length ? phoneLine : ""), town) || fallbackName;
   const dep = /(deposit|paid|part[- ]?payment|advance|sent)\D{0,12}([\d][\d,]*(?:\.\d+)?\s*k?)/i.exec(text);
   return {
     name, phone, town, items, deposit: dep ? money(dep[2]!) : 0,
@@ -122,6 +126,9 @@ export function messageToOrders(message: string, products: OrderProduct[], opts:
   const phoneLines = lines.filter((l) => (l.match(PHONE) ?? []).some((x) => normalisePhone(x, dial)));
   if (phoneLines.length < 2) return [draftFrom(text, products, dial, opts.senderName ?? "")];
   const out: DraftOrder[] = [];
+  // Lines before the first customer (e.g. "Orders today 4ft") also apply to anyone listed without a product.
+  const firstPhone = lines.findIndex((l) => (l.match(PHONE) ?? []).some((x) => normalisePhone(x, dial)));
+  const head = firstPhone > 0 ? draftFrom(lines.slice(0, firstPhone).join("\n"), products, dial).items : [];
   let pending: string[] = [];
   for (const l of lines) {
     pending.push(l);
@@ -129,10 +136,9 @@ export function messageToOrders(message: string, products: OrderProduct[], opts:
   }
   // Trailing lines with no phone (e.g. "all 4ft") apply to every draft without a product.
   const tail = pending.join("\n").trim();
-  if (tail) {
-    const extra = draftFrom(tail, products, dial);
-    for (const d of out) if (!d.items.length) d.items = extra.items.map((i) => ({ ...i }));
-  }
+  const extra = tail ? draftFrom(tail, products, dial).items : [];
+  const fallback = extra.length ? extra : head;
+  for (const d of out) if (!d.items.length) d.items = fallback.map((i) => ({ ...i }));
   return out;
 }
 

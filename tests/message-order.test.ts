@@ -47,11 +47,19 @@ describe("message to order", () => {
     expect(ds[0]).toMatchObject({ name: "David Dapaah", town: "Kumasi", phone: "233538699550" });
     expect(ds[0]!.items).toEqual([{ productId: "small", qty: 1 }]);
     expect(ds[1]).toMatchObject({ name: "Mr Okyere", town: "Ejisu" });
+    expect(ds[1]!.items).toEqual([{ productId: "small", qty: 1 }]); // the "4ft" heading applies to him too
     expect(ds[2]).toMatchObject({ name: "Williams goodnews", town: "Ho", phone: "233240895130" });
     expect(ds[2]!.items).toEqual([{ productId: "tt", qty: 2 }]);
   });
 
-  test("13,000 is not the 3,000 table; 'who' is not the town Ho", () => {
+  test("name from 'for X', not the product words", () => {
+  const [d] = messageToOrders("2 Table tennis table for Kofi Mensah, Kumasi 0241234567", products, { dial: "233" });
+  expect(d!.name).toBe("Kofi Mensah");
+  const [e] = messageToOrders("table tennis Ama Serwaa 0241234567 Kumasi", products, { dial: "233" });
+  expect(e!.name).toBe("Ama Serwaa");
+});
+
+test("13,000 is not the 3,000 table; 'who' is not the town Ho", () => {
     const [d] = messageToOrders("who has 13,000 budget", products, { dial: "233" });
     expect(d!.items).toEqual([]);
     expect(d!.town).toBe("");
