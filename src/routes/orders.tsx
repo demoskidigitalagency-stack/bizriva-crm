@@ -10,7 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { EmptyState, PersonAvatar, Section, StatusBadge } from "@/components/app/primitives";
 import { OrderDialog, PickCustomer } from "@/components/app/dialogs";
 import { MessageToOrderDialog } from "@/components/app/MessageToOrder";
-import { EDITABLE_STATUSES, useActions, useDb, useWorkspace } from "@/domain/store";
+import { EDITABLE_STATUSES, useActions, useDb, useLive, useWorkspace } from "@/domain/store";
+import { useAuth } from "@/app/auth";
+import { supabase } from "@/lib/supabase";
+import { invoicePdf, isReceipt } from "@/lib/invoice-pdf";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { fullName } from "@/domain/repositories";
@@ -150,10 +153,39 @@ function Invoice({ order, onClose }: { order: OrderSummary; onClose: () => void 
   const c = db.contacts.find((x) => x.id === order.contactId);
   const money = (n: number) => formatCurrency(n, ws.currency);
   const paid = order.amountPaid ?? (order.paymentStatus === "paid" ? order.total : 0);
+  const live = useLive();
+  const { current } = useAuth();
+  const [state, setState] = useState<"" | "sending" | "sent" | string>("");
+  const full = db.orders.find((o) => o.id === order.id);
+  const lines = (full?.lines ?? []).map((l) => ({ name: db.products.find((p) => p.id === l.productId)?.name ?? "Item", qty: l.quantity, unitPrice: l.unitPrice }));
+  const receipt = isReceipt({ total: order.total, paid });
+  const label = receipt ? "Receipt" : "Invoice";
+  const pdf = () => invoicePdf({
+    business: db.settings.businessName, businessPhone: db.settings.whatsappNumber, number: order.invoiceNo ?? order.reference, orderRef: order.reference,
+    date: formatDateTime(order.placedAt), customer: { name: c ? fullName(c) : "Customer", ...(c?.phone ? { phone: c.phone } : {}), address: [c?.address, c?.city].filter(Boolean).join(", ") },
+    lines: lines.length ? lines : order.productNames.map((n) => ({ name: n, qty: 1, unitPrice: 0 })), delivery: order.shippingFee, total: order.total, paid, money,
+    footer: receipt ? "Paid in full. Thank you for your order!" : order.paymentMethod === "cash_on_delivery" ? "Balance payable to the rider on delivery." : "Pay by transfer or the payment link we sent.",
+  });
+  const fileName = `${label}-${(order.invoiceNo ?? order.reference).replace(/[^\w-]/g, "")}.pdf`;
+  const download = () => { const u = URL.createObjectURL(pdf()); const a = document.createElement("a"); a.href = u; a.download = fileName; a.click(); setTimeout(() => URL.revokeObjectURL(u), 5000); };
+  const conv = db.conversations.filter((x) => x.contactId === order.contactId && x.channel === "whatsapp").sort((a, b) => b.lastMessageAt.localeCompare(a.lastMessageAt))[0];
+  const send = async () => {
+    const sb = supabase();
+    if (!live.on || !sb || !current) { setState("Sending files works once your business is live."); return; }
+    if (!conv) { setState("This customer has no WhatsApp chat yet."); return; }
+    setState("sending");
+    const path = `${current.workspaceId}/out/${crypto.randomUUID()}-${fileName}`;
+    const up = await sb.storage.from("chat-media").upload(path, pdf(), { contentType: "application/pdf" });
+    if (up.error) { setState(up.error.message); return; }
+    const { error } = await sb.from("messages").insert({ workspace_id: current.workspaceId, conversation_id: conv.id, direction: "out", status: "queued",
+      body: `${label} for order ${order.reference}`, media_path: path, media_kind: "document", media_name: fileName });
+    if (error) { setState(error.message); return; }
+    setState("sent"); await live.reload();
+  };
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-lg print:max-w-none print:border-0 print:shadow-none">
-        <DialogHeader><DialogTitle>Invoice {order.invoiceNo}</DialogTitle><DialogDescription>Print it or save as PDF from the print window. Sending the PDF on WhatsApp comes with the backend.</DialogDescription></DialogHeader>
+        <DialogHeader><DialogTitle>{label} {order.invoiceNo}</DialogTitle><DialogDescription>Download it as a PDF or send the PDF to the customer on WhatsApp (from your linked number or official WhatsApp).</DialogDescription></DialogHeader>
         <div id="invoice" className="space-y-3 text-sm">
           <div className="flex justify-between gap-4">
             <div><p className="font-bold">{db.settings.businessName}</p><p className="text-xs text-muted-foreground">{db.settings.whatsappNumber}</p></div>
@@ -169,7 +201,13 @@ function Invoice({ order, onClose }: { order: OrderSummary; onClose: () => void 
           </dl>
           <p className="text-xs text-muted-foreground">{order.paymentMethod === "cash_on_delivery" ? "Balance payable to the rider on delivery." : "Pay by transfer or the payment link we sent."}</p>
         </div>
-        <Button onClick={() => window.print()}>Print or save as PDF</Button>
+        <div className="flex flex-wrap gap-2 print:hidden">
+          <Button onClick={() => void send()} disabled={state === "sending" || state === "sent"}>{state === "sending" ? "Sending…" : state === "sent" ? "Queued on WhatsApp" : `Send ${label.toLowerCase()} PDF on WhatsApp`}</Button>
+          <Button variant="outline" onClick={download}>Download PDF</Button>
+          <Button variant="ghost" onClick={() => window.print()}>Print</Button>
+        </div>
+        {state && !["sending", "sent"].includes(state) && <p role="alert" className="text-xs text-destructive">{state}</p>}
+        {state === "sent" && <p className="text-xs text-muted-foreground">It goes out in a few seconds and shows in the chat.</p>}
       </DialogContent>
     </Dialog>
   );
