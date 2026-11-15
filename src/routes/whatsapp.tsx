@@ -6,6 +6,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PageHeader, Section } from "@/components/app/primitives";
 import { ChatsSynced, SavedContacts, WhatsAppLink } from "@/components/app/WhatsAppLink";
+import { AutoSave, BroadcastTool, GroupsTool, StatusTool } from "@/components/app/WhatsAppGrowthTools";
 import { useLive } from "@/domain/store";
 
 export const Route = createFileRoute("/whatsapp")({
@@ -17,7 +18,7 @@ const STEPS = [
   { t: "Link in a minute", d: "Enter your number, get a pairing code, type it into WhatsApp → Linked devices. Your phone keeps working as normal." },
   { t: "Old chats come in", d: "The chats WhatsApp shares with a new device arrive in the Inbox, each customer saved as a contact and a lead." },
   { t: "Tagged by product", d: "Bizriva reads each chat for your product names: “Asked about: Hair dryer”, “No order yet”." },
-  { t: "Follow up and sell", d: "Reply from the Inbox, send a broadcast to a tag, or download the contacts so they see your Status." },
+  { t: "Post and follow up", d: "Post your Status and to your groups from here, message customers by tag, and see who viewed." },
 ];
 
 function WhatsAppGrowth() {
@@ -41,6 +42,18 @@ function WhatsAppGrowth() {
           </Section>
           <Section title="Chats synced" description="What's in Bizriva from your WhatsApp, month by month.">
             <ChatsSynced />
+          </Section>
+          <Section title="Auto-save" description="New customers go into your phone's contacts the moment they write, so they see your Status." bodyClassName="p-0">
+            <AutoSave />
+          </Section>
+          <Section title="Status" description="Post or schedule your WhatsApp Status from here — see who viewed it." bodyClassName="p-0">
+            <StatusTool />
+          </Section>
+          <Section title="Groups" description="Post to many of your WhatsApp groups at once, now or later." bodyClassName="p-0">
+            <GroupsTool />
+          </Section>
+          <Section title="Message your customers" description="One message to customers who wrote to you before — paced, with a STOP option." bodyClassName="p-0">
+            <BroadcastTool />
           </Section>
           <Section title="Your WhatsApp customers" description="Everyone who has messaged you, saved and ready to follow up.">
             <SavedContacts />

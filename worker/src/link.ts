@@ -5,7 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import QRCode from "qrcode";
 import pino from "pino";
 import { dbAuthState } from "./auth.ts";
-import { adOf, batches, chatNames, chatPhone, contactNames, MEDIA_MAX_BYTES, mediaOf, mediaPath, pause, rememberLid, savedName, textOf, toRow, toThreads } from "./parse.ts";
+import { adOf, batches, chatNames, chatPhone, contactNames, groupRows, statusJids, MEDIA_MAX_BYTES, mediaOf, mediaPath, pause, rememberLid, savedName, textOf, toRow, toThreads } from "./parse.ts";
 
 export interface LinkRow { id: string; workspace_id: string; phone: string; method: "code" | "qr"; status: string; backfill_status?: string | null; save_status?: string | null }
 
@@ -13,6 +13,8 @@ const logger = pino({ level: process.env.LOG_LEVEL ?? "warn" });
 const MARKETING_PER_DAY = Number(process.env.MARKETING_PER_DAY ?? 500);
 const HISTORY_IDLE_MS = 3 * 60_000;
 let waVersion: [number, number, number] | undefined;
+
+interface Post { id: string; kind: "status" | "group"; body: string | null; media_path: string | null; media_kind: "image" | "video" | null; bg_color: string | null; mention_all: boolean; targets: string[] }
 
 export class Link {
   sock: WASocket | null = null;
@@ -26,6 +28,11 @@ export class Link {
   private historyTimer: NodeJS.Timeout | null = null;
   private historyOpen = false;
   private sendTimer: NodeJS.Timeout | null = null;
+  private postTimer: NodeJS.Timeout | null = null;
+  private groupTimer: NodeJS.Timeout | null = null;
+  private groupSyncSoon: NodeJS.Timeout | null = null;
+  private posting = false;
+  private saveQueue: Promise<void> = Promise.resolve();
   private retries = 0;
   private marketing = { day: "", n: 0 };
   private flush: (() => Promise<void>) | null = null;
@@ -73,6 +80,9 @@ export class Link {
     // so the chats count as done only once nothing new has arrived for 3 minutes.
     sock.ev.on("messages.upsert", (u) => void this.onMessages(u.messages).catch((e) => this.log(`messages: ${e}`)));
     sock.ev.on("messages.update", (u) => void this.onUpdates(u).catch((e) => this.log(`updates: ${e}`)));
+    sock.ev.on("message-receipt.update", (u) => void this.onReceipts(u as any[]).catch((e) => this.log(`receipts: ${e}`)));
+    sock.ev.on("groups.upsert", () => this.scheduleGroupSync());
+    sock.ev.on("groups.update", () => this.scheduleGroupSync());
     sock.ev.on("contacts.upsert", (c) => void this.onContacts(c));
     sock.ev.on("contacts.update", (c) => void this.onContacts(c as any[]));
     sock.ev.on("lid-mapping.update" as any, (m: any) => rememberLid(this.lid, m?.lid, m?.pn));
@@ -107,9 +117,14 @@ export class Link {
       else if (this.namesSent === 0) setTimeout(() => void this.refreshNames(), 20_000); // fill names for chats already in
       this.sendTimer ??= setInterval(() => void this.sendQueued(), 3000);
       setTimeout(() => void this.fillAvatars().catch((e) => this.log(`avatars: ${e}`)), 60_000);
+      this.postTimer ??= setInterval(() => void this.sendPosts(), 20_000);
+      setTimeout(() => void this.syncGroups(), 30_000);
+      this.groupTimer ??= setInterval(() => void this.syncGroups(), 6 * 60 * 60 * 1000);
     }
     if (u.connection === "close") {
       if (this.sendTimer) { clearInterval(this.sendTimer); this.sendTimer = null; }
+      if (this.postTimer) { clearInterval(this.postTimer); this.postTimer = null; }
+      if (this.groupTimer) { clearInterval(this.groupTimer); this.groupTimer = null; }
       const err = u.lastDisconnect?.error as any;
       const code = err?.output?.statusCode as number | undefined;
       const why = String(err?.message ?? "closed");
@@ -229,6 +244,118 @@ export class Link {
     for (const phone of list) this.queueAvatar(phone);
   }
 
+  // ───────────── Status posts and group posts (wa_posts) ─────────────
+  /** Every 20 s: take due posts. Broadcasts are queued by the database; Status and group posts are sent here. */
+  private async sendPosts() {
+    if (this.posting || !this.sock || this.stopped) return;
+    this.posting = true;
+    try {
+      const { data, error } = await this.db.rpc("svc_wa_posts_claim", { p_link: this.row.id });
+      if (error) { if (!/svc_wa_posts_claim|PGRST202/.test(error.message)) this.log(`posts: ${error.message}`); return; }
+      for (const p of (data ?? []) as Post[]) {
+        if (!this.sock) break;
+        if (p.kind === "status") await this.sendStatus(p); else await this.sendToGroups(p);
+      }
+    } finally { this.posting = false; }
+  }
+
+  private async postContent(p: Post): Promise<any> {
+    if (!p.media_path) return { text: p.body ?? "" };
+    const { data: file, error } = await this.db.storage.from("chat-media").download(p.media_path);
+    if (error || !file) throw new Error(`Couldn't load the file: ${error?.message ?? "missing"}`);
+    const buf = Buffer.from(await file.arrayBuffer());
+    const caption = p.body?.trim() || undefined;
+    return p.media_kind === "video" ? { video: buf, caption } : { image: buf, caption };
+  }
+
+  private async sendStatus(p: Post) {
+    let sent = 0, err: string | null = null, id: string | null = null;
+    const jids = statusJids(p.targets);
+    try {
+      if (!jids.length) throw new Error("Nobody to show it to yet — customers appear here once they've messaged you");
+      const content = await this.postContent(p);
+      const r = await this.sock!.sendMessage("status@broadcast", content, {
+        statusJidList: jids, broadcast: true,
+        ...(p.media_path ? {} : { backgroundColor: p.bg_color ?? "#128C7E", font: 1 }),
+      } as any);
+      if (!r?.key?.id) throw new Error("WhatsApp didn't confirm the Status");
+      id = `wa:${r.key.id}`;
+      this.sentIds.add(id);
+      sent = jids.length;
+      this.log(`status posted to ${jids.length} contacts`);
+    } catch (e) { err = (e instanceof Error ? e.message : String(e)).slice(0, 300); }
+    await this.db.rpc("svc_wa_post_result", { p_link: this.row.id, p_post: p.id, p_sent: sent, p_failed: sent ? 0 : jids.length, p_error: err, p_message_id: id });
+  }
+
+  private async sendToGroups(p: Post) {
+    let sent = 0, failed = 0, last: string | null = null;
+    let content: any;
+    try { content = await this.postContent(p); }
+    catch (e) { await this.db.rpc("svc_wa_post_result", { p_link: this.row.id, p_post: p.id, p_sent: 0, p_failed: p.targets.length, p_error: String(e instanceof Error ? e.message : e).slice(0, 300), p_message_id: null }); return; }
+    for (const jid of p.targets.map(String)) {
+      if (!this.sock || this.stopped) { last = "WhatsApp disconnected while posting"; failed++; continue; }
+      try {
+        let c = content;
+        if (p.mention_all) {
+          const meta = await this.sock.groupMetadata(jid);
+          const ids = (meta.participants ?? []).map((x: any) => x.id).filter(Boolean).slice(0, 256);
+          c = { ...content, mentions: ids };
+        }
+        const r = await this.sock.sendMessage(jid, c);
+        if (!r?.key?.id) throw new Error("WhatsApp didn't confirm the message");
+        sent++;
+      } catch (e) { failed++; last = (e instanceof Error ? e.message : String(e)).slice(0, 200); }
+      await new Promise((res) => setTimeout(res, 4000 + Math.floor(Math.random() * 8000))); // 4–12 s between groups
+    }
+    this.log(`group post: ${sent} sent, ${failed} failed`);
+    await this.db.rpc("svc_wa_post_result", { p_link: this.row.id, p_post: p.id, p_sent: sent, p_failed: failed, p_error: failed ? `${failed} group(s) failed${last ? `: ${last}` : ""}` : null, p_message_id: null });
+  }
+
+  /** Status views: WhatsApp sends a read receipt per viewer. */
+  private async onReceipts(list: any[]) {
+    for (const u of list ?? []) {
+      const key = u?.key, r = u?.receipt;
+      if (key?.remoteJid !== "status@broadcast" || !key?.fromMe || !key?.id || !(r?.readTimestamp || r?.playedTimestamp)) continue;
+      let phone: string | null = (String(r.userJid ?? "").match(/^(\d{7,15})(?::\d+)?@s\.whatsapp\.net$/) ?? [])[1] ?? null;
+      if (!phone && String(r.userJid ?? "").endsWith("@lid")) phone = await this.phoneFor({ remoteJid: r.userJid });
+      if (phone) await this.db.rpc("svc_wa_status_view", { p_link: this.row.id, p_message_id: `wa:${key.id}`, p_phone: phone });
+    }
+  }
+
+  // ───────────── groups ─────────────
+  private scheduleGroupSync() {
+    if (this.groupSyncSoon) return;
+    this.groupSyncSoon = setTimeout(() => { this.groupSyncSoon = null; void this.syncGroups(); }, 15_000);
+  }
+
+  private async syncGroups() {
+    if (!this.sock || this.stopped) return;
+    try {
+      const all = await this.sock.groupFetchAllParticipating();
+      const me = [this.sock.user?.id, (this.sock.user as any)?.lid].filter(Boolean) as string[];
+      const rows = groupRows(all, me);
+      const { error } = await this.db.rpc("svc_wa_groups_sync", { p_link: this.row.id, p_groups: rows });
+      if (error) { if (!/svc_wa_groups_sync|PGRST202/.test(error.message)) this.log(`groups: ${error.message}`); return; }
+      this.log(`groups: ${rows.length} synced`);
+    } catch (e) { this.log(`groups: ${e instanceof Error ? e.message : e}`); }
+  }
+
+  // ───────────── auto-save new customers ─────────────
+  private queueAutoSave(phone: string) {
+    this.saveQueue = this.saveQueue.then(() => this.autoSave(phone)).catch((e) => this.log(`auto-save: ${e}`));
+  }
+
+  private async autoSave(phone: string) {
+    const { data, error } = await this.db.rpc("svc_wa_autosave_target", { p_link: this.row.id, p_phone: phone });
+    const t = data as { contact: string; name: string | null; tags: string[]; template: string } | null;
+    if (error || !t?.contact || !this.sock) return;
+    const full = savedName(phone, t.name, t.tags ?? [], t.template ?? "{name}");
+    await this.sock.addOrEditContact(`${phone}@s.whatsapp.net`, { fullName: full, firstName: full.split(" ")[0] ?? full, pnJid: `${phone}@s.whatsapp.net`, saveOnPrimaryAddressbook: true } as any);
+    await this.db.rpc("svc_wa_autosave_done", { p_link: this.row.id, p_contact: t.contact });
+    this.log("auto-saved a new customer to the phone");
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+
   private async phoneFor(key: any): Promise<string | null> {
     const p = chatPhone(key, this.lid);
     if (p) return p;
@@ -259,6 +386,7 @@ export class Link {
         saved = data as Saved;
         if (saved?.status === "saved") {
           this.queueAvatar(wa);
+          this.queueAutoSave(wa);
           // Came from a click-to-WhatsApp ad: credit the customer to that ad (first touch only).
           const ad = adOf(msg.message);
           if (ad && saved.contact) await this.db.rpc("svc_attribute_ad", { p_workspace: this.row.workspace_id, p_contact: saved.contact, p_ad_id: ad.id, p_headline: ad.headline, p_url: ad.url, p_channel: "whatsapp" });
@@ -451,6 +579,7 @@ export class Link {
       const rows = ((data ?? []) as { wa: string; name: string | null; tags: string[]; template: string }[]).slice(0, 2000);
       await patch({ status: "running", done: 0, total: rows.length });
       let saved = 0, failed = 0;
+      let savedPhones: string[] = [];
       for (let i = 0; i < rows.length; i++) {
         if (!this.sock || this.stopped) throw new Error("WhatsApp disconnected — tap Save to my phone again once it's back");
         const r = rows[i]!;
@@ -458,10 +587,15 @@ export class Link {
         try {
           await this.sock.addOrEditContact(`${r.wa}@s.whatsapp.net`, { fullName: full, firstName: full.split(" ")[0] ?? full, pnJid: `${r.wa}@s.whatsapp.net`, saveOnPrimaryAddressbook: true });
           saved++;
+          savedPhones.push(r.wa);
         } catch (e) { failed++; if (failed <= 3) this.log(`save ${r.wa.slice(0, 5)}…: ${e instanceof Error ? e.message : e}`); }
-        if (i % 20 === 19) await patch({ done: i + 1, saved, failed });
+        if (i % 20 === 19) {
+          await patch({ done: i + 1, saved, failed });
+          if (savedPhones.length) { await this.db.rpc("svc_wa_mark_saved", { p_link: this.row.id, p_phones: savedPhones }); savedPhones = []; }
+        }
         await new Promise((res) => setTimeout(res, 900 + Math.floor(Math.random() * 400)));
       }
+      if (savedPhones.length) await this.db.rpc("svc_wa_mark_saved", { p_link: this.row.id, p_phones: savedPhones });
       await patch({ status: "done", done: rows.length, saved, failed });
       this.log(`saved ${saved} contacts to the phone (${failed} failed)`);
     } catch (e) {
@@ -473,6 +607,8 @@ export class Link {
   async stop(logout: boolean): Promise<void> {
     this.stopped = true;
     if (this.sendTimer) { clearInterval(this.sendTimer); this.sendTimer = null; }
+    if (this.postTimer) { clearInterval(this.postTimer); this.postTimer = null; }
+    if (this.groupTimer) { clearInterval(this.groupTimer); this.groupTimer = null; }
     if (this.historyTimer) clearTimeout(this.historyTimer);
     const s = this.sock; this.sock = null;
     if (s) {

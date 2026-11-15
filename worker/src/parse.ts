@@ -31,6 +31,25 @@ export function isPersonChat(jid: string | null | undefined): boolean {
   return j.endsWith("@s.whatsapp.net") || j.endsWith("@lid");
 }
 
+/** The business's groups as Bizriva lists them; `me` are the business's own ids (phone and hidden). */
+export function groupRows(all: Record<string, any> | null | undefined, me: string[]): { jid: string; name: string; size: number; admin: boolean; announce: boolean }[] {
+  const mine = new Set(me.filter(Boolean).map((j) => j.split(":")[0]!.split("@")[0]!));
+  return Object.values(all ?? {})
+    .filter((g: any) => typeof g?.id === "string" && g.id.endsWith("@g.us"))
+    .map((g: any) => {
+      const parts: any[] = Array.isArray(g.participants) ? g.participants : [];
+      const self = parts.find((p) => [p?.id, p?.phoneNumber, p?.lid].some((x) => typeof x === "string" && mine.has(x.split(":")[0]!.split("@")[0]!)));
+      return { jid: g.id as string, name: String(g.subject ?? "").slice(0, 200), size: Number(g.size ?? parts.length) || parts.length,
+        admin: !!self && (self.admin === "admin" || self.admin === "superadmin" || !!self.isAdmin), announce: !!g.announce };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** Who may see a Status: phone numbers → WhatsApp ids, without duplicates or bad numbers. */
+export function statusJids(phones: unknown[]): string[] {
+  return [...new Set((phones ?? []).map(String).filter((p) => /^\d{7,15}$/.test(p)))].map((p) => `${p}@s.whatsapp.net`);
+}
+
 /** Record a hidden-id → phone pair (from history, contacts or WhatsApp's mapping updates). */
 export function rememberLid(lid: Map<string, string>, lidJid: string | null | undefined, pnJid: string | null | undefined): void {
   const pn = phoneOfJid(pnJid);

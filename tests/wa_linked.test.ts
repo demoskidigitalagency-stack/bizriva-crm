@@ -1,6 +1,6 @@
 // bun test tests/wa_linked.test.ts — WhatsApp linked device (worker/src/parse.ts, worker/src/auth.ts).
 import { describe, expect, test } from "bun:test";
-import { adOf, batches, chatPhone, isPersonChat, contactNames, mediaOf, mediaPath, pause, phoneOfJid, rememberLid, textOf, toRow, toThreads } from "../worker/src/parse";
+import { adOf, batches, chatPhone, groupRows, isPersonChat, statusJids, contactNames, mediaOf, mediaPath, pause, phoneOfJid, rememberLid, textOf, toRow, toThreads } from "../worker/src/parse";
 import { keyFrom, open, seal } from "../worker/src/auth";
 
 const CUST = "2348031112222";
@@ -164,5 +164,22 @@ describe("Status posts are not chat messages", () => {
     expect(isPersonChat("233596888569@s.whatsapp.net")).toBe(true);
     expect(isPersonChat("19283746@lid")).toBe(true);
     expect(chatPhone({ remoteJid: "233596888569@s.whatsapp.net" }, new Map())).toBe("233596888569");
+  });
+});
+
+describe("Status and groups", () => {
+  test("Status recipients: valid numbers only, once each", () => {
+    expect(statusJids(["233244000111", "233244000111", "abc", "12", 2348031234567])).toEqual(["233244000111@s.whatsapp.net", "2348031234567@s.whatsapp.net"]);
+  });
+  test("groups: name, size, whether the business is an admin, admins-only groups", () => {
+    const all = {
+      "1203-1@g.us": { id: "1203-1@g.us", subject: "Resellers Accra", announce: true, participants: [{ id: "233500000001@s.whatsapp.net" }, { id: "99887766@lid", phoneNumber: "233244000999@s.whatsapp.net", admin: "superadmin" }] },
+      "1203-2@g.us": { id: "1203-2@g.us", subject: "Ankara Lovers", size: 250, participants: [{ id: "233500000002@s.whatsapp.net" }] },
+      "status@broadcast": { id: "status@broadcast" },
+    };
+    expect(groupRows(all, ["233244000999:12@s.whatsapp.net"])).toEqual([
+      { jid: "1203-2@g.us", name: "Ankara Lovers", size: 250, admin: false, announce: false },
+      { jid: "1203-1@g.us", name: "Resellers Accra", size: 2, admin: true, announce: true },
+    ]);
   });
 });
