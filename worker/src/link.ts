@@ -106,6 +106,7 @@ export class Link {
       if (history === "syncing") this.armHistoryTimer();
       else if (this.namesSent === 0) setTimeout(() => void this.refreshNames(), 20_000); // fill names for chats already in
       this.sendTimer ??= setInterval(() => void this.sendQueued(), 3000);
+      setTimeout(() => void this.fillAvatars().catch((e) => this.log(`avatars: ${e}`)), 60_000);
     }
     if (u.connection === "close") {
       if (this.sendTimer) { clearInterval(this.sendTimer); this.sendTimer = null; }
@@ -178,6 +179,43 @@ export class Link {
     if (threads.length) this.log(`history chunk: ${threads.length} chats (${h.progress ?? "?"}%)`);
   }
 
+  /** Profile pictures: fetched once a week per customer, a few at a time, into the business's private folder. */
+  private avatarQueue: Promise<void> = Promise.resolve();
+  private avatarAsked = new Set<string>();
+  private queueAvatar(phone: string) {
+    if (this.avatarAsked.has(phone)) return;
+    this.avatarAsked.add(phone);
+    this.avatarQueue = this.avatarQueue.then(() => this.saveAvatar(phone)).then(() => new Promise<void>((r) => setTimeout(r, 1500))).catch((e) => this.log(`avatar: ${e}`));
+  }
+
+  private async saveAvatar(phone: string) {
+    const { data: contact } = await this.db.rpc("svc_wa_avatar_due", { p_link: this.row.id, p_phone: phone });
+    if (!contact || !this.sock) return;
+    let path: string | null = null;
+    try {
+      // Only pictures the person shows to everyone (or to your contacts) are visible; others come back empty.
+      const url = await this.sock.profilePictureUrl(`${phone}@s.whatsapp.net`, "image", 10_000);
+      if (url) {
+        const r = await fetch(url, { signal: AbortSignal.timeout(15_000) });
+        if (r.ok) {
+          const bytes = new Uint8Array(await r.arrayBuffer());
+          if (bytes.byteLength > 0 && bytes.byteLength < 2 * 1024 * 1024) {
+            path = `${this.row.workspace_id}/avatars/${contact}.jpg`;
+            const up = await this.db.storage.from("chat-media").upload(path, bytes, { contentType: "image/jpeg", upsert: true });
+            if (up.error) { this.log(`avatar upload: ${up.error.message}`); path = null; }
+          }
+        }
+      }
+    } catch { path = null; /* hidden by their privacy settings, or no picture */ }
+    await this.db.rpc("svc_wa_avatar", { p_link: this.row.id, p_contact: contact, p_path: path });
+  }
+
+  /** After connecting: fetch pictures for customers who don't have one yet (newest chats first). */
+  private async fillAvatars() {
+    const { data } = await this.db.rpc("svc_wa_avatar_todo", { p_link: this.row.id, p_limit: 300 });
+    for (const phone of (data as string[] | null) ?? []) this.queueAvatar(phone);
+  }
+
   private async phoneFor(key: any): Promise<string | null> {
     const p = chatPhone(key, this.lid);
     if (p) return p;
@@ -207,6 +245,7 @@ export class Link {
         const { data } = await this.db.rpc("svc_whatsapp_inbound", { p_workspace: this.row.workspace_id, p_wa_id: wa, p_name: msg.pushName ?? null, p_msg_id: r.id, p_body: r.body, p_type: type, p_at: r.at });
         saved = data as Saved;
         if (saved?.status === "saved") {
+          this.queueAvatar(wa);
           // Came from a click-to-WhatsApp ad: credit the customer to that ad (first touch only).
           const ad = adOf(msg.message);
           if (ad && saved.contact) await this.db.rpc("svc_attribute_ad", { p_workspace: this.row.workspace_id, p_contact: saved.contact, p_ad_id: ad.id, p_headline: ad.headline, p_url: ad.url, p_channel: "whatsapp" });

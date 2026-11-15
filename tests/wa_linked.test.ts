@@ -1,6 +1,6 @@
 // bun test tests/wa_linked.test.ts — WhatsApp linked device (worker/src/parse.ts, worker/src/auth.ts).
 import { describe, expect, test } from "bun:test";
-import { adOf, batches, chatPhone, contactNames, mediaOf, mediaPath, pause, phoneOfJid, rememberLid, textOf, toRow, toThreads } from "../worker/src/parse";
+import { adOf, batches, chatPhone, isPersonChat, contactNames, mediaOf, mediaPath, pause, phoneOfJid, rememberLid, textOf, toRow, toThreads } from "../worker/src/parse";
 import { keyFrom, open, seal } from "../worker/src/auth";
 
 const CUST = "2348031112222";
@@ -149,5 +149,20 @@ describe("which ad started the chat", () => {
   test("an ordinary message, or a link preview that isn't an ad, has none", () => {
     expect(adOf({ conversation: "Hello" })).toBeNull();
     expect(adOf({ extendedTextMessage: { text: "see", contextInfo: { externalAdReply: { sourceType: "post", sourceId: "9", title: "x" } } } })).toBeNull();
+  });
+});
+
+describe("Status posts are not chat messages", () => {
+  test("a Status (with the poster in remoteJidAlt) has no chat phone", () => {
+    expect(chatPhone({ remoteJid: "status@broadcast", remoteJidAlt: "233596888569@s.whatsapp.net" }, new Map())).toBeNull();
+    expect(toRow({ key: { remoteJid: "status@broadcast", remoteJidAlt: "233596888569@s.whatsapp.net", id: "S1" }, message: { videoMessage: { mimetype: "video/mp4" } }, messageTimestamp: 1 }, new Map())).toBeNull();
+  });
+  test("groups, broadcast lists and channels aren't person chats; numbers and hidden ids are", () => {
+    expect(isPersonChat("120363@g.us")).toBe(false);
+    expect(isPersonChat("12345@broadcast")).toBe(false);
+    expect(isPersonChat("1203@newsletter")).toBe(false);
+    expect(isPersonChat("233596888569@s.whatsapp.net")).toBe(true);
+    expect(isPersonChat("19283746@lid")).toBe(true);
+    expect(chatPhone({ remoteJid: "233596888569@s.whatsapp.net" }, new Map())).toBe("233596888569");
   });
 });

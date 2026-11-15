@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { ArrowDownRight, ArrowUpRight, Inbox } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { initials } from "@/lib/format";
@@ -95,12 +95,11 @@ const AVATAR_TONES: Record<string, string> = {
   purple: "bg-chart-5 text-primary-foreground",
 };
 
-export function PersonAvatar({ name, tone, size = "sm" }: { name: string; tone?: string; size?: "sm" | "md" | "lg" }) {
+export function PersonAvatar({ name, tone, size = "sm", src }: { name: string; tone?: string; size?: "sm" | "md" | "lg"; src?: string | undefined }) {
+  const [broken, setBroken] = useState(false);
   const hash = [...name].reduce((s, c) => s + c.charCodeAt(0), 0);
   const key = tone ?? Object.keys(AVATAR_TONES)[hash % 5]!;
-  return (
-    <span className={cn("inline-grid shrink-0 place-items-center rounded-full font-semibold", AVATAR_TONES[key], size === "sm" && "size-7 text-[11px]", size === "md" && "size-9 text-xs", size === "lg" && "size-14 text-lg")}>
-      {initials(name)}
-    </span>
-  );
+  const box = cn("inline-grid shrink-0 place-items-center overflow-hidden rounded-full font-semibold", size === "sm" && "size-7 text-[11px]", size === "md" && "size-9 text-xs", size === "lg" && "size-14 text-lg");
+  if (src && !broken) return <img src={src} alt="" loading="lazy" onError={() => setBroken(true)} className={cn(box, "object-cover")} />;
+  return <span className={cn(box, AVATAR_TONES[key])}>{initials(name)}</span>;
 }

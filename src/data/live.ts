@@ -61,7 +61,10 @@ export async function fetchRaw(sb: SupabaseClient, workspaceId: string): Promise
     return [key, r.data ?? []] as const;
   }));
   const raw = { workspace: ws.data, team: team.data ?? [], ...Object.fromEntries(entries) } as RawData;
-  const paths = (raw.media ?? []).filter((m) => m["kind"] === "image" && m["storage_path"]).map((m) => String(m["storage_path"]));
+  const paths = [
+    ...(raw.media ?? []).filter((m) => m["kind"] === "image" && m["storage_path"]).map((m) => String(m["storage_path"])),
+    ...(raw.contacts ?? []).filter((c) => c["avatar_path"]).map((c) => String(c["avatar_path"])), // WhatsApp profile pictures
+  ];
   if (paths.length) {
     const s = await sb.storage.from("chat-media").createSignedUrls(paths, 3600);
     raw.mediaUrls = Object.fromEntries((s.data ?? []).filter((x) => x.signedUrl && x.path).map((x) => [x.path!, x.signedUrl]));
@@ -207,7 +210,7 @@ export function toDatabase(raw: RawData, now = new Date()): Database {
     const acct = raw.accounts.find((a) => a["contact_id"] === c["id"]);
     const last = [c["updated_at"], lastMsgByContact.get(c["id"]), ...mine.map((o) => o.placedAt)].filter(Boolean).sort().at(-1);
     return {
-      id: c["id"], firstName, lastName, phone: c["phone"] ?? "", ...(c["email"] ? { email: c["email"] } : {}), countryCode: "NG", city: c["location"] ?? "",
+      id: c["id"], firstName, lastName, phone: c["phone"] ?? "", ...(c["avatar_path"] && raw.mediaUrls?.[c["avatar_path"]] ? { avatarUrl: raw.mediaUrls[c["avatar_path"]] } : {}), ...(c["email"] ? { email: c["email"] } : {}), countryCode: "NG", city: c["location"] ?? "",
       lifecycle, source, ownerId: lead?.["assigned_to"] ?? owner, leadScore: num(lead?.["score"]), tags: c["tags"] ?? [], createdAt: iso(c["created_at"]), lastActivityAt: iso(last),
       totalOrders: live.length, lifetimeValue: live.reduce((n, o) => n + o.total, 0), deliveredRevenue: delivered.reduce((n, o) => n + o.total, 0),
       contributionProfit: delivered.reduce((n, o) => n + o.total - o.cogs - o.shippingFee, 0),

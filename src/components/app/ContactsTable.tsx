@@ -173,7 +173,7 @@ export function ContactsTable({ lifecycles, title, description }: { lifecycles?:
                   <tr key={c.id} className="hover:bg-muted/40">
                     <td className="px-3 py-2">
                       <Link to="/crm/contacts/$contactId" params={{ contactId: c.id }} className="flex items-center gap-2.5 font-medium hover:underline">
-                        <PersonAvatar name={fullName(c)} />
+                        <PersonAvatar name={fullName(c)} src={c.avatarUrl} />
                         <span className="min-w-0">
                           <span className="block truncate">{fullName(c)}</span>
                           <span className="block truncate text-xs font-normal text-muted-foreground">{c.phone} · {c.city}</span>

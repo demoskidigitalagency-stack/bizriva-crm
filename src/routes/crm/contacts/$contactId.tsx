@@ -49,7 +49,7 @@ function Customer360Page() {
 
       <div className="flex flex-col gap-4 rounded-lg border bg-card p-4 lg:flex-row lg:items-start">
         <div className="flex min-w-0 flex-1 items-start gap-4">
-          <PersonAvatar name={name} size="lg" />
+          <PersonAvatar name={name} size="lg" src={c.avatarUrl} />
           <div className="min-w-0">
             <h1 className="text-2xl font-bold">{name}</h1>
             <p className="mt-0.5 text-sm text-muted-foreground">

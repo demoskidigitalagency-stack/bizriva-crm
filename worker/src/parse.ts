@@ -15,11 +15,20 @@ export function phoneOfJid(jid: string | null | undefined): string | null {
 /** The customer's phone for a chat. Newer WhatsApp chats use hidden ids (@lid); map them through what WhatsApp told us. */
 export function chatPhone(key: { remoteJid?: string | null; remoteJidAlt?: string | null } | null | undefined, lid: Map<string, string>): string | null {
   if (!key) return null;
+  // Status posts (status@broadcast), broadcast lists, channels and groups aren't a chat with one person.
+  // WhatsApp puts the poster's number in remoteJidAlt for a Status, so check before falling back to it.
+  if (!isPersonChat(key.remoteJid)) return null;
   const direct = phoneOfJid(key.remoteJid) ?? phoneOfJid(key.remoteJidAlt);
   if (direct) return direct;
   const j = String(key.remoteJid ?? "");
   if (j.endsWith("@lid")) return lid.get(j.split(":")[0]!.replace(/@lid$/, "")) ?? lid.get(j) ?? null;
   return null;
+}
+
+/** A one-to-one chat (a phone number or a hidden @lid id), not a Status, broadcast list, channel or group. */
+export function isPersonChat(jid: string | null | undefined): boolean {
+  const j = String(jid ?? "");
+  return j.endsWith("@s.whatsapp.net") || j.endsWith("@lid");
 }
 
 /** Record a hidden-id → phone pair (from history, contacts or WhatsApp's mapping updates). */

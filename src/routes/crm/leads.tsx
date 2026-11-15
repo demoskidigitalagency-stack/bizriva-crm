@@ -79,7 +79,7 @@ function Leads() {
                   <tr key={l.id} className="hover:bg-muted/40">
                     <td className="px-3 py-2">
                       <Link to="/crm/contacts/$contactId" params={{ contactId: l.contactId }} className="flex items-center gap-2.5 font-medium hover:underline">
-                        <PersonAvatar name={fullName(l.contact)} />
+                        <PersonAvatar name={fullName(l.contact)} src={l.contact.avatarUrl} />
                         <span className="min-w-0">
                           <span className="block truncate">{fullName(l.contact)}</span>
                           <span className="block truncate text-xs font-normal text-muted-foreground">{SOURCE_LABELS[l.source]}{l.campaign ? ` · ${l.campaign}` : ""} · {l.ownerName}</span>

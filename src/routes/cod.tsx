@@ -50,7 +50,7 @@ function VerifyCard({ order }: { order: OrderSummary }) {
           {c && (
             <div className="flex items-center gap-3 rounded-md border p-3">
               <Link to="/crm/contacts/$contactId" params={{ contactId: c.id }} className="flex min-w-0 flex-1 items-center gap-3 hover:underline">
-                <PersonAvatar name={fullName(c)} size="md" />
+                <PersonAvatar name={fullName(c)} size="md" src={c.avatarUrl} />
                 <span className="min-w-0">
                   <span className="block font-medium">{fullName(c)}</span>
                   <span className="block text-xs text-muted-foreground">{c.phone} · {c.city} · {c.totalOrders} previous order{c.totalOrders === 1 ? "" : "s"}</span>
