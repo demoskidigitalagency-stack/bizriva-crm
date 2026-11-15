@@ -8,6 +8,37 @@ import { NOW } from "@/domain/database";
 import { CHANNEL_LABELS, type Channel } from "@/domain/types";
 import { formatCurrency } from "@/lib/format";
 import { deliveryByState, trueProfit } from "@/domain/ops";
+import { financingScore } from "@/domain/financing";
+
+function FinancingReadiness() {
+  const db = useDb();
+  const ws = useWorkspace();
+  const [copied, setCopied] = useState(false);
+  const s = financingScore(db.orders.map((o) => ({ placedAt: o.placedAt, status: o.status, total: o.total, contactId: o.contactId, ...(o.amountPaid !== undefined ? { amountPaid: o.amountPaid } : {}), paymentStatus: o.paymentStatus })), NOW);
+  const money = (n: number) => formatCurrency(n, ws.currency);
+  const summary = [`${db.settings.businessName} — financing readiness ${s.score}/100 (${s.band})`, ...s.months.map((m) => `${m.month}: ${m.delivered} delivered, ${money(m.revenue)}`), ...s.parts.map((p) => `${p.label}: ${p.detail}`), "From Bizriva records of delivered orders and recorded payments."].join("\n");
+  return (
+    <Section title="Financing readiness" description="How a lender would read your last 6 months — from delivered orders and money actually recorded as paid">
+      <div className="grid gap-4 p-4 md:grid-cols-[180px_1fr]">
+        <div className="text-center">
+          <p className="num text-4xl font-bold">{s.score}<span className="text-base font-normal text-muted-foreground">/100</span></p>
+          <p className="text-sm font-medium">{s.band}</p>
+          <button type="button" className="mt-2 text-xs text-primary underline-offset-2 hover:underline" onClick={async () => { try { await navigator.clipboard.writeText(summary); setCopied(true); } catch { /* blocked */ } }}>{copied ? "Summary copied" : "Copy summary for a lender"}</button>
+        </div>
+        <div className="space-y-2 text-sm">
+          {s.parts.map((p) => (
+            <div key={p.label}>
+              <div className="flex justify-between gap-2"><span>{p.label} <span className="text-xs text-muted-foreground">· {p.detail}</span></span><span className="num shrink-0">{p.points}/{p.max}</span></div>
+              <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{ width: `${(p.points / p.max) * 100}%` }} /></div>
+            </div>
+          ))}
+          {s.tips.length > 0 && <ul className="list-disc space-y-0.5 pl-5 pt-1 text-xs text-muted-foreground">{s.tips.map((t) => <li key={t}>{t}</li>)}</ul>}
+          <p className="text-xs text-muted-foreground">Bizriva doesn't lend or share this. Show the summary to a bank or lender yourself.</p>
+        </div>
+      </div>
+    </Section>
+  );
+}
 
 export const Route = createFileRoute("/analytics")({
   head: () => ({ meta: [{ title: "Analytics · Bizriva CRM" }] }),
@@ -91,6 +122,7 @@ function Analytics() {
         <KpiCard label="Delivery success" value={dispatched ? `${Math.round((delivered.length / dispatched) * 100)}%` : "—"} hint={`${returned} returned`} tone="info" />
         <KpiCard label="Cancelled" value={String(cancelled)} tone={cancelled ? "warning" : "success"} />
       </div>
+      <FinancingReadiness />
       <div className="grid gap-4 lg:grid-cols-2">
         <Section title="Order funnel" description="How many orders reach each step">
           <Bars format={(n) => String(n)} rows={[
