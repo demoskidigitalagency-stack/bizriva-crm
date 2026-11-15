@@ -11,6 +11,7 @@ import { EmptyState, KpiCard, Section, StatusBadge } from "@/components/app/prim
 import { useActions, useDb, useLive, useWorkspace } from "@/domain/store";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/app/auth";
+import { aiTool, imageBase64 } from "@/lib/ai-tools";
 import type { Product } from "@/domain/types";
 import { CARE_STARTERS } from "@/domain/receipt";
 import { formatCurrency, formatPercent } from "@/lib/format";
@@ -36,6 +37,18 @@ function ProductDialog({ product, open, onOpenChange }: { product?: Product | un
   const live = useLive();
   const { current } = useAuth();
   const [uploading, setUploading] = useState(false);
+  const [reading, setReading] = useState(false);
+  const fromPhoto = async (f: File | undefined) => {
+    if (!f || !current) return;
+    setReading(true); setError("");
+    try {
+      const img = await imageBase64(f);
+      const r = await aiTool<{ name: string; description: string; category: string; aliases: string[] }>({ workspace_id: current.workspaceId, action: "photo_product", image: img.data, mime: img.mime });
+      if (r.error) setError(r.error);
+      else if (r.data) setD((x) => ({ ...x, name: x.name || r.data!.name, description: x.description || r.data!.description, category: x.category === "" || x.category === "General" ? r.data!.category : x.category, aliases: x.aliases || r.data!.aliases.join(", ") }));
+    } catch { setError("Couldn't read that photo."); }
+    setReading(false);
+  };
   const [d, setD] = useState<Draft>(toDraft(product));
   const uploadDigital = async (f: File | undefined) => {
     const sb = supabase();
@@ -74,6 +87,13 @@ function ProductDialog({ product, open, onOpenChange }: { product?: Product | un
           <DialogTitle>{product ? "Edit product" : "New product"}</DialogTitle>
           <DialogDescription>Prices here are what the AI agent and sales staff quote. Photos are added in the Media Library.</DialogDescription>
         </DialogHeader>
+        {live.on && !product && (
+          <label className="flex cursor-pointer items-center justify-between gap-2 rounded-md border border-dashed px-3 py-2 text-sm">
+            <span>{reading ? "Reading the photo…" : "Snap or pick a product photo — AI fills in the name, description and category for you to check"}</span>
+            <input type="file" accept="image/*" capture="environment" className="sr-only" disabled={reading} onChange={(e) => void fromPhoto(e.target.files?.[0])} aria-label="Fill from a product photo" />
+            <span className="shrink-0 text-xs font-medium text-primary">Photo to product</span>
+          </label>
+        )}
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="pn">Name</Label><Input id="pn" value={d.name} onChange={set("name")} placeholder="Brazilian body wave, 20 inch" /></div>
           <div className="space-y-1.5"><Label htmlFor="pc">Category</Label><Input id="pc" value={d.category} onChange={set("category")} placeholder="Hair" /></div>

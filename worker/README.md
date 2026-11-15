@@ -57,3 +57,10 @@ SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… WA_SESSION_KEY=… npm start
 - Every 3 s: queued replies → `svc_wa_claim` → sent, paced → `svc_whatsapp_result`.
 - Unlink in Bizriva → logs out of WhatsApp and deletes the session.
 - `GET /` is the health check.
+
+## Optional: voice notes as text
+
+Add `OPENAI_API_KEY` (and optionally `STT_MODEL`, default `whisper-1`) to the Render service's
+environment. Customer voice notes on the linked number are then written out in the chat as
+`[voice note: …]`, so the team and the AI assistant can read and answer them (any language,
+including Pidgin, Yoruba, Hausa, Igbo and Twi).

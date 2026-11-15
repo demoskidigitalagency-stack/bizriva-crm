@@ -68,3 +68,8 @@ describe("variants and product photos", () => {
   test("photos only for products that have one", () => expect(checkReply(v, { reply: "Here you go!", handoff: false, reason: "", photos: ["glow body cream", "Shea Butter Jar", "Made-up thing"] }).photos).toEqual(["Glow Body Cream"]));
   test("a photo alone is a valid answer", () => { const d = checkReply(v, { reply: "", handoff: false, reason: "", photos: ["Glow Body Cream"] }); expect(d.handoff).toBe(false); expect(d.photos).toEqual(["Glow Body Cream"]); });
 });
+
+test("amounts in cedis and shillings are checked too", async () => {
+  const { amountsIn } = await import("../supabase/functions/ai-reply/brain");
+  expect(amountsIn("It's GH₵6,900 or GHS 3,000, delivery 200 cedis, KSh 1,500")).toEqual([6900, 3000, 200, 1500]);
+});

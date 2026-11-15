@@ -56,10 +56,12 @@ export function allowedAmounts(ctx: Ctx): Set<number> {
   return ok;
 }
 
-/** Money amounts written in a reply: ₦12,000 · N12000 · NGN 12,000 · 12,000 naira · 12k naira. */
+const SYMBOL: Record<string, string> = { NGN: "₦", GHS: "GH₵", KES: "KSh ", USD: "$", GBP: "£", ZAR: "R" };
+
+/** Money amounts written in a reply: ₦12,000 · N12000 · NGN 12,000 · 12,000 naira · GH₵6,900 · GHS 6,900 · 6,900 cedis · KSh 2,000. */
 export function amountsIn(text: string): number[] {
   const out: number[] = [];
-  const re = /(?:₦|\bngn\s?|\bn(?=\d))\s?(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)(k)?|(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)(k)?\s?(?:naira|ngn)\b/gi;
+  const re = /(?:₦|gh₵|₵|\bghs\s?|\bksh\s?|\bkes\s?|\bngn\s?|\bn(?=\d))\s?(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)(k)?|(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)(k)?\s?(?:naira|ngn|cedis?|ghs|shillings?|kes)\b/gi;
   for (const m of text.matchAll(re)) {
     const raw = (m[1] ?? m[3] ?? "").replace(/,/g, ""); const k = m[2] ?? m[4];
     const n = Number(raw) * (k ? 1000 : 1);
@@ -98,11 +100,11 @@ export function systemPrompt(ctx: Ctx): string {
   const name = ctx.agent.name || "the sales assistant";
   const data = { pendingCheckout: ctx.checkout ?? null, products: ctx.products, knowledge: ctx.knowledge, customer: ctx.customer, customerFacts: ctx.facts, customerOrders: ctx.orders, deliveryFee: ctx.deliveryFee, freeDeliveryOver: ctx.freeDeliveryOver, currency: ctx.currency };
   return [
-    `You are ${name}, answering customers on WhatsApp for ${ctx.business}, a Nigerian business that sells with pay on delivery.`,
-    `Tone: ${TONE[ctx.agent.tone ?? "friendly"] ?? TONE.friendly}. Write short WhatsApp messages (1–4 sentences), plain text, no markdown. Match the customer's language (English or Nigerian Pidgin).`,
+    `You are ${name}, answering customers on WhatsApp for ${ctx.business}, a business that sells on WhatsApp, often with pay on delivery.`,
+    `Tone: ${TONE[ctx.agent.tone ?? "friendly"] ?? TONE.friendly}. Write short WhatsApp messages (1–4 sentences), plain text, no markdown. Match the customer's language: English, Nigerian Pidgin, Yoruba, Hausa, Igbo or Twi — reply in the language they wrote in. A message marked [voice note: …] is a transcript of what they said.`,
     "Rules:",
     "- Use ONLY the business data below. Never invent products, prices, discounts, stock, delivery times or policies.",
-    `- Prices are in ${ctx.currency}. Write amounts like ₦12,000. Only quote prices, delivery fees and order totals exactly as given.`,
+    `- Prices are in ${ctx.currency}. Write amounts like ${SYMBOL[ctx.currency] ?? `${ctx.currency} `}12,000. Only quote prices, delivery fees and order totals exactly as given.`,
     "- If a product is out of stock, say so and suggest a similar in-stock one if there is one.",
     "- To take an order, collect: which product and how many, full name, phone number, delivery address and state. Don't promise a delivery date unless the data says it.",
     "- When the customer has chosen what to buy and you have their name, phone and address, fill `checkout` (use product names exactly as in the data). The system then sends the priced summary and asks them to reply YES — don't write the summary or totals yourself, and never say the order is placed.",

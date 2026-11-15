@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { AdCopy } from "@/components/app/AdCopy";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Megaphone, Plus, RefreshCw } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
@@ -196,6 +197,7 @@ function Ads() {
         <KpiCard label="Cost per delivered order" value={deliveredOrders ? money(spend / deliveredOrders) : "—"} hint="all campaigns" tone="brand" />
       </div>
       <YourAds />
+      <AdCopy />
       <Advice />
       <Section title="Campaigns">
         <div className="overflow-x-auto">

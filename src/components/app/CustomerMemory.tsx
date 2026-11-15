@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Section, StatusBadge } from "@/components/app/primitives";
-import { useActions, useDb } from "@/domain/store";
+import { useActions, useDb, useLive } from "@/domain/store";
+import { useAuth } from "@/app/auth";
+import { aiTool } from "@/lib/ai-tools";
 import { NOW } from "@/domain/database";
 import { FACT_LABEL, daysToBirthday, extractFacts, newFacts } from "@/domain/memory";
 import type { FactKind } from "@/domain/types";
@@ -20,6 +22,16 @@ export function CustomerMemory({ contactId, compact = false }: { contactId: stri
   const [adding, setAdding] = useState(false);
   const [kind, setKind] = useState<FactKind>("likes");
   const [value, setValue] = useState("");
+  const live = useLive();
+  const { current } = useAuth();
+  const [ai, setAi] = useState<{ busy: boolean; error: string; facts: { kind: FactKind; value: string; quote: string; monthDay?: string }[] | null }>({ busy: false, error: "", facts: null });
+  const readWithAi = async () => {
+    if (!current) return;
+    setAi({ busy: true, error: "", facts: null });
+    const r = await aiTool<{ facts: { kind: FactKind; value: string; quote: string; monthDay?: string }[] }>({ workspace_id: current.workspaceId, action: "memory", contact_id: contactId });
+    const have = new Set((contact?.facts ?? []).map((f) => `${f.kind}:${f.value.toLowerCase()}`));
+    setAi({ busy: false, error: r.error ?? "", facts: r.data ? r.data.facts.filter((f) => !have.has(`${f.kind}:${f.value.toLowerCase()}`)) : null });
+  };
   if (!contact) return null;
   const facts = contact.facts ?? [];
   const birthday = facts.find((f) => f.kind === "birthday" && f.monthDay);
@@ -48,6 +60,18 @@ export function CustomerMemory({ contactId, compact = false }: { contactId: stri
               {fresh.map((f) => <li key={`${f.kind}-${f.value}`} title={f.quote}><StatusBadge tone="info">{FACT_LABEL[f.kind]}</StatusBadge> {f.value} <span className="text-muted-foreground">— “{f.quote.slice(0, 60)}{f.quote.length > 60 ? "…" : ""}”</span></li>)}
             </ul>
             <Button size="sm" className="mt-2 w-full" onClick={() => saveFacts(contactId, fresh.map((f) => ({ kind: f.kind, value: f.value, ...(f.monthDay ? { monthDay: f.monthDay } : {}) })), "chat")}>Remember {fresh.length}</Button>
+          </div>
+        )}
+        {live.on && (
+          <div className="space-y-1">
+            <Button size="sm" variant="outline" className="h-7 w-full text-xs" disabled={ai.busy} onClick={() => void readWithAi()}><Brain className="size-3.5" /> {ai.busy ? "Reading the whole chat…" : "Read the whole chat with AI"}</Button>
+            {ai.error && <p role="alert" className="text-xs text-destructive">{ai.error}</p>}
+            {ai.facts && (ai.facts.length === 0 ? <p className="text-xs text-muted-foreground">Nothing new worth remembering.</p> : (
+              <div className="rounded-md border border-dashed p-2">
+                <ul className="space-y-1 text-xs">{ai.facts.map((f) => <li key={`${f.kind}-${f.value}`}><StatusBadge tone="info">{FACT_LABEL[f.kind]}</StatusBadge> {f.value} <span className="text-muted-foreground">— “{f.quote.slice(0, 60)}”</span></li>)}</ul>
+                <Button size="sm" className="mt-2 w-full" onClick={() => { saveFacts(contactId, ai.facts!.map((f) => ({ kind: f.kind, value: f.value, ...(f.monthDay ? { monthDay: f.monthDay } : {}) })), "chat"); setAi({ busy: false, error: "", facts: null }); }}>Remember {ai.facts.length}</Button>
+              </div>
+            ))}
           </div>
         )}
         {adding ? (
