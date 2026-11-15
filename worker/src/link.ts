@@ -574,7 +574,7 @@ export class Link {
     const patch = async (p: Record<string, unknown>) => { const { error } = await this.db.rpc("svc_wa_save_progress", { p_link: this.row.id, p_patch: p }); if (error) this.log(`save progress: ${error.message}`); };
     try {
       await this.refreshNames(); // best names first
-      const { data, error } = await this.db.rpc("svc_wa_save_targets", { p_link: this.row.id });
+      const { data, error } = await this.db.rpc("svc_wa_save_targets_v2", { p_link: this.row.id });
       if (error) throw new Error(error.message);
       const rows = ((data ?? []) as { wa: string; name: string | null; tags: string[]; template: string; location?: string | null }[]).slice(0, 2000);
       await patch({ status: "running", done: 0, total: rows.length });

@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EmptyState, PersonAvatar, Section, StatusBadge } from "@/components/app/primitives";
 import { OrderDialog, PickCustomer } from "@/components/app/dialogs";
+import { MessageToOrderDialog } from "@/components/app/MessageToOrder";
 import { EDITABLE_STATUSES, useActions, useDb, useWorkspace } from "@/domain/store";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -404,6 +405,7 @@ function Orders() {
   const [filter, setFilter] = useState<"all" | OrderStatus>("all");
   const [search, setSearch] = useState("");
   const [picking, setPicking] = useState(false);
+  const [fromMessage, setFromMessage] = useState(false);
   const [orderFor, setOrderFor] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [slips, setSlips] = useState<string[] | null>(null);
@@ -436,6 +438,7 @@ function Orders() {
           <h1 className="text-2xl font-bold">Orders</h1>
           <p className="mt-1 text-sm text-muted-foreground">Every order, from confirmation to delivery. Cash-on-delivery orders count as revenue only once delivered.</p>
         </div>
+        <Button size="sm" variant="outline" onClick={() => setFromMessage(true)}>From a message</Button>
         <Button size="sm" onClick={() => setPicking(true)}><Plus className="size-4" /> New order</Button>
       </div>
 
@@ -501,6 +504,7 @@ function Orders() {
       {open && <OrderPanel order={open} onClose={() => setOpen()} />}
       {slips && <DeliverySlips orderIds={slips} onClose={() => setSlips(null)} />}
       <PickCustomer open={picking} onOpenChange={setPicking} onPick={(id) => { setPicking(false); setOrderFor(id); }} />
+      <MessageToOrderDialog open={fromMessage} onOpenChange={setFromMessage} />
       {orderFor && <OrderDialog open onOpenChange={(o) => !o && setOrderFor(null)} contactId={orderFor} />}
     </div>
   );

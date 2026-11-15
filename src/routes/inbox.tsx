@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { PageHeader, Section, StatusBadge, EmptyState, PersonAvatar } from "@/components/app/primitives";
 import { OrderDialog } from "@/components/app/dialogs";
+import { MessageToOrderDialog } from "@/components/app/MessageToOrder";
 import { CustomerMemory } from "@/components/app/CustomerMemory";
 import { useActions, useDb, useWorkspace, useLive } from "@/domain/store";
 import { CURRENT_USER_ID } from "@/domain/database";
@@ -201,6 +202,8 @@ function Thread({ conversation }: { conversation: Conversation }) {
   const [text, setText] = useState("");
   const [sim, setSim] = useState("");
   const [simOpen, setSimOpen] = useState(false);
+  const [toOrder, setToOrder] = useState<string | null>(null);
+  const sender = db.contacts.find((c) => c.id === conversation.contactId);
   const tails = db.settings.chat.bubbleTails;
   const submit = () => {
     if (!text.trim()) return;
@@ -226,11 +229,13 @@ function Thread({ conversation }: { conversation: Conversation }) {
                 : (!m.media || !PLACEHOLDER_ONLY.test(m.body)) && <p className="whitespace-pre-wrap">{m.body.replace(PLACEHOLDER, "")}</p>}
               {PLACEHOLDER.test(m.body) && !m.media?.path && m.body.replace(PLACEHOLDER, "").trim() && <p className="mt-1 whitespace-pre-wrap">{m.body.replace(PLACEHOLDER, "")}</p>}
               <p className={cn("mt-1 text-[10px]", m.direction === "out" ? "text-primary-foreground/70" : "text-muted-foreground")}>{relativeTime(m.at)}{m.delivery && m.delivery !== "failed" ? ` · ${DELIVERY_LABEL[m.delivery]}` : ""}</p>
+              {m.direction === "in" && m.body.trim().length > 3 && <button type="button" className="mt-1 text-[11px] font-medium text-primary underline-offset-2 hover:underline" onClick={() => setToOrder(m.body)}>Make order</button>}
               {m.delivery === "failed" && <p className="mt-1 rounded bg-destructive/90 px-1.5 py-0.5 text-[11px] text-white" role="note">Not delivered{m.error ? `: ${m.error}` : ""}</p>}
             </div>
           </li>
         ))}
       </ul>
+      <MessageToOrderDialog open={toOrder !== null} onOpenChange={(o) => !o && setToOrder(null)} message={toOrder ?? ""} fromContactId={conversation.contactId} {...(sender ? { senderName: [sender.firstName, sender.lastName].filter(Boolean).join(" ") } : {})} />
       {simOpen && (
         <form className="flex items-center gap-2 border-t bg-surface px-3 py-2" onSubmit={(e) => { e.preventDefault(); simulateIncoming(conversation.id, sim); setSim(""); }}>
           <FlaskConical className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
