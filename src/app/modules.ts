@@ -212,10 +212,8 @@ export interface FutureIdea {
 
 export const FUTURE: FutureIdea[] = [
   // Needs the backend
-  { id: "fx-capi", bucket: "Needs the backend", title: "Accurate ad numbers", from: "FabianForms", goesInto: "Order Forms, Ads", needs: "Meta Conversions API and TikTok Events API keys", summary: "Practice version built (Ads → Send sales back to Meta). Going live needs the dataset token; TikTok Events API follows." },
-  { id: "fx-paylinks", bucket: "Needs the backend", title: "Real payment links", from: "StitchBook, Xara", goesInto: "Orders, Payments", needs: "Paystack or Flutterwave account and webhooks", summary: "Practice version built (Payments → Get paid inside WhatsApp). Live needs the provider secret key in Vercel and a registered business that has gone live with the provider." },
-  { id: "fx-ad-launch", bucket: "Needs the backend", title: "Launch and auto-tune ads", from: "Adflow", goesInto: "Ads", needs: "Meta Marketing API app review", summary: "Creating ads is built (practice). Going live needs ads_management; automatic budget moves by delivered orders come after." },
-  { id: "fx-fb-leads", bucket: "Needs the backend", title: "Facebook and Instagram Lead Ads", from: "Review 2026-11-05", goesInto: "Website & Forms, Ads", needs: "Meta app review (leads_retrieval)", summary: "Instant-form leads arrive directly with their campaign, no Zapier needed." },
+  { id: "fx-ad-launch", bucket: "Needs the backend", title: "Launch and auto-tune ads", from: "Adflow", goesInto: "Ads", needs: "Meta Marketing API app review", summary: "Writing ads with AI and sending sales back to Meta work now. Publishing and auto-tuning ads from Bizriva switches on when Meta approves the ads_management permission (after business verification)." },
+  { id: "fx-fb-leads", bucket: "Needs the backend", title: "Facebook and Instagram Lead Ads", from: "Review 2026-11-05", goesInto: "Website & Forms, Ads", needs: "Meta app review (leads_retrieval)", summary: "Built: instant-form leads arrive with their campaign the moment Meta approves leads_retrieval for the Bizriva app (after business verification)." },
   // Parked for later
   { id: "fx-escrow", bucket: "Parked for later", title: "Buyer protection (escrow)", from: "WaContacts", goesInto: "Payments", needs: "A licensed payments partner", summary: "Hold the buyer's payment until delivery is confirmed, with automatic release timers." },
   

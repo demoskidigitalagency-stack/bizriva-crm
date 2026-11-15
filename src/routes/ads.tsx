@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { SalesToAds } from "@/components/app/SalesToAds";
 import { AdCopy } from "@/components/app/AdCopy";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Megaphone, Plus, RefreshCw } from "lucide-react";
@@ -198,6 +199,7 @@ function Ads() {
       </div>
       <YourAds />
       <AdCopy />
+      <SalesToAds />
       <Advice />
       <Section title="Campaigns">
         <div className="overflow-x-auto">
