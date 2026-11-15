@@ -28,3 +28,8 @@ describe("vcf file", () => {
     expect(buildVcf([])).toBe("");
   });
 });
+
+test("{city} token and empty tokens collapse cleanly", () => {
+  expect(savedName({ phone: "233241234490", name: null, tags: ["Asked about: Table tennis table"], location: "Kumasi" }, "{name} - {city} - {product}")).toBe("Customer 4490 - Kumasi - Table tennis table");
+  expect(savedName({ phone: "233241234490", name: "Ama", tags: [], location: null }, "{name} - {city} - {product}")).toBe("Ama");
+});

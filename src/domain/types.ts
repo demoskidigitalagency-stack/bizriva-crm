@@ -402,6 +402,8 @@ export interface Product {
   deposit?: number;
   /** "How to use and care" guide sent to the customer after delivery. */
   careGuide?: string;
+  /** Other words and prices customers use for it in chats ("4-in-1", "6,900") — used to tag WhatsApp chats. */
+  aliases?: string[];
   /** Days a customer usually takes to finish it — drives re-order reminders. */
   reorderDays?: number;
   /** Options (size, colour…) with their own price and stock. When set, the customer picks one. */

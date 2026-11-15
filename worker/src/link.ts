@@ -357,13 +357,13 @@ export class Link {
       await this.refreshNames(); // best names first
       const { data, error } = await this.db.rpc("svc_wa_save_targets", { p_link: this.row.id });
       if (error) throw new Error(error.message);
-      const rows = ((data ?? []) as { wa: string; name: string | null; tags: string[]; template: string }[]).slice(0, 2000);
+      const rows = ((data ?? []) as { wa: string; name: string | null; tags: string[]; template: string; location?: string | null }[]).slice(0, 2000);
       await patch({ status: "running", done: 0, total: rows.length });
       let saved = 0, failed = 0;
       for (let i = 0; i < rows.length; i++) {
         if (!this.sock || this.stopped) throw new Error("WhatsApp disconnected — tap Save to my phone again once it's back");
         const r = rows[i]!;
-        const full = savedName(r.wa, r.name, r.tags ?? [], r.template ?? "{name}");
+        const full = savedName(r.wa, r.name, r.tags ?? [], r.template ?? "{name}", r.location ?? null);
         try {
           await this.sock.addOrEditContact(`${r.wa}@s.whatsapp.net`, { fullName: full, firstName: full.split(" ")[0] ?? full, pnJid: `${r.wa}@s.whatsapp.net`, saveOnPrimaryAddressbook: true });
           saved++;

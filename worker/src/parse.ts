@@ -121,13 +121,14 @@ export function pause(purpose: string | null, rand = Math.random): number {
   return purpose === "marketing" ? 6000 + Math.floor(rand() * 9000) : 2000 + Math.floor(rand() * 3000);
 }
 
-/** Name to save on the phone. Tokens: {name}, {product} (first "Asked about" tag), {last4}. Same rule as src/lib/vcard.ts. */
-export function savedName(phone: string, name: string | null, tags: string[], template: string): string {
+/** Name to save on the phone. Tokens: {name}, {product} (first "Asked about" tag), {city}, {last4}. Same rule as src/lib/vcard.ts. */
+export function savedName(phone: string, name: string | null, tags: string[], template: string, city: string | null = null): string {
   const digits = phone.replace(/\D/g, "");
   const product = tags.find((t) => t.startsWith("Asked about: "))?.slice("Asked about: ".length) ?? "";
   const base = (name ?? "").trim() || `Customer ${digits.slice(-4)}`;
   const out = (template.trim() || "{name}").replaceAll("{name}", base).replaceAll("{product}", product).replaceAll("{last4}", digits.slice(-4))
-    .replace(/\s*[-–|,]\s*$/, "").replace(/\s{2,}/g, " ").trim();
+    .replaceAll("{city}", (city ?? "").trim())
+    .replace(/\s*([-–|,])(?:\s*[-–|,])+/g, " $1").replace(/^\s*[-–|,]\s*/, "").replace(/\s*[-–|,]\s*$/, "").replace(/\s{2,}/g, " ").trim();
   return (out || base).slice(0, 100);
 }
 

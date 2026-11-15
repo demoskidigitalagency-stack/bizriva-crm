@@ -225,13 +225,14 @@ export function SavedContacts() {
     try { localStorage.setItem("bizriva.vcfTemplate", template); } catch { /* private mode */ }
     const list: VcfContact[] = [];
     for (let from = 0; ; from += 1000) {
-      const { data, error } = await sb.from("contact_identities").select("external_id, contacts(name, tags)").eq("workspace_id", ws).eq("channel", "whatsapp").order("external_id").range(from, from + 999);
+      const { data, error } = await sb.from("contact_identities").select("external_id, contacts(name, tags, location)").eq("workspace_id", ws).eq("channel", "whatsapp").order("external_id").range(from, from + 999);
       if (error) { setBusy(""); return setMsg(error.message); }
-      for (const r of (data ?? []) as unknown as { external_id: string; contacts: { name: string | null; tags: string[] } | null }[]) {
+      for (const r of (data ?? []) as unknown as { external_id: string; contacts: { name: string | null; tags: string[]; location: string | null } | null }[]) {
         const tags = r.contacts?.tags ?? [];
+        if (tags.includes("Not a customer")) continue;
         if (who === "asked" && !tags.some((t) => t.startsWith("Asked about: "))) continue;
         if (who === "no_order" && !tags.includes("No order yet")) continue;
-        list.push({ phone: r.external_id, name: r.contacts?.name ?? null, tags });
+        list.push({ phone: r.external_id, name: r.contacts?.name ?? null, tags, location: r.contacts?.location ?? null });
       }
       if (!data || data.length < 1000) break;
     }
@@ -248,7 +249,7 @@ export function SavedContacts() {
         <Stat label="Tagged by product" value={row?.tagged} />
         <Stat label="No order yet" value={overview?.withoutOrder} />
       </div>
-      <p className="text-xs text-muted-foreground">Everyone who has chatted with your WhatsApp is saved as a contact and a lead, with their chat. Tagging reads each chat for your product names and adds “Asked about: …” and “No order yet”, so you can follow them up from Contacts, Segments and Broadcasts.</p>
+      <p className="text-xs text-muted-foreground">Everyone who has chatted with your WhatsApp is saved as a contact and a lead, with their chat. Tagging reads each chat for your product names, other names you give a product, and its price, and adds “Asked about: …”, what the customer did (Asked price, Sent order details, Asked location, Pay on delivery, Follow up later, Waiting on our reply), the town they mention, and “No order yet” — so you can follow them up from Contacts, Segments and Broadcasts. Tag family, suppliers and spam “Not a customer” to leave them out.</p>
       <div className="flex flex-wrap gap-2">
         <Button size="sm" variant="outline" disabled={!!busy} onClick={() => void tag()}>{busy === "tag" ? "Tagging…" : "Tag chats by product"}</Button>
       </div>
@@ -262,7 +263,7 @@ export function SavedContacts() {
             ))}
           </div>
         </div>
-        <p className="text-xs text-muted-foreground">Name format: {"{name}"}, {"{product}"} and {"{last4}"}. Customers without a name are saved as “Customer 1234”.</p>
+        <p className="text-xs text-muted-foreground">Name format: {"{name}"}, {"{product}"}, {"{city}"} and {"{last4}"}. Customers without a name are saved as “Customer 1234” — try “{"{name}"} - {"{city}"} - {"{product}"}”. Contacts tagged “Not a customer” are skipped.</p>
         <div className="flex flex-wrap gap-2">
           {sv?.status === "connected" && <Button size="sm" disabled={!!busy || saving} onClick={() => void saveToPhone()}>{saving ? "Saving to your phone…" : "Save to my phone"}</Button>}
           <Button size="sm" variant={sv?.status === "connected" ? "outline" : "default"} disabled={!!busy} onClick={() => void download()}>{busy === "vcf" ? "Preparing…" : "Download contacts (.vcf)"}</Button>
