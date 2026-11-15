@@ -242,7 +242,15 @@ function Connections() {
           ))}
         </div>
       )}
-      <p className="text-xs text-muted-foreground">Coming later: a Bizriva WordPress plugin that catches every form and WooCommerce order on your site with one install, and Facebook Lead Ads directly. See <Link to="/roadmap" className="underline">Coming Later</Link>.</p>
+      <Section title="Bizriva WordPress plugin" description="One install catches every form (Contact Form 7, WPForms, Gravity Forms, Elementor Pro, Fluent Forms) and every WooCommerce order — no set-up per form">
+        <ol className="list-decimal space-y-1 p-4 pl-9 text-sm">
+          <li><a href="/downloads/bizriva-wordpress.zip" download className="font-medium text-primary underline-offset-2 hover:underline">Download the plugin (bizriva-wordpress.zip)</a></li>
+          <li>WordPress → Plugins → Add New → Upload Plugin → choose the zip → Activate.</li>
+          <li>Here: Add a connection → <b>Custom website</b>, then copy its address and secret key.</li>
+          <li>WordPress → Settings → Bizriva: paste both, Save, then <b>Send a test</b>.</li>
+        </ol>
+      </Section>
+      <p className="text-xs text-muted-foreground">Facebook Lead Ads directly is waiting on Meta's app review. See <Link to="/roadmap" className="underline">Coming Later</Link>.</p>
     </div>
   );
 }
