@@ -4,14 +4,14 @@ Generated from `src/app/status.ts` and `src/app/modules.ts` by `bun run status`.
 
 | Track | Progress | |
 | --- | ---: | --- |
-| **Frontend — Practice Mode** (every page and button works on sample data) | **99%** | `████████████████████` |
-| **Backend — Live** (works for real: auth, database, WhatsApp, AI) | **88%** | `██████████████████░░` |
+| **Frontend — Practice Mode** (every page and button works on sample data) | **100%** | `████████████████████` |
+| **Backend — Live** (works for real: auth, database, WhatsApp, AI) | **93%** | `███████████████████░` |
 
-Modules: 35 of 36 practice ready · 1 partly working · 0 planned.
+Modules: 36 of 36 practice ready · 0 partly working · 0 planned.
 
 ## Frontend track
 
-### Modules — 99% (85% of the frontend)
+### Modules — 100% (85% of the frontend)
 
 ✅ practice ready · 🟡 partly working · ⬜ planned
 
@@ -42,7 +42,7 @@ Modules: 35 of 36 practice ready · 1 partly working · 0 planned.
 | ✅ | Automation | Automation Builder | Later | Practice ready | Bizriva, Prompt |
 | ✅ | Automation | Workflow History | Later | Practice ready | Sandala, Prompt |
 | ✅ | Growth | Ads and Attribution | Later | Practice ready | Kobolink, Prompt |
-| 🟡 | Growth | WhatsApp Growth | MVP | Partly working | Review 2026-11-13 |
+| ✅ | Growth | WhatsApp Growth | MVP | Live | Review 2026-11-13 |
 | ✅ | Money | Payments | Later | Practice ready | Kobolink, Prompt |
 | ✅ | Insights | Analytics | MVP | Practice ready | Kobolink, Prompt |
 | ✅ | Workspace | Team and Roles | MVP | Practice ready | Kobolink, Prompt |
@@ -82,7 +82,7 @@ Modules: 35 of 36 practice ready · 1 partly working · 0 planned.
 | Phase 3 — Sales and commerce | 22% | 9/9 | 100% |
 | Phase 4 — More channels | 11% | 5/5 | 100% |
 | Phase 5 — Intelligence and monetisation | 15% | 7/7 | 100% |
-| Phase 6 — WhatsApp Growth (linked number) | 15% | 8/15 | 52% |
+| Phase 6 — WhatsApp Growth (linked number) | 15% | 12/15 | 85% |
 
 ### Phase 1 — Core communication — 91%
 
@@ -149,7 +149,7 @@ _Know which ad made the money; charge for the product._
 - [x] Super Admin console
 - [x] All 15 acceptance tests pass end to end — On the live database with Meta and Claude simulated (supabase/tests/acceptance.sql)
 
-### Phase 6 — WhatsApp Growth (linked number) — 52%
+### Phase 6 — WhatsApp Growth (linked number) — 85%
 
 _The WhatsApp the business already uses works inside Bizriva: every chat saved, segmented and followed up; Status and groups run from here._
 
@@ -161,10 +161,10 @@ _The WhatsApp the business already uses works inside Bizriva: every chat saved, 
 - [x] Inbox order matches the phone (Status updates, groups and channels no longer saved as chats) _(2026-11-15)_
 - [x] Customers' profile pictures _(2026-11-15)_ — Fetched when they write (weekly at most); hidden pictures stay as initials
 - [x] Assistant off until switched on _(2026-11-14)_
-- [ ] Auto-save every new customer to the phone — Built and tested (branch wa-growth-posts); waiting for the database change to be approved
-- [ ] Status posts: text, photo, video, now or scheduled, repeat; views and viewers by name — Built and tested (branch wa-growth-posts); waiting for the database change to be approved
-- [ ] Post to many groups at once, now or later; group collections — Built and tested (branch wa-growth-posts); waiting for the database change to be approved
-- [ ] Message customers who wrote first, by tag, paced, with STOP — Built and tested (branch wa-growth-posts); waiting for the database change to be approved
+- [x] Auto-save every new customer to the phone _(2026-11-15)_ — Live on the WhatsApp Growth page
+- [x] Status posts: text, photo, video, now or scheduled, repeat; views and viewers by name _(2026-11-15)_ — Live on the WhatsApp Growth page
+- [x] Post to many groups at once, now or later; group collections _(2026-11-15)_ — Live on the WhatsApp Growth page
+- [x] Message customers who wrote first, by tag, paced, with STOP _(2026-11-15)_ — Live on the WhatsApp Growth page
 - [ ] Chat summaries, location and next step written automatically for every chat — Done once by hand for Dxmart's chats (14 Nov); automatic for new chats once the AI key is added
 - [ ] Recover photos and videos from old imported chats — Not started — WhatsApp may resend recent ones from the phone
 - [ ] WhatsApp server always on (paid host) — Runs on Render's free plan, which can sleep; needs a paid plan
