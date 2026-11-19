@@ -672,20 +672,40 @@ export interface DuplicateGroup {
   contacts: Contact[];
 }
 
+/** A placeholder, not a real name: empty, "Customer 4567", "Unknown", "WhatsApp user", digits only. */
+export function isPlaceholderName(c: Contact): boolean {
+  const n = `${c.firstName} ${c.lastName}`.trim().toLowerCase();
+  return !n || /^(customer|unknown|whatsapp user|user|client|no name)\b/.test(n) || /^[\d\s+()-]+$/.test(n);
+}
+
+/**
+ * Likely the same person, strongest first:
+ *   1. the same phone number (last 9 digits, so 0244… and 233244… match)
+ *   2. the same email
+ *   3. the same real full name in the same city (placeholder names like "Customer 4567" never match)
+ *   4. the same real surname in the same city (weakest: could be family)
+ */
 export function findDuplicates(db: Database): DuplicateGroup[] {
-  const byLastName = new Map<string, Contact[]>();
-  db.contacts.forEach((c) => {
-    const key = `${c.lastName.toLowerCase()}|${c.city.toLowerCase()}`;
-    byLastName.set(key, [...(byLastName.get(key) ?? []), c]);
-  });
-  return [...byLastName.entries()]
-    .filter(([, list]) => list.length > 1)
-    .slice(0, 8)
-    .map(([key, list]) => ({
-      key,
-      reason: "Same surname and city — review before merging",
-      contacts: list,
-    }));
+  const groups: DuplicateGroup[] = [];
+  const used = new Set<string>();
+  const add = (map: Map<string, Contact[]>, reason: string) => {
+    for (const [key, list] of map) {
+      const fresh = list.filter((c) => !used.has(c.id));
+      if (fresh.length < 2) continue;
+      fresh.forEach((c) => used.add(c.id));
+      groups.push({ key, reason, contacts: fresh });
+    }
+  };
+  const by = (keyOf: (c: Contact) => string | null) => {
+    const m = new Map<string, Contact[]>();
+    for (const c of db.contacts) { const k = keyOf(c); if (k) m.set(k, [...(m.get(k) ?? []), c]); }
+    return m;
+  };
+  add(by((c) => { const d = (c.phone ?? "").replace(/\D/g, ""); return d.length >= 9 ? `phone:${d.slice(-9)}` : null; }), "Same phone number — almost certainly the same person");
+  add(by((c) => (c.email ? `email:${c.email.trim().toLowerCase()}` : null)), "Same email address");
+  add(by((c) => (isPlaceholderName(c) || !c.lastName.trim() ? null : `name:${c.firstName.toLowerCase()} ${c.lastName.toLowerCase()}|${c.city.toLowerCase()}`)), "Same full name and city — review before merging");
+  add(by((c) => (isPlaceholderName(c) || !c.lastName.trim() || !c.city.trim() ? null : `surname:${c.lastName.toLowerCase()}|${c.city.toLowerCase()}`)), "Same surname and city — could be family, review before merging");
+  return groups.slice(0, 50);
 }
 
 /* ---------------------------------------------------------- global search */

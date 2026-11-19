@@ -198,7 +198,8 @@ export function toDatabase(raw: RawData, now = new Date()): Database {
   raw.conversations.forEach((c) => { const last = msgsByConv.get(c["id"])?.at(-1); if (last) { const prev = lastMsgByContact.get(c["contact_id"]); if (!prev || prev < last["created_at"]) lastMsgByContact.set(c["contact_id"], last["created_at"]); } });
 
   const contacts: Contact[] = raw.contacts.map((c) => {
-    const [firstName, lastName] = splitName(c["name"]);
+    // No name yet (old WhatsApp chats): "Customer 4567" from the phone's last digits, so people stay distinct.
+    const [firstName, lastName] = String(c["name"] ?? "").trim() ? splitName(c["name"]) : ["Customer", String(c["phone"] ?? "").replace(/\D/g, "").slice(-4) || String(c["id"]).slice(0, 4)];
     const mine = ordersByContact.get(c["id"]) ?? [];
     const live = mine.filter((o) => o.status !== "cancelled");
     const delivered = mine.filter((o) => o.status === "delivered");
@@ -350,11 +351,12 @@ export function toDatabase(raw: RawData, now = new Date()): Database {
     broadcasts: raw.campaigns.map((c) => {
       const r = resultsById.get(c["id"]);
       return {
-        id: c["id"], name: c["name"], segmentId: "all", templateId: raw.templates.find((t) => t["name"] === c["template_name"])?.["id"] ?? "", status: (c["status"] === "sending" ? "scheduled" : c["status"]) as "draft" | "scheduled" | "sent",
+        id: c["id"], name: c["name"], segmentId: "all", templateId: raw.templates.find((t) => t["name"] === c["template_name"])?.["id"] ?? "", status: (c["status"] === "sending" ? "scheduled" : c["status"]) as "draft" | "scheduled" | "sent" | "auto" | "paused",
         ...(c["scheduled_for"] ? { scheduledFor: iso(c["scheduled_for"]) } : {}), ...(c["sent_at"] ? { sentAt: iso(c["sent_at"]) } : {}),
         recipients: num(r?.["recipients"]), skippedNoConsent: 0, channel: c["channel"],
-        ...(c["audience"]?.["product_id"] ? { audience: { productId: c["audience"]["product_id"], hours: num(c["audience"]["hours"] ?? 24) } } : {}), ...(c["subject"] ? { subject: c["subject"] } : {}), ...(c["body"] ? { body: c["body"] } : {}),
-        ...(r ? { stats: { delivered: num(r["delivered"]), opened: num(r["opened"]), clicked: num(r["clicked"]), orders: num(r["orders"]), revenue: num(r["delivered_revenue"]) } } : {}),
+        ...(c["audience"]?.["product_id"] || c["audience"]?.["kind"] === "messaged" ? { audience: { kind: c["audience"]["product_id"] ? "product" as const : "messaged" as const, ...(c["audience"]["product_id"] ? { productId: c["audience"]["product_id"] } : {}), hours: num(c["audience"]["hours"] ?? 24), ...(c["audience"]["wait_hours"] != null ? { waitHours: num(c["audience"]["wait_hours"]) } : {}) } } : {}),
+        ...(c["reply_body"] ? { replyBody: c["reply_body"] } : {}), ...(c["subject"] ? { subject: c["subject"] } : {}), ...(c["body"] ? { body: c["body"] } : {}),
+        ...(r ? { stats: { delivered: num(r["delivered"]), opened: num(r["opened"]), clicked: num(r["clicked"]), orders: num(r["orders"]), revenue: num(r["delivered_revenue"]), replied: num(r["replied"]) } } : {}),
       };
     }),
     workflows: [], workflowRuns: [], media, stockMovements: [],

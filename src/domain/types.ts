@@ -615,7 +615,8 @@ export interface Broadcast {
   name: string;
   segmentId: ID;
   templateId: ID;
-  status: "draft" | "scheduled" | "sent";
+  /** "auto": automatic nudge, sends to each new person in the audience; "paused": stopped. */
+  status: "draft" | "scheduled" | "sent" | "auto" | "paused";
   scheduledFor?: string;
   sentAt?: string;
   recipients: number;
@@ -624,10 +625,12 @@ export interface Broadcast {
   channel?: "whatsapp" | "email";
   subject?: string;
   body?: string;
-  /** WhatsApp: people who asked about this product within the last `hours` (instead of the segment). */
-  audience?: { productId: ID; hours: number };
+  /** WhatsApp: people who asked about a product / everyone who messaged us, within the last `hours`. */
+  audience?: { kind: "product" | "messaged"; productId?: ID; hours: number; waitHours?: number };
+  /** Sent once when a recipient answers. */
+  replyBody?: string;
   /** Results tracked per campaign. Opens and clicks are tracked for email. */
-  stats?: { delivered: number; opened?: number; clicked?: number; orders: number; revenue: number };
+  stats?: { delivered: number; opened?: number; clicked?: number; orders: number; revenue: number; replied?: number };
 }
 
 export interface WorkflowStep {

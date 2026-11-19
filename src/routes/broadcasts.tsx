@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { EmptyState, KpiCard, Section, StatusBadge } from "@/components/app/primitives";
 import { useActions, useDb, useLive, useWorkspace } from "@/domain/store";
 import { EmailConnect } from "@/components/app/EmailConnect";
+import { NudgeForm, WINDOWS } from "@/components/app/NudgeForm";
 import type { Broadcast, BusinessSettings } from "@/domain/types";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { useAuth } from "@/app/auth";
@@ -21,13 +22,13 @@ export const Route = createFileRoute("/broadcasts")({
   component: Broadcasts,
 });
 
-const STATUS_TONE = { draft: "neutral", scheduled: "info", sent: "success" } as const;
+const STATUS_TONE = { draft: "neutral", scheduled: "info", sent: "success", auto: "purple", paused: "warning" } as const;
+const STATUS_LABEL = { draft: "draft", scheduled: "scheduled", sent: "sent", auto: "automatic · on", paused: "paused" } as const;
 const PROVIDERS: { id: BusinessSettings["email"]["provider"]; name: string; hint: string }[] = [
   { id: "brevo", name: "Brevo", hint: "Free for 300 emails a day" },
   { id: "resend", name: "Resend", hint: "Free for 3,000 emails a month" },
   { id: "mailgun", name: "Mailgun", hint: "Pay as you go" },
 ];
-const WINDOWS = [{ h: 24, label: "the last 24 hours" }, { h: 72, label: "the last 3 days" }, { h: 168, label: "the last 7 days" }, { h: 720, label: "the last 30 days" }];
 const pct = (n = 0, of = 0) => (of ? `${Math.round((n / of) * 100)}%` : "—");
 
 function NewBroadcast({ channel, onClose, preset }: { channel: "whatsapp" | "email"; onClose: () => void; preset?: { productId: string; hours: number } }) {
@@ -66,7 +67,7 @@ function NewBroadcast({ channel, onClose, preset }: { channel: "whatsapp" | "ema
     saveRecord("broadcasts", {
       name: name.trim(), segmentId: toProduct ? "all" : segmentId, templateId: email ? "" : templateId, status, channel,
       ...(email ? { subject: subject.trim(), body } : byProduct && body.trim() ? { body: body.trim() } : {}),
-      ...(toProduct ? { audience: { productId, hours } } : {}),
+      ...(toProduct ? { audience: { kind: "product" as const, productId, hours } } : {}),
       ...(status === "scheduled" ? { scheduledFor: new Date(when).toISOString() } : {}), recipients: 0, skippedNoConsent: 0,
     });
     onClose();
@@ -215,23 +216,28 @@ function Broadcasts() {
               const seg = db.segments.find((s) => s.id === b.segmentId);
               const tpl = db.templates.find((t) => t.id === b.templateId);
               const isEmail = b.channel === "email";
-              const canSend = isEmail ? !noService : tpl?.status === "approved";
+              const canSend = isEmail ? !noService : tpl?.status === "approved" || (live.on && !!b.body);
+              const setStatus = async (status: "auto" | "paused") => { await supabase()?.from("campaigns").update({ status }).eq("id", b.id); await live.reload(); };
               return (
                 <li key={b.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
                   <div className="min-w-0 flex-1 basis-60">
                     <p className="font-medium">{b.name}</p>
-                    <p className="text-xs text-muted-foreground">{b.audience ? `Asked about ${db.products.find((p) => p.id === b.audience!.productId)?.name ?? "a product"} in ${WINDOWS.find((w) => w.h === b.audience!.hours)?.label ?? `the last ${b.audience.hours} hours`}` : seg?.name ?? "Deleted segment"} · {isEmail ? `“${b.subject}”` : tpl ? `template ${tpl.name}` : b.body ? `“${b.body.slice(0, 40)}${b.body.length > 40 ? "…" : ""}”` : "template deleted"}{b.scheduledFor && b.status === "scheduled" ? ` · ${formatDateTime(b.scheduledFor)}` : ""}{b.sentAt ? ` · sent ${formatDateTime(b.sentAt)}` : ""}</p>
-                    {b.status === "sent" && (
+                    <p className="text-xs text-muted-foreground">{b.audience ? `${b.audience.kind === "product" ? `Asked about ${db.products.find((p) => p.id === b.audience!.productId)?.name ?? "a product"}` : "Messaged us"} in ${WINDOWS.find((w) => w.h === b.audience!.hours)?.label ?? `the last ${b.audience.hours} hours`}` : seg?.name ?? "Deleted segment"} · {isEmail ? `“${b.subject}”` : tpl ? `template ${tpl.name}` : b.body ? `“${b.body.slice(0, 40)}${b.body.length > 40 ? "…" : ""}”` : "template deleted"}{b.scheduledFor && b.status === "scheduled" ? ` · ${formatDateTime(b.scheduledFor)}` : ""}{b.sentAt ? ` · sent ${formatDateTime(b.sentAt)}` : ""}</p>
+                    {(b.status === "sent" || b.status === "auto" || b.status === "paused") && (
                       <p className="text-xs text-muted-foreground" aria-label={`Results for ${b.name}`}>
                         Delivered <span className="num font-semibold text-foreground">{b.stats?.delivered ?? b.recipients}</span>
                         {isEmail && <> · opened <span className="num font-semibold text-foreground">{pct(b.stats?.opened, b.stats?.delivered)}</span> · clicked <span className="num font-semibold text-foreground">{pct(b.stats?.clicked, b.stats?.delivered)}</span></>}
                         {b.stats && <> · <span className="num font-semibold text-foreground">{b.stats.orders}</span> orders · <span className="num font-semibold text-foreground">{formatCurrency(b.stats.revenue, ws.currency, { compact: true })}</span></>}
-                        {` · skipped ${b.skippedNoConsent} without ${isEmail ? "consent or email" : "consent"}`}
+                        {!isEmail && b.stats?.replied !== undefined && <> · <span className="num font-semibold text-foreground">{b.stats.replied}</span> replied</>}
+                        {!b.audience && ` · skipped ${b.skippedNoConsent} without ${isEmail ? "consent or email" : "consent"}`}
                       </p>
                     )}
                   </div>
-                  <StatusBadge tone={STATUS_TONE[b.status]}>{b.status}</StatusBadge>
-                  {b.status !== "sent" && (
+                  <StatusBadge tone={STATUS_TONE[b.status]}>{STATUS_LABEL[b.status]}</StatusBadge>
+                  {b.status === "auto" && <Button size="sm" variant="outline" onClick={() => void setStatus("paused")}>Pause</Button>}
+                  {b.status === "paused" && <Button size="sm" onClick={() => void setStatus("auto")}>Resume</Button>}
+                  {(b.status === "auto" || b.status === "paused") && <Button size="sm" variant="ghost" onClick={() => removeRecord("broadcasts", b.id)}>Delete</Button>}
+                  {(b.status === "draft" || b.status === "scheduled") && (
                     <>
                       <Button size="sm" disabled={!canSend} title={!canSend ? (isEmail ? "Pick an email service first" : "Template isn't approved") : undefined} onClick={() => sendBroadcast(b.id)}>Send now</Button>
                       <Button size="sm" variant="ghost" onClick={() => removeRecord("broadcasts", b.id)}>Delete</Button>
@@ -242,9 +248,11 @@ function Broadcasts() {
             })}
           </ul>
         )}
-        <p className="border-t px-4 py-2 text-xs text-muted-foreground">Practice Mode counts who would receive it and estimates results; nothing is actually sent.</p>
+        {!live.on && <p className="border-t px-4 py-2 text-xs text-muted-foreground">Practice Mode counts who would receive it and estimates results; nothing is actually sent.</p>}
       </Section>
-      {creating && <NewBroadcast channel={channel} onClose={() => setCreating(false)} {...(preset && channel === "whatsapp" ? { preset } : {})} />}
+      {creating && (live.on && channel === "whatsapp"
+        ? <NudgeForm onClose={() => setCreating(false)} {...(preset ? { preset } : {})} />
+        : <NewBroadcast channel={channel} onClose={() => setCreating(false)} {...(preset && channel === "whatsapp" ? { preset } : {})} />)}
     </div>
   );
 }

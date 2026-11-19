@@ -11,7 +11,7 @@ import { Section } from "@/components/app/primitives";
 import { useAuth } from "@/app/auth";
 import { supabase } from "@/lib/supabase";
 
-interface Row { id: string; name: string; h24: number; d7: number; d30: number; days: { day: string; chats: number }[] }
+interface Row { id: string; name: string; h24: number; d7: number; d30: number; y1: number; days: { day: string; chats: number }[] }
 
 export function ProductInterest() {
   const { current } = useAuth();
@@ -34,7 +34,7 @@ export function ProductInterest() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="text-left text-xs text-muted-foreground">
-              <tr><th className="px-4 py-2 font-medium">Product</th><th className="px-2 py-2 text-right font-medium">Last 24 h</th><th className="px-2 py-2 text-right font-medium">7 days</th><th className="px-2 py-2 text-right font-medium">30 days</th><th className="px-4 py-2 font-medium">Last 14 days</th><th className="px-4 py-2" /></tr>
+              <tr><th className="px-4 py-2 font-medium">Product</th><th className="px-2 py-2 text-right font-medium">Last 24 h</th><th className="px-2 py-2 text-right font-medium">7 days</th><th className="px-2 py-2 text-right font-medium">30 days</th><th className="px-2 py-2 text-right font-medium">1 year</th><th className="px-4 py-2 font-medium">Last 14 days</th><th className="px-4 py-2" /></tr>
             </thead>
             <tbody className="divide-y">
               {rows.map((r) => {
@@ -45,15 +45,16 @@ export function ProductInterest() {
                     <td className="num px-2 py-2 text-right font-semibold">{r.h24}</td>
                     <td className="num px-2 py-2 text-right">{r.d7}</td>
                     <td className="num px-2 py-2 text-right">{r.d30}</td>
+                    <td className="num px-2 py-2 text-right">{r.y1}</td>
                     <td className="px-4 py-2">
                       <div className="flex h-6 items-end gap-0.5" role="img" aria-label={`Chats per day: ${r.days.map((d) => d.chats).join(", ")}`}>
                         {r.days.map((d) => <span key={d.day} title={`${d.day}: ${d.chats} chat${d.chats === 1 ? "" : "s"}`} className="w-1.5 rounded-sm bg-primary/70" style={{ height: `${Math.max(2, (d.chats / max) * 24)}px`, opacity: d.chats ? 1 : 0.25 }} />)}
                       </div>
                     </td>
                     <td className="px-4 py-2 text-right">
-                      {r.d30 > 0 && (
+                      {r.y1 > 0 && (
                         <Button asChild size="sm" variant="outline">
-                          <a href={`/broadcasts?product=${r.id}&hours=${r.h24 ? 24 : r.d7 ? 168 : 720}`}><Send className="size-3.5" /> Broadcast</a>
+                          <a href={`/broadcasts?product=${r.id}&hours=${r.h24 ? 24 : r.d7 ? 168 : r.d30 ? 720 : 8784}`}><Send className="size-3.5" /> Broadcast</a>
                         </Button>
                       )}
                     </td>

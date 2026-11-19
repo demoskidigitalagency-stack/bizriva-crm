@@ -165,7 +165,7 @@ export function liveWriter(sb: SupabaseClient, ws: string, getDb: () => Database
         : collection === "media" ? { product_id: r["productId"] ?? null, name: r["name"] }
         : collection === "events" ? { title: r["title"], kind: r["kind"], starts_at: r["at"], contact_id: r["contactId"] ?? null, order_id: r["orderId"] ?? null, note: r["note"] ?? null }
         : { name: r["name"], channel: r["channel"] ?? "whatsapp", template_name: db.templates.find((t) => t.id === r["templateId"])?.name ?? null, subject: r["subject"] ?? null, body: r["body"] ?? null, status: r["status"] === "scheduled" ? "scheduled" : "draft", scheduled_for: r["scheduledFor"] ?? null,
-            audience: r["audience"]?.productId ? { product_id: r["audience"].productId, hours: r["audience"].hours } : {} };
+            audience: r["audience"]?.kind ? { kind: r["audience"].kind, hours: r["audience"].hours, ...(r["audience"].productId ? { product_id: r["audience"].productId } : {}) } : {} };
       return fail((isUuid(r["id"]) ? await sb.from(table).update(row).eq("id", r["id"]) : await sb.from(table).insert({ workspace_id: ws, ...row })).error);
     },
     async removeRecord(collection: string, id: ID): Promise<Result> {
