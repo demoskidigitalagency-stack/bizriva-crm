@@ -5,7 +5,8 @@
 export const isGemini = (key: string) => /^AIza[0-9A-Za-z_-]{30,}$/.test(key);
 // deno-lint-ignore no-explicit-any
 const GEMINI_MODEL = (globalThis as any).Deno?.env.get("GEMINI_MODEL") ?? "gemini-flash-latest";
-const GEMINI_FALLBACK = "gemini-2.5-flash";
+// When a model is missing or busy (404/429/500/503), the next one is tried.
+const GEMINI_FALLBACKS = ["gemini-flash-lite-latest", "gemini-2.5-flash", "gemini-2.5-flash-lite"];
 
 /** The saved model if it fits the key's provider, else that provider's default. */
 export function pickModel(key: string, saved: string | null | undefined, claudeDefault: string): string {
@@ -20,7 +21,7 @@ export interface Tool { name: string; description?: string; input_schema: Any }
 export interface Msg { role: "user" | "assistant"; content: string | Any[] }
 
 function friendly(status: number, msg: string): Error {
-  if (status === 429) return new Error("The AI is busy right now (or the free daily limit is used up) — try again later.");
+  if (status === 429 || status === 503) return new Error("Google's free AI is very busy right now (or today's free limit is used up) — try again in a few minutes.");
   if (status === 401 || status === 403) return new Error("The AI key was refused — check it on the AI Agent page.");
   return new Error(`${status} ${msg || "The AI service refused the request"}`);
 }
@@ -72,7 +73,10 @@ async function gemini(o: { key: string; model: string; system: string; messages:
     method: "POST", headers: { "x-goog-api-key": o.key, "content-type": "application/json" }, body, signal: AbortSignal.timeout(o.timeoutMs),
   });
   let r = await call(o.model);
-  if (r.status === 404 && o.model !== GEMINI_FALLBACK) r = await call(GEMINI_FALLBACK);
+  for (const m of GEMINI_FALLBACKS) {
+    if (![404, 429, 500, 503].includes(r.status) || m === o.model) continue;
+    r = await call(m);
+  }
   const res = await r.json().catch(() => ({}));
   if (!r.ok) throw friendly(r.status, res?.error?.message);
   const parts: Any[] = res?.candidates?.[0]?.content?.parts ?? [];
