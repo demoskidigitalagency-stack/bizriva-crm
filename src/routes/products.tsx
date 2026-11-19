@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Minus, Pencil, Plus, Search, Upload } from "lucide-react";
+import { Minus, Pencil, Plus, Search, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +14,7 @@ import { useAuth } from "@/app/auth";
 import { aiTool, imageBase64 } from "@/lib/ai-tools";
 import type { Product } from "@/domain/types";
 import { CARE_STARTERS } from "@/domain/receipt";
-import { formatCurrency, formatPercent } from "@/lib/format";
+import { CURRENCIES, formatCurrency, formatPercent, type CurrencyCode } from "@/lib/format";
 
 export const Route = createFileRoute("/products")({
   // ?p=<productId> opens that product's editor (used by search).
@@ -23,17 +23,18 @@ export const Route = createFileRoute("/products")({
   component: Products,
 });
 
-type Draft = { id?: string; name: string; category: string; price: string; cost: string; stock: string; reorderLevel: string; description: string; active: boolean; deposit: string; careGuide: string; aliases: string; digitalPath: string; digitalName: string; variants: { id: string; name: string; price: string; stock: string }[] };
+type Draft = { id?: string; name: string; category: string; price: string; cost: string; stock: string; reorderLevel: string; description: string; active: boolean; deposit: string; careGuide: string; aliases: string; digitalPath: string; digitalName: string; prices: { currency: string; price: string }[]; variants: { id: string; name: string; price: string; stock: string }[] };
 const toDraft = (p?: Product): Draft => ({
   ...(p ? { id: p.id } : {}),
   name: p?.name ?? "", category: p?.category ?? "", price: p ? String(p.price) : "", cost: p ? String(p.cost) : "",
   stock: p ? String(p.stock) : "0", reorderLevel: p ? String(p.reorderLevel) : "5",
-  description: p?.description ?? "", active: p?.active !== false, deposit: p?.deposit ? String(p.deposit) : "", careGuide: p?.careGuide ?? "", aliases: (p?.aliases ?? []).join(", "), digitalPath: p?.digitalPath ?? "", digitalName: p?.digitalName ?? "",
+  description: p?.description ?? "", active: p?.active !== false, deposit: p?.deposit ? String(p.deposit) : "", careGuide: p?.careGuide ?? "", aliases: (p?.aliases ?? []).join(", "), digitalPath: p?.digitalPath ?? "", digitalName: p?.digitalName ?? "", prices: Object.entries(p?.prices ?? {}).map(([currency, v]) => ({ currency, price: String(v ?? "") })),
   variants: (p?.variants ?? []).map((v) => ({ id: v.id, name: v.name, price: String(v.price), stock: String(v.stock) })),
 });
 
 function ProductDialog({ product, open, onOpenChange }: { product?: Product | undefined; open: boolean; onOpenChange: (o: boolean) => void }) {
   const { saveProduct } = useActions();
+  const ws = useWorkspace();
   const live = useLive();
   const { current } = useAuth();
   const [uploading, setUploading] = useState(false);
@@ -75,7 +76,8 @@ function ProductDialog({ product, open, onOpenChange }: { product?: Product | un
     if (opts.some((v) => !v.name.trim() || !(num(v.price) > 0))) return setError("Each option needs a name and a price above zero.");
     if (new Set(opts.map((v) => v.name.trim().toLowerCase())).size !== opts.length) return setError("Two options have the same name.");
     const variants = opts.map((v) => ({ id: v.id, name: v.name.trim(), price: num(v.price), stock: Math.max(0, Math.round(num(v.stock) || 0)) }));
-    saveProduct({ ...(d.id ? { id: d.id } : {}), variants, name: d.name.trim(), category: d.category.trim() || "General", price: num(d.price), cost: num(d.cost) || 0, stock: Math.max(0, Math.round(num(d.stock) || 0)), reorderLevel: Math.max(0, Math.round(num(d.reorderLevel) || 0)), description: d.description.trim(), active: d.active, deposit, careGuide: d.careGuide.trim(), aliases: d.aliases.split(",").map((a) => a.trim()).filter((a) => a.length >= 3).slice(0, 30), digitalPath: d.digitalPath, digitalName: d.digitalName });
+    saveProduct({ ...(d.id ? { id: d.id } : {}), variants, name: d.name.trim(), category: d.category.trim() || "General", price: num(d.price), cost: num(d.cost) || 0, stock: Math.max(0, Math.round(num(d.stock) || 0)), reorderLevel: Math.max(0, Math.round(num(d.reorderLevel) || 0)), description: d.description.trim(), active: d.active, deposit, careGuide: d.careGuide.trim(), aliases: d.aliases.split(",").map((a) => a.trim()).filter((a) => a.length >= 3).slice(0, 30),
+      prices: Object.fromEntries(d.prices.filter((x) => x.currency && x.currency !== ws.currency && num(x.price) > 0).map((x) => [x.currency, num(x.price)])), digitalPath: d.digitalPath, digitalName: d.digitalName });
     onOpenChange(false);
   };
   const set = (k: keyof Draft) => (e: React.ChangeEvent<HTMLInputElement>) => { setD((x) => ({ ...x, [k]: e.target.value })); setError(""); };
@@ -134,6 +136,20 @@ function ProductDialog({ product, open, onOpenChange }: { product?: Product | un
               <Input id="pdig" type="file" disabled={uploading} accept=".pdf,.epub,.zip,.doc,.docx,.xls,.xlsx,audio/*,video/mp4,.txt" onChange={(e) => void uploadDigital(e.target.files?.[0])} />
             ) : <p className="text-xs text-muted-foreground">Works once your business is live.</p>}
             <p className="text-xs text-muted-foreground">Sent to the customer in their WhatsApp chat automatically, once their order is fully paid.</p>
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label>Also sell in other currencies (optional)</Label>
+            {d.prices.map((x, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <select aria-label={`Currency ${i + 1}`} className="h-9 rounded-md border bg-background px-2 text-sm" value={x.currency} onChange={(e) => setD((v) => ({ ...v, prices: v.prices.map((y, j) => (j === i ? { ...y, currency: e.target.value } : y)) }))}>
+                  {CURRENCIES.filter((c) => c.code !== ws.currency && (c.code === x.currency || !d.prices.some((y) => y.currency === c.code))).map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
+                </select>
+                <Input aria-label={`Price in ${x.currency}`} inputMode="decimal" value={x.price} onChange={(e) => setD((v) => ({ ...v, prices: v.prices.map((y, j) => (j === i ? { ...y, price: e.target.value } : y)) }))} placeholder="Price" />
+                <Button type="button" size="icon" variant="ghost" aria-label={`Remove ${x.currency} price`} onClick={() => setD((v) => ({ ...v, prices: v.prices.filter((_, j) => j !== i) }))}><Trash2 className="size-4" /></Button>
+              </div>
+            ))}
+            <Button type="button" size="sm" variant="outline" onClick={() => setD((v) => ({ ...v, prices: [...v.prices, { currency: CURRENCIES.find((c) => c.code !== ws.currency && !v.prices.some((y) => y.currency === c.code))?.code ?? "USD", price: "" }] }))}><Plus className="size-4" /> Add a price in another currency</Button>
+            <p className="text-xs text-muted-foreground">Customers get the price for their country from their phone number (+234 naira, +233 cedis…). A customer abroad is only offered products that have a price in their currency; everyone else sees your main price.</p>
           </div>
           <div className="space-y-1.5 sm:col-span-2">
             <Label htmlFor="palias">Other names customers use (for tagging WhatsApp chats)</Label>
@@ -307,7 +323,7 @@ function Products() {
                   return (
                     <tr key={p.id} className="hover:bg-muted/40">
                       <td className="px-3 py-2"><div className="flex items-center gap-2">{p.imageUrl && <img src={p.imageUrl} alt="" loading="lazy" referrerPolicy="no-referrer" className="size-9 shrink-0 rounded object-cover" />}<div><span className="block font-medium">{p.name} {p.active === false && <StatusBadge>Hidden</StatusBadge>}</span><span className="block text-xs text-muted-foreground">{p.category}{p.deposit ? ` · deposit ${money(p.deposit)}` : ""}</span></div></div></td>
-                      <td className="num px-3 py-2 text-right">{money(p.price)}</td>
+                      <td className="num px-3 py-2 text-right">{money(p.price)}{Object.entries(p.prices ?? {}).map(([c, v]) => <span key={c} className="block text-xs font-normal text-muted-foreground">{formatCurrency(v ?? 0, c as CurrencyCode)}</span>)}</td>
                       <td className="num px-3 py-2 text-right text-muted-foreground">{money(p.cost)}</td>
                       <td className="num px-3 py-2 text-right">{formatPercent(margin)}</td>
                       <td className="px-3 py-2">

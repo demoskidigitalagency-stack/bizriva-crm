@@ -301,10 +301,21 @@ export function getDashboard(db: Database, filters: DashboardFilters) {
   const inRange = db.orders.filter(
     (o) => scopedIds.has(o.contactId) && isWithinDays(o.placedAt, rangeDays),
   );
+  // Money totals are in the business's own currency; orders in another currency are totalled
+  // separately (otherCurrencies) — nothing is converted.
+  const main = db.workspaces[0]?.currency;
+  const inMain = (o: { currency?: string }) => !o.currency || o.currency === main;
   const delivered = inRange.filter((o) => o.status === "delivered");
-  const revenue = inRange.filter((o) => o.status !== "cancelled").reduce((s, o) => s + o.total, 0);
-  const deliveredRevenue = delivered.reduce((s, o) => s + o.total, 0);
-  const contributionProfit = delivered.reduce((s, o) => s + (o.total - o.cogs - o.shippingFee), 0);
+  const revenue = inRange.filter((o) => o.status !== "cancelled" && inMain(o)).reduce((s, o) => s + o.total, 0);
+  const deliveredRevenue = delivered.filter(inMain).reduce((s, o) => s + o.total, 0);
+  const contributionProfit = delivered.filter(inMain).reduce((s, o) => s + (o.total - o.cogs - o.shippingFee), 0);
+  const otherCurrencies: { currency: string; revenue: number; deliveredRevenue: number; orders: number }[] = [];
+  for (const o of inRange) {
+    if (inMain(o) || o.status === "cancelled") continue;
+    let row = otherCurrencies.find((x) => x.currency === o.currency);
+    if (!row) { row = { currency: o.currency!, revenue: 0, deliveredRevenue: 0, orders: 0 }; otherCurrencies.push(row); }
+    row.revenue += o.total; row.orders++; if (o.status === "delivered") row.deliveredRevenue += o.total;
+  }
 
   const newLeads = db.leads.filter(
     (l) => scopedIds.has(l.contactId) && isWithinDays(l.createdAt, rangeDays),
@@ -332,6 +343,7 @@ export function getDashboard(db: Database, filters: DashboardFilters) {
     .slice(0, 6);
 
   return {
+    otherCurrencies,
     kpis: {
       revenue,
       deliveredRevenue,

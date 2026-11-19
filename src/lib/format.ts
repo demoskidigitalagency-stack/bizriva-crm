@@ -4,6 +4,11 @@
  */
 
 export type CurrencyCode = "NGN" | "USD" | "GBP" | "EUR" | "KES" | "GHS" | "ZAR";
+/** Currencies a product can also be sold in (Products → Other currencies, order forms). */
+export const CURRENCIES: { code: CurrencyCode; name: string }[] = [
+  { code: "NGN", name: "Naira (₦)" }, { code: "GHS", name: "Cedi (GH₵)" }, { code: "KES", name: "Kenyan shilling (KSh)" },
+  { code: "ZAR", name: "Rand (R)" }, { code: "USD", name: "US dollar ($)" }, { code: "GBP", name: "Pound (£)" }, { code: "EUR", name: "Euro (€)" },
+];
 
 const LOCALE_BY_CURRENCY: Record<CurrencyCode, string> = {
   NGN: "en-NG",

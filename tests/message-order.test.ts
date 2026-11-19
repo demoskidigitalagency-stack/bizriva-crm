@@ -65,3 +65,15 @@ test("13,000 is not the 3,000 table; 'who' is not the town Ho", () => {
     expect(d!.town).toBe("");
   });
 });
+
+import { draftCurrency, phoneCurrency, priceIn } from "../src/lib/message-order";
+test("currency from the customer's phone, only when the business sells in it", () => {
+  const products = [{ price: 6900 }, { price: 3500, prices: { NGN: 650000 } }];
+  expect(phoneCurrency("+234 803 123 4567")).toBe("NGN");
+  expect(phoneCurrency("233244114567")).toBe("GHS");
+  expect(draftCurrency({ phone: "2348031234567" }, "GHS", products)).toBe("NGN");
+  expect(draftCurrency({ phone: "254700000000" }, "GHS", products)).toBe("GHS"); // no KES prices → main currency
+  expect(draftCurrency({ phone: "" }, "GHS", products)).toBe("GHS");
+  expect(priceIn(products[1]!, "NGN", "GHS")).toBe(650000);
+  expect(priceIn(products[0]!, "NGN", "GHS")).toBeUndefined();
+});

@@ -177,7 +177,7 @@ export function toDatabase(raw: RawData, now = new Date()): Database {
       productNames: items.length ? items.map((i) => `${i["quantity"]}× ${productById.get(i["product_id"])?.["name"] ?? "Item"}${i["variant_id"] ? ` (${(raw.variants ?? []).find((v) => v["id"] === i["variant_id"])?.["name"] ?? "option"})` : ""}`) : [String(o["notes"] ?? "Order").split("\n")[0]!.slice(0, 60)],
       ...(num(o["amount_paid"]) ? { amountPaid: num(o["amount_paid"]) } : {}),
       ...(o["risk_level"] ? { serverRisk: { score: num(o["risk_score"]), level: o["risk_level"], reasons: o["risk_reasons"] ?? [] } } : {}),
-      ...(o["invoice_no"] ? { invoiceNo: o["invoice_no"] } : {}), ...(o["form_id"] ? { formId: o["form_id"] } : {}),
+      ...(o["invoice_no"] ? { invoiceNo: o["invoice_no"] } : {}), ...(o["form_id"] ? { formId: o["form_id"] } : {}), ...(o["currency"] ? { currency: o["currency"] } : {}),
       ...(o["assigned_to"] ? { assignedTo: o["assigned_to"], assignedAt: iso(o["assigned_at"] ?? o["created_at"]) } : {}),
       ...(o["moved_from"]?.length ? { movedFrom: o["moved_from"] } : {}),
       ...(attempts.length ? { contactAttempts: attempts.map((a) => ({ at: iso(a["at"]), by: a["by_user"] ?? "", via: a["via"], outcome: a["outcome"] as AttemptOutcome, ...(a["note"] ? { note: a["note"] } : {}) })) } : {}),
@@ -256,7 +256,7 @@ export function toDatabase(raw: RawData, now = new Date()): Database {
   const products: Product[] = raw.products.map((p) => ({
     id: p["id"], name: p["name"], category: p["category"] ?? "General", price: num(p["promo_price"] ?? p["price"]), cost: num(p["cost"]), stock: num(p["stock"]), reorderLevel: num(p["reorder_level"]),
     ...(p["description"] ? { description: p["description"] } : {}), active: p["active"] !== false, ...(num(p["deposit"]) ? { deposit: num(p["deposit"]) } : {}),
-    ...(p["care_guide"] ? { careGuide: p["care_guide"] } : {}), ...(Array.isArray(p["aliases"]) && p["aliases"].length ? { aliases: p["aliases"] as string[] } : {}), ...(p["image_url"] ? { imageUrl: p["image_url"] as string } : {}), ...(p["digital_path"] ? { digitalPath: p["digital_path"] as string, digitalName: String(p["digital_name"] ?? "") } : {}), ...(p["reorder_days"] ? { reorderDays: num(p["reorder_days"]) } : {}),
+    ...(p["care_guide"] ? { careGuide: p["care_guide"] } : {}), ...(Array.isArray(p["aliases"]) && p["aliases"].length ? { aliases: p["aliases"] as string[] } : {}), ...(p["prices"] && Object.keys(p["prices"]).length ? { prices: p["prices"] as Record<string, number> } : {}), ...(p["image_url"] ? { imageUrl: p["image_url"] as string } : {}), ...(p["digital_path"] ? { digitalPath: p["digital_path"] as string, digitalName: String(p["digital_name"] ?? "") } : {}), ...(p["reorder_days"] ? { reorderDays: num(p["reorder_days"]) } : {}),
     ...(variantsBy.get(p["id"])?.length ? { variants: variantsBy.get(p["id"])! } : {}),
   }));
   const media: MediaAsset[] = (raw.media ?? []).map((m) => ({
@@ -362,7 +362,7 @@ export function toDatabase(raw: RawData, now = new Date()): Database {
     workflows: [], workflowRuns: [], media, stockMovements: [],
     integrations: practice.integrations.map((i) => ({ ...i, status: "not_connected" as const })) as Database["integrations"],
     agent: { ...practice.agent, ...((w["settings"]?.["agent"] ?? {}) as Partial<typeof practice.agent>), enabled: w["settings"]?.["agent"]?.["enabled"] === true }, settings: liveSettings(w, raw.providers, raw.meta),
-    orderForms: raw.forms.map((f) => ({ id: f["id"], name: f["name"], productId: f["product_id"], headline: f["headline"], ...(f["banner"] ? { banner: f["banner"] } : {}), packages: f["packages"] ?? [], fields: f["fields"] ?? ["name", "phone", "address", "city"], payOnDelivery: f["pay_on_delivery"] !== false, pixels: { meta: !!f["meta_pixel"], tiktok: !!f["tiktok_pixel"] }, thankYou: f["thank_you"] ?? "Thank you!", active: f["active"] !== false, showRecent: !!f["show_recent"], createdAt: iso(f["created_at"]), stats: { views: 0, starts: 0, submits: 0, duplicatesBlocked: 0, dropOff: {} } })),
+    orderForms: raw.forms.map((f) => ({ id: f["id"], name: f["name"], productId: f["product_id"], headline: f["headline"], ...(f["banner"] ? { banner: f["banner"] } : {}), packages: f["packages"] ?? [], fields: f["fields"] ?? ["name", "phone", "address", "city"], payOnDelivery: f["pay_on_delivery"] !== false, ...(f["currency"] ? { currency: f["currency"] } : {}), pixels: { meta: !!f["meta_pixel"], tiktok: !!f["tiktok_pixel"] }, thankYou: f["thank_you"] ?? "Thank you!", active: f["active"] !== false, showRecent: !!f["show_recent"], createdAt: iso(f["created_at"]), stats: { views: 0, starts: 0, submits: 0, duplicatesBlocked: 0, dropOff: {} } })),
     formSubmissions: [],
     events: raw.events.map((e) => ({ id: e["id"], title: e["title"], kind: e["kind"], at: iso(e["starts_at"]), ...(e["contact_id"] ? { contactId: e["contact_id"] } : {}), ...(e["order_id"] ? { orderId: e["order_id"] } : {}), ...(e["note"] ? { note: e["note"] } : {}) })),
     connections: raw.connections.map((c) => ({ id: c["id"], platform: c["platform"], name: c["name"], secret: "", fieldMap: c["field_map"] ?? {}, createAs: c["create_as"] === "lead" ? "lead" : "order", active: c["active"] !== false, createdAt: iso(c["created_at"]), ...(c["last_event_at"] ? { lastEventAt: iso(c["last_event_at"]) } : {}) })),

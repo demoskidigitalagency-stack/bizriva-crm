@@ -328,6 +328,8 @@ export interface OrderSummary {
   invoiceNo?: string;
   /** Order Form that created this order, if any. */
   formId?: ID;
+  /** The order's currency when it isn't the business's own (e.g. GHS on a Naira business). */
+  currency?: string;
   /** Customer agent responsible for calling and confirming. */
   assignedTo?: ID;
   assignedAt?: string;
@@ -406,6 +408,8 @@ export interface Product {
   careGuide?: string;
   /** Other words and prices customers use for it in chats ("4-in-1", "6,900") — used to tag WhatsApp chats. */
   aliases?: string[];
+  /** Prices in other currencies, e.g. { GHS: 3500 } for a Naira business that also sells in Ghana. */
+  prices?: Partial<Record<string, number>>;
   /** Photo (https), e.g. brought across from Shopify or WooCommerce. */
   imageUrl?: string;
   sku?: string;
@@ -776,6 +780,8 @@ export interface OrderForm {
   packages: OrderFormPackage[];
   fields: OrderFormField[];
   payOnDelivery: boolean;
+  /** Currency of the package prices (empty = the business's currency). */
+  currency?: string;
   /** Show "Someone in Kumasi just ordered…" notices on the form — only ever from real orders, town only, no names. */
   showRecent?: boolean;
   /** One purchase event per order to the ad platforms (sent by the backend). */

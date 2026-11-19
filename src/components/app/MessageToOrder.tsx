@@ -15,7 +15,8 @@ import { useDb, useLive, useWorkspace } from "@/domain/store";
 import { useAuth } from "@/app/auth";
 import { supabase } from "@/lib/supabase";
 import { formatCurrency } from "@/lib/format";
-import { dialFor, draftTotal, messageToOrders, type DraftOrder } from "@/lib/message-order";
+import { dialFor, draftCurrency, messageToOrders, priceIn, type DraftOrder } from "@/lib/message-order";
+import type { CurrencyCode } from "@/lib/format";
 
 export function MessageToOrderDialog({ open, onOpenChange, message = "", fromContactId, senderName }: {
   open: boolean; onOpenChange: (o: boolean) => void; message?: string; fromContactId?: string; senderName?: string;
@@ -27,9 +28,11 @@ export function MessageToOrderDialog({ open, onOpenChange, message = "", fromCon
   const [text, setText] = useState(message);
   const [drafts, setDrafts] = useState<DraftOrder[]>([]);
   const [busy, setBusy] = useState(false);
-  const products = useMemo(() => db.products.filter((p) => p.active !== false).map((p) => ({ id: p.id, name: p.name, price: p.price, aliases: p.aliases ?? [] })), [db.products]);
+  const products = useMemo(() => db.products.filter((p) => p.active !== false).map((p) => ({ id: p.id, name: p.name, price: p.price, aliases: p.aliases ?? [], ...(p.prices ? { prices: p.prices } : {}) })), [db.products]);
   const dial = dialFor(ws.currency);
-  const money = (n: number) => formatCurrency(n, ws.currency);
+  // Each draft is priced in the customer's currency (from their phone), like the server does.
+  const curOf = (d: DraftOrder) => draftCurrency(d, ws.currency, products);
+  const totalOf = (d: DraftOrder) => { const c = curOf(d); return d.items.reduce((n, i) => { const p = products.find((x) => x.id === i.productId); return n + (p ? (priceIn(p, c, ws.currency) ?? 0) : 0) * i.qty; }, 0); };
 
   const read = (t: string) => setDrafts(messageToOrders(t, products, { dial, ...(senderName ? { senderName } : {}) }));
   useEffect(() => { if (open) { setText(message); read(message); } }, [open, message]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -91,7 +94,7 @@ export function MessageToOrderDialog({ open, onOpenChange, message = "", fromCon
                   </span>
                 ))}
                 {products.length > 0 && <Button size="sm" variant="ghost" onClick={() => patch(i, { items: [...d.items, { productId: products[0]!.id, qty: 1 }] })}>+ Product</Button>}
-                <span className="ml-auto font-semibold">{money(draftTotal(d, products))}</span>
+                <span className="ml-auto font-semibold">{formatCurrency(totalOf(d), curOf(d) as CurrencyCode)}</span>
               </div>
               {!d.items.length && <p className="text-xs text-amber-700 dark:text-amber-400">No product found — add one, or give the product another name in Products.</p>}
               {!d.phone && !fromContactId && <p className="text-xs text-amber-700 dark:text-amber-400">Add the customer's phone.</p>}

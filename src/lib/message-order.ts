@@ -145,3 +145,24 @@ export function messageToOrders(message: string, products: OrderProduct[], opts:
 export function draftTotal(d: DraftOrder, products: OrderProduct[]): number {
   return d.items.reduce((n, i) => n + (products.find((p) => p.id === i.productId)?.price ?? 0) * i.qty, 0);
 }
+
+/** The currency for a phone number (+234 naira, +233 cedis…); null when it isn't one of these. */
+export function phoneCurrency(phone: string): string | null {
+  const d = phone.replace(/\D/g, "");
+  const map: [string, string][] = [["234", "NGN"], ["233", "GHS"], ["254", "KES"], ["27", "ZAR"], ["44", "GBP"], ["1", "USD"]];
+  return map.find(([p]) => d.startsWith(p))?.[1] ?? null;
+}
+
+/**
+ * The currency a draft is priced in: the phone's currency when the business sells in it (some product
+ * has a price in it), else the business's own. Same rule as the server (private.sell_currency).
+ */
+export function draftCurrency(d: { phone: string }, main: string, products: { prices?: Partial<Record<string, number>> }[]): string {
+  const c = phoneCurrency(d.phone);
+  return c && (c === main || products.some((p) => p.prices?.[c] != null)) ? c : main;
+}
+
+/** A product's price in a currency (undefined when it isn't sold in it). */
+export function priceIn(p: { price: number; prices?: Partial<Record<string, number>> }, currency: string, main: string): number | undefined {
+  return currency === main ? p.price : p.prices?.[currency];
+}

@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { fullName } from "@/domain/repositories";
 import { CHANNEL_LABELS, DELIVERY_STATUS_META, ORDER_STATUS_META, PAYMENT_STATUS_META, type OrderStatus, type OrderSummary, type PaymentMethod } from "@/domain/types";
-import { formatCurrency, formatDateTime, relativeTime } from "@/lib/format";
+import { formatCurrency, formatDateTime, relativeTime, type CurrencyCode } from "@/lib/format";
 import { productsIn, receiptNo, receiptText } from "@/domain/receipt";
 import { isAgent, isOverdue, orderState, OUTCOME_LABEL } from "@/domain/ops";
 import { csvCell } from "@/domain/rules";
@@ -86,7 +86,7 @@ function EditOrder({ order, onClose }: { order: OrderSummary; onClose: () => voi
     const noOption = ok.find((l) => db.products.find((p) => p.id === l.productId)?.variants?.length && !l.variantId);
     if (noOption) return setError(`Choose which option of ${db.products.find((p) => p.id === noOption.productId)?.name}.`);
     if (!(Number(fee) >= 0)) return setError("Enter the delivery fee, or 0.");
-    if (total < (order.amountPaid ?? 0)) return setError(`The new total is less than the ${formatCurrency(order.amountPaid ?? 0, ws.currency)} already paid.`);
+    if (total < (order.amountPaid ?? 0)) return setError(`The new total is less than the ${formatCurrency(order.amountPaid ?? 0, (order.currency || ws.currency) as CurrencyCode)} already paid.`);
     editOrder(order.id, { lines: ok.map((l) => ({ productId: l.productId, ...(l.variantId ? { variantId: l.variantId } : {}), quantity: Math.round(Number(l.quantity)) })), deliveryFee: Number(fee), ...(address.trim() ? { address: address.trim() } : {}) });
     onClose();
   };
@@ -110,7 +110,7 @@ function EditOrder({ order, onClose }: { order: OrderSummary; onClose: () => voi
                   </Select>
                 ) : null}
                 <Input className="h-8 w-16" inputMode="numeric" aria-label={`Item ${i + 1} quantity`} value={l.quantity} onChange={(e) => set(i, { quantity: e.target.value.replace(/\D/g, "") })} />
-                <span className="num w-20 text-right text-xs">{formatCurrency(priceOf(l) * (Number(l.quantity) || 0), ws.currency)}</span>
+                <span className="num w-20 text-right text-xs">{formatCurrency(priceOf(l) * (Number(l.quantity) || 0), (order.currency || ws.currency) as CurrencyCode)}</span>
                 <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" aria-label={`Remove item ${i + 1}`} onClick={() => setLines((ls) => ls.filter((_, j) => j !== i))}>Remove</Button>
               </li>
             );
@@ -119,7 +119,7 @@ function EditOrder({ order, onClose }: { order: OrderSummary; onClose: () => voi
         <Button size="sm" variant="outline" className="w-fit" onClick={() => { const p = db.products.find((x) => x.active !== false); if (p) setLines((ls) => [...ls, { productId: p.id, variantId: "", quantity: "1" }]); }}><Plus className="size-3.5" /> Add item</Button>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5"><Label htmlFor="eo-fee">Delivery fee</Label><Input id="eo-fee" inputMode="decimal" value={fee} onChange={(e) => { setFee(e.target.value.replace(/[^\d.]/g, "")); setError(""); }} /></div>
-          <div className="space-y-1.5"><Label>New total</Label><p className="num flex h-9 items-center font-semibold">{formatCurrency(total, ws.currency)}</p></div>
+          <div className="space-y-1.5"><Label>New total</Label><p className="num flex h-9 items-center font-semibold">{formatCurrency(total, (order.currency || ws.currency) as CurrencyCode)}</p></div>
           <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="eo-addr">Delivery address</Label><Textarea id="eo-addr" rows={2} value={address} onChange={(e) => setAddress(e.target.value)} /></div>
         </div>
         {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
@@ -151,7 +151,7 @@ function Invoice({ order, onClose }: { order: OrderSummary; onClose: () => void 
   const db = useDb();
   const ws = useWorkspace();
   const c = db.contacts.find((x) => x.id === order.contactId);
-  const money = (n: number) => formatCurrency(n, ws.currency);
+  const money = (n: number) => formatCurrency(n, (order.currency || ws.currency) as CurrencyCode);
   const paid = order.amountPaid ?? (order.paymentStatus === "paid" ? order.total : 0);
   const live = useLive();
   const { current } = useAuth();
@@ -220,7 +220,7 @@ function Payments({ order }: { order: OrderSummary }) {
   const [method, setMethod] = useState<PaymentMethod>("bank_transfer");
   const [sent, setSent] = useState(false);
   const [showInvoice, setShowInvoice] = useState(false);
-  const money = (n: number) => formatCurrency(n, ws.currency);
+  const money = (n: number) => formatCurrency(n, (order.currency || ws.currency) as CurrencyCode);
   const paid = order.amountPaid ?? (order.paymentStatus === "paid" ? order.total : 0);
   const balance = order.total - paid;
   const open = order.status !== "cancelled" && order.status !== "returned";
@@ -288,7 +288,7 @@ function OrderPanel({ order, onClose }: { order: OrderSummary; onClose: () => vo
   const delivery = db.deliveries.find((d) => d.orderId === order.id);
   const history = db.activities.filter((a) => a.contactId === order.contactId && a.title.includes(order.reference));
   const [dialog, setDialog] = useState<"edit" | "cancel" | null>(null);
-  const money = (n: number) => formatCurrency(n, ws.currency);
+  const money = (n: number) => formatCurrency(n, (order.currency || ws.currency) as CurrencyCode);
 
   return (
     <Sheet open onOpenChange={(o) => !o && onClose()}>
@@ -409,7 +409,7 @@ function DeliverySlips({ orderIds, onClose }: { orderIds: string[]; onClose: () 
                 <p className="mt-2 text-muted-foreground">{o.productNames.join(", ")}</p>
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t pt-2">
                   <span>{r ? `Rider: ${r.name}` : d?.courier ? `Courier: ${d.courier}` : "Rider: ________"}</span>
-                  <span className="text-base font-bold">{due > 0 ? `Collect ${formatCurrency(due, ws.currency)}` : "PAID — collect nothing"}</span>
+                  <span className="text-base font-bold">{due > 0 ? `Collect ${formatCurrency(due, (o.currency || ws.currency) as CurrencyCode)}` : "PAID — collect nothing"}</span>
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">Customer signature: ______________________</p>
               </article>
@@ -528,7 +528,7 @@ function Orders() {
                       <td className="px-3 py-2"><StatusBadge tone={ORDER_STATUS_META[o.status].tone}>{ORDER_STATUS_META[o.status].label}</StatusBadge></td>
                       <td className="px-3 py-2"><StatusBadge tone={PAYMENT_STATUS_META[o.paymentStatus].tone}>{PAYMENT_STATUS_META[o.paymentStatus].label}</StatusBadge></td>
                       <td className="px-3 py-2 text-xs text-muted-foreground">{db.team.find((m) => m.id === o.assignedTo)?.name.split(" ")[0] ?? "—"}{isOverdue(db, o) ? <span className="ml-1 font-semibold text-destructive">late</span> : null}</td>
-                      <td className="num px-3 py-2 text-right">{formatCurrency(o.total, ws.currency)}</td>
+                      <td className="num px-3 py-2 text-right">{formatCurrency(o.total, (o.currency || ws.currency) as CurrencyCode)}</td>
                       <td className="px-3 py-2 text-muted-foreground">{relativeTime(o.placedAt)}</td>
                     </tr>
                   );

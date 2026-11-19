@@ -104,6 +104,7 @@ function Dashboard() {
     [db, range, owner],
   );
   const k = data.kpis;
+  const other = data.otherCurrencies;
   const fmt = (v: number, compact = false) => formatCurrency(v, ws.currency, { compact });
   const funnelMax = Math.max(...data.funnel.map((f) => f.value), 1);
   const trend = range === "7" ? data.trend.slice(-7) : range === "90" ? data.trend : data.trend;
@@ -139,8 +140,8 @@ function Dashboard() {
       <MorningBrief />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
-        <KpiCard label="Revenue" value={fmt(k.revenue, true)} hint="all orders in range" icon={<Wallet className="size-4" />} />
-        <KpiCard label="Delivered Revenue" value={fmt(k.deliveredRevenue, true)} hint={`${k.deliveredOrders} delivered orders`} icon={<PackageCheck className="size-4" />} tone="success" />
+        <KpiCard label="Revenue" value={fmt(k.revenue, true)} hint={other.length ? `+ ${other.map((x) => formatCurrency(x.revenue, x.currency as CurrencyCode, { compact: true })).join(" + ")}` : "all orders in range"} icon={<Wallet className="size-4" />} />
+        <KpiCard label="Delivered Revenue" value={fmt(k.deliveredRevenue, true)} hint={other.length ? `+ ${other.map((x) => formatCurrency(x.deliveredRevenue, x.currency as CurrencyCode, { compact: true })).join(" + ")}` : `${k.deliveredOrders} delivered orders`} icon={<PackageCheck className="size-4" />} tone="success" />
         <KpiCard label="Contribution Profit" value={fmt(k.contributionProfit, true)} hint="delivered, after COGS + shipping" icon={<TrendingUp className="size-4" />} tone="info" />
         <KpiCard label="Orders" value={formatNumber(k.orders)} hint="placed in range" icon={<ShoppingCart className="size-4" />} />
         <KpiCard label="Delivered Orders" value={formatNumber(k.deliveredOrders)} hint={`${k.orders ? Math.round((k.deliveredOrders / k.orders) * 100) : 0}% of orders`} icon={<Boxes className="size-4" />} tone="success" />

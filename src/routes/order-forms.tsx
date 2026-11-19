@@ -13,7 +13,7 @@ import { EmptyState, KpiCard, Section, StatusBadge } from "@/components/app/prim
 import { useActions, useDb, useWorkspace } from "@/domain/store";
 import { campaignNames, fullName } from "@/domain/repositories";
 import { ORDER_STATUS_META, type OrderForm, type OrderFormField } from "@/domain/types";
-import { formatCurrency, formatDateTime, relativeTime } from "@/lib/format";
+import { CURRENCIES, formatCurrency, formatDateTime, relativeTime, type CurrencyCode } from "@/lib/format";
 
 export const Route = createFileRoute("/order-forms")({
   head: () => ({ meta: [{ title: "Order Forms · Bizriva CRM" }] }),
@@ -103,6 +103,12 @@ function Builder({ form }: { form: OrderForm }) {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
+        <label className="flex items-center gap-3 sm:col-span-2">Prices on this form are in
+          <select aria-label="Form currency" className="h-9 rounded-md border bg-background px-2 text-sm" value={d.currency || ws.currency} onChange={(e) => set({ currency: e.target.value === ws.currency ? "" : e.target.value })}>
+            {CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
+          </select>
+          <span className="text-xs text-muted-foreground">Make one form per country, e.g. a cedis form for Ghana ads and a naira form for Nigeria ads.</span>
+        </label>
         <label className="flex items-center gap-3"><Switch checked={d.payOnDelivery} onCheckedChange={(v) => set({ payOnDelivery: v })} aria-label="Pay on delivery" /> Pay on delivery</label>
         <label className="flex items-center gap-3"><Switch checked={!!d.showRecent} onCheckedChange={(v) => set({ showRecent: v })} aria-label="Recent order pop-ups" /> Recent order pop-ups <span className="text-xs text-muted-foreground">(“Someone in Kumasi ordered … 2 h ago” — real orders from the last 14 days, town only)</span></label>
         <label className="flex items-center gap-3"><Switch checked={d.active} onCheckedChange={(v) => set({ active: v })} aria-label="Form accepting orders" /> Accepting orders</label>
@@ -177,14 +183,14 @@ function Preview({ form }: { form: OrderForm }) {
                 <label key={p.id} className={`flex cursor-pointer items-center gap-3 rounded-md border p-2 ${pkg === p.id ? "border-primary bg-primary/5" : ""}`}>
                   <input type="radio" name="pkg" value={p.id} checked={pkg === p.id} onChange={() => setPkg(p.id)} className="accent-[var(--primary)]" />
                   <span className="flex-1"><span className="font-medium">{p.label}</span> <span className="text-muted-foreground">· {p.qty}× {product?.name}</span>{p.gift && <span className="mt-0.5 flex items-center gap-1 text-xs text-success"><Gift className="size-3" aria-hidden="true" /> {p.gift}</span>}</span>
-                  <span className="num font-semibold">{formatCurrency(p.price, ws.currency)}</span>
+                  <span className="num font-semibold">{formatCurrency(p.price, (form.currency || ws.currency) as CurrencyCode)}</span>
                 </label>
               ))}
             </fieldset>
             {form.fields.map((f) => (
               <div key={f} className="space-y-1"><Label htmlFor={`pf-${f}`}>{FIELD_LABEL[f]}</Label><Input id={`pf-${f}`} value={values[f] ?? ""} onChange={(e) => change(f, e.target.value)} inputMode={f === "phone" ? "tel" : undefined} /></div>
             ))}
-            <div className="flex items-center justify-between rounded-md bg-muted p-3"><span>Total {form.payOnDelivery ? "(pay on delivery)" : ""}</span><span className="num text-lg font-bold" aria-label="Form total">{formatCurrency(chosen?.price ?? 0, ws.currency)}</span></div>
+            <div className="flex items-center justify-between rounded-md bg-muted p-3"><span>Total {form.payOnDelivery ? "(pay on delivery)" : ""}</span><span className="num text-lg font-bold" aria-label="Form total">{formatCurrency(chosen?.price ?? 0, (form.currency || ws.currency) as CurrencyCode)}</span></div>
             {error && <p className="text-destructive" role="alert">{error}</p>}
             <Button type="submit" className="w-full">Place order</Button>
           </form>
@@ -272,7 +278,7 @@ function Submissions({ form }: { form: OrderForm }) {
                     <td className="px-3 py-2">{o ? <Link to="/orders" search={{ o: o.id }} className="num font-semibold hover:underline">{o.reference}</Link> : "—"}</td>
                     <td className="px-3 py-2">{c ? fullName(c) : "—"}</td>
                     <td className="px-3 py-2">{form.packages.find((p) => p.id === s.packageId)?.label}</td>
-                    <td className="num px-3 py-2 text-right">{formatCurrency(s.total, ws.currency)}</td>
+                    <td className="num px-3 py-2 text-right">{formatCurrency(s.total, (form.currency || ws.currency) as CurrencyCode)}</td>
                     <td className="px-3 py-2">{s.region}</td>
                     <td className="px-3 py-2">{s.adSource}</td>
                     <td className="px-3 py-2">{o && <StatusBadge tone={ORDER_STATUS_META[o.status].tone}>{ORDER_STATUS_META[o.status].label}</StatusBadge>}</td>
