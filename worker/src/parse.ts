@@ -32,7 +32,26 @@ export function isPersonChat(jid: string | null | undefined): boolean {
 }
 
 /** The business's groups as Bizriva lists them; `me` are the business's own ids (phone and hidden). */
-export function groupRows(all: Record<string, any> | null | undefined, me: string[]): { jid: string; name: string; size: number; admin: boolean; announce: boolean }[] {
+/**
+ * A group's members' phone numbers (digits). Members who hide their number (WhatsApp shows only an
+ * "@lid" id with no phone number) can't be read and are counted in `hidden`.
+ */
+export function groupMembers(parts: any[], mine: Set<string>): { members: { phone: string; admin: boolean }[]; hidden: number } {
+  const members: { phone: string; admin: boolean }[] = [];
+  const seen = new Set<string>();
+  let hidden = 0;
+  for (const p of parts ?? []) {
+    const raw = [p?.phoneNumber, p?.jid, p?.id].find((x) => typeof x === "string" && x.endsWith("@s.whatsapp.net"));
+    const phone = raw ? raw.split(":")[0]!.split("@")[0]! : "";
+    if (!/^\d{7,15}$/.test(phone)) { hidden++; continue; }
+    if (mine.has(phone) || seen.has(phone)) continue;
+    seen.add(phone);
+    members.push({ phone, admin: p?.admin === "admin" || p?.admin === "superadmin" || !!p?.isAdmin });
+  }
+  return { members, hidden };
+}
+
+export function groupRows(all: Record<string, any> | null | undefined, me: string[]): { jid: string; name: string; size: number; admin: boolean; announce: boolean; members: { phone: string; admin: boolean }[]; hidden: number }[] {
   const mine = new Set(me.filter(Boolean).map((j) => j.split(":")[0]!.split("@")[0]!));
   return Object.values(all ?? {})
     .filter((g: any) => typeof g?.id === "string" && g.id.endsWith("@g.us"))
@@ -40,7 +59,7 @@ export function groupRows(all: Record<string, any> | null | undefined, me: strin
       const parts: any[] = Array.isArray(g.participants) ? g.participants : [];
       const self = parts.find((p) => [p?.id, p?.phoneNumber, p?.lid].some((x) => typeof x === "string" && mine.has(x.split(":")[0]!.split("@")[0]!)));
       return { jid: g.id as string, name: String(g.subject ?? "").slice(0, 200), size: Number(g.size ?? parts.length) || parts.length,
-        admin: !!self && (self.admin === "admin" || self.admin === "superadmin" || !!self.isAdmin), announce: !!g.announce };
+        admin: !!self && (self.admin === "admin" || self.admin === "superadmin" || !!self.isAdmin), announce: !!g.announce, ...groupMembers(parts, mine) };
     })
     .sort((a, b) => a.name.localeCompare(b.name));
 }

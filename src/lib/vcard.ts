@@ -39,3 +39,17 @@ export function downloadText(filename: string, text: string, type = "text/vcard"
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+/** The same people as a spreadsheet (Name, Phone) for Google Contacts or Excel. */
+export function buildCsv(list: VcfContact[], template = "{name}"): string {
+  const q = (s: string) => `"${s.replace(/"/g, '""')}"`;
+  const seen = new Set<string>();
+  const rows = ["Name,Phone"];
+  for (const c of list) {
+    const digits = c.phone.replace(/\D/g, "");
+    if (digits.length < 7 || seen.has(digits)) continue;
+    seen.add(digits);
+    rows.push(`${q(savedName(c, template))},${q(`+${digits}`)}`);
+  }
+  return rows.join("\n") + "\n";
+}

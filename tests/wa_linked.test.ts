@@ -178,8 +178,15 @@ describe("Status and groups", () => {
       "status@broadcast": { id: "status@broadcast" },
     };
     expect(groupRows(all, ["233244000999:12@s.whatsapp.net"])).toEqual([
-      { jid: "1203-2@g.us", name: "Ankara Lovers", size: 250, admin: false, announce: false },
-      { jid: "1203-1@g.us", name: "Resellers Accra", size: 2, admin: true, announce: true },
+      { jid: "1203-2@g.us", name: "Ankara Lovers", size: 250, admin: false, announce: false, members: [{ phone: "233500000002", admin: false }], hidden: 0 },
+      { jid: "1203-1@g.us", name: "Resellers Accra", size: 2, admin: true, announce: true, members: [{ phone: "233500000001", admin: false }], hidden: 0 },
     ]);
+  });
+  test("group members: numbers read, the business left out, hidden numbers counted", () => {
+    const all = { "9-1@g.us": { id: "9-1@g.us", subject: "Buyers", participants: [
+      { id: "111@lid", phoneNumber: "233200000001@s.whatsapp.net", admin: "admin" }, { id: "222@lid" }, { id: "233200000001@s.whatsapp.net" }, { id: "233244000999@s.whatsapp.net" }] } };
+    const [g] = groupRows(all, ["233244000999@s.whatsapp.net"]);
+    expect(g!.members).toEqual([{ phone: "233200000001", admin: true }]);
+    expect(g!.hidden).toBe(1);
   });
 });

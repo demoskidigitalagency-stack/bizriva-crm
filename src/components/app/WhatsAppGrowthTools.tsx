@@ -20,6 +20,7 @@ import { useAuth } from "@/app/auth";
 import { useDb } from "@/domain/store";
 import { supabase } from "@/lib/supabase";
 import { formatDateTime, relativeTime } from "@/lib/format";
+import { buildCsv, buildVcf, downloadText } from "@/lib/vcard";
 
 type Kind = "status" | "group" | "broadcast";
 type Who = "all" | "asked" | "no_order" | "tag";
@@ -28,7 +29,7 @@ interface PostRow {
   audience: { who?: Who; tag?: string; groups?: string[]; collection?: string; mentionAll?: boolean }; scheduled_for: string; repeat: "none" | "daily" | "weekly";
   state: "scheduled" | "sending" | "sent" | "failed" | "cancelled"; recipients: number; sent: number; failed: number; views: number; error: string | null; sent_at: string | null;
 }
-interface GroupRow { jid: string; name: string | null; size: number; is_admin: boolean; announce: boolean }
+interface GroupRow { jid: string; name: string | null; size: number; is_admin: boolean; announce: boolean; members?: { phone: string; admin: boolean }[]; hidden?: number }
 interface Collection { id: string; name: string; jids: string[] }
 
 const STATE_TONE = { scheduled: "info", sending: "warning", sent: "success", failed: "danger", cancelled: "neutral" } as const;
@@ -381,6 +382,12 @@ function StatusReach() {
     if (!data) await sb.from("saved_messages").insert({ workspace_id: ws, name: "Save our number", body: saveOurNumber(business) });
     window.location.href = "/broadcasts";
   };
+  const downloadAll = async () => {
+    const { data } = await supabase()!.from("contacts").select("name, phone, tags, location").eq("workspace_id", ws).not("phone", "is", null).limit(10000);
+    const list = ((data ?? []) as { name: string | null; phone: string; tags: string[]; location: string | null }[])
+      .filter((c) => !(c.tags ?? []).some((t) => t === "Personal" || t === "Not a customer")).map((c) => ({ ...c, tags: c.tags ?? [] }));
+    downloadText(`${(business || "customers").replace(/[^\w-]+/g, "-")}-customers.vcf`, buildVcf(list, template));
+  };
   const pct = r.total ? Math.round((r.saved / r.total) * 100) : 0;
   return (
     <div className="space-y-3 border-b p-4 text-sm" aria-label="Who can see your Status">
@@ -409,6 +416,11 @@ function StatusReach() {
             <span>Save every new customer to my phone as they write</span>
           </li>
           <li className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-muted-foreground">Or save them yourself:</span>
+            <Button size="sm" variant="ghost" onClick={() => void downloadAll()}>Download all customers as a contacts file</Button>
+            <span className="text-xs text-muted-foreground">Open it on your phone → Import all.</span>
+          </li>
+          <li className="flex flex-wrap items-center gap-2">
             <span className="font-medium">3.</span>
             <Button size="sm" variant="outline" onClick={() => void askToSave()}>Ask customers to save our number</Button>
             <span className="text-xs text-muted-foreground">Adds a ready “please save our number” message to Saved messages and opens Broadcasts — send it to everyone who messaged you, or use it as an automatic nudge for new chats.</span>
@@ -433,6 +445,46 @@ export function BroadcastTool() {
   return (<><Composer kind="broadcast" onSaved={() => void load()} /><Posts kind="broadcast" posts={posts} reload={() => void load()} /></>);
 }
 
+// ───────────── group contacts (extract members' numbers) ─────────────
+function GroupContacts({ groups, onChange }: { groups: GroupRow[]; onChange: () => void }) {
+  const { ws } = useWs();
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState("");
+  const file = (g: GroupRow) => (g.name || "group").replace(/[^\w-]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "group";
+  const people = (g: GroupRow) => (g.members ?? []).map((m) => ({ phone: m.phone, name: `${(g.name || "Group").replace(/\*/g, "").trim().slice(0, 30)} ${m.phone.slice(-4)}`, tags: [] as string[] }));
+  const add = async (g: GroupRow) => {
+    setBusy(g.jid); setMsg("");
+    const { data, error } = await supabase()!.rpc("add_group_members", { p_workspace: ws, p_jid: g.jid });
+    setBusy("");
+    if (error) return setMsg(error.message);
+    const r = data as { added: number; existing: number };
+    setMsg(`${g.name}: ${r.added} added as customers, ${r.existing} were already customers (tagged “From group”).`);
+    onChange();
+  };
+  return (
+    <details className="border-t px-4 py-3 text-sm">
+      <summary className="cursor-pointer font-medium">Group contacts — get members' numbers</summary>
+      <p className="mt-2 text-xs text-muted-foreground">Download a group's members as a contacts file (open it on your phone and tap “Import all” to save them all), as a spreadsheet, or add them to your customers tagged “From group: …”. People who hide their number from the group can't be read. Members you add aren't messaged automatically — messaging strangers in bulk is the fastest way to get a number banned, so invite them with a Status or a group post instead.</p>
+      <ul className="mt-2 divide-y rounded-md border">
+        {groups.map((g) => {
+          const n = g.members?.length ?? 0;
+          return (
+            <li key={g.jid} className="flex flex-wrap items-center gap-2 px-3 py-2">
+              <div className="min-w-0 flex-1 basis-48"><p className="truncate font-medium">{g.name || "Unnamed group"}</p>
+                <p className="text-xs text-muted-foreground">{n ? `${n} number${n === 1 ? "" : "s"} readable` : "Numbers not read yet"}{g.hidden ? ` · ${g.hidden} hidden` : ""} · {g.size} members</p></div>
+              <Button size="sm" variant="outline" disabled={!n} onClick={() => downloadText(`${file(g)}.vcf`, buildVcf(people(g)))}>Contacts file</Button>
+              <Button size="sm" variant="ghost" disabled={!n} onClick={() => downloadText(`${file(g)}.csv`, buildCsv(people(g)), "text/csv")}>Spreadsheet</Button>
+              <Button size="sm" variant="ghost" disabled={!n || busy === g.jid} onClick={() => void add(g)}>{busy === g.jid ? "Adding…" : "Add to customers"}</Button>
+            </li>
+          );
+        })}
+      </ul>
+      {groups.every((g) => !(g.members?.length)) && <p className="mt-2 text-xs text-muted-foreground">Numbers appear after the WhatsApp server's next group check (a few minutes after it restarts).</p>}
+      {msg && <p className="mt-2 text-xs" role="status">{msg}</p>}
+    </details>
+  );
+}
+
 export function GroupsTool() {
   const { ws, canEdit } = useWs();
   const { posts, error, load } = usePosts();
@@ -444,7 +496,7 @@ export function GroupsTool() {
   const loadGroups = useCallback(async () => {
     const sb = supabase(); if (!sb || !ws) return;
     const [g, c] = await Promise.all([
-      sb.from("wa_groups").select("jid, name, size, is_admin, announce").eq("workspace_id", ws).order("name"),
+      sb.from("wa_groups").select("jid, name, size, is_admin, announce, members, hidden").eq("workspace_id", ws).order("name"),
       sb.from("wa_group_collections").select("id, name, jids").eq("workspace_id", ws).order("name"),
     ]);
     setGroups((g.data ?? []) as GroupRow[]);
@@ -468,6 +520,7 @@ export function GroupsTool() {
   return (
     <>
       <Composer kind="group" groups={groups} collections={collections} onSaved={() => void load()} />
+      {canEdit && groups.length > 0 && <GroupContacts groups={groups} onChange={() => void loadGroups()} />}
       {canEdit && groups.length > 0 && (
         <details className="border-t px-4 py-3 text-sm">
           <summary className="cursor-pointer font-medium">Collections ({collections.length})</summary>

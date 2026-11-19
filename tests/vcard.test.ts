@@ -1,6 +1,6 @@
 // bun test tests/vcard.test.ts — contacts download for the phone / Google Contacts.
 import { describe, expect, test } from "bun:test";
-import { buildVcf, savedName } from "../src/lib/vcard";
+import { buildCsv, buildVcf, savedName } from "../src/lib/vcard";
 
 describe("saved names", () => {
   const kemi = { phone: "+234 803 111 2222", name: "Kemi", tags: ["No order yet", "Asked about: Hair dryer"] };
@@ -32,4 +32,8 @@ describe("vcf file", () => {
 test("{city} token and empty tokens collapse cleanly", () => {
   expect(savedName({ phone: "233241234490", name: null, tags: ["Asked about: Table tennis table"], location: "Kumasi" }, "{name} - {city} - {product}")).toBe("Customer 4490 - Kumasi - Table tennis table");
   expect(savedName({ phone: "233241234490", name: "Ama", tags: [], location: null }, "{name} - {city} - {product}")).toBe("Ama");
+});
+
+test("csv: quoted names, +international, no duplicates", () => {
+  expect(buildCsv([{ phone: "233244114567", name: 'Kofi "K"', tags: [] }, { phone: "+233 244 114 567", name: "dup", tags: [] }])).toBe('Name,Phone\n"Kofi ""K""","+233244114567"\n');
 });
