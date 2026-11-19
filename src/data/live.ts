@@ -352,7 +352,8 @@ export function toDatabase(raw: RawData, now = new Date()): Database {
       return {
         id: c["id"], name: c["name"], segmentId: "all", templateId: raw.templates.find((t) => t["name"] === c["template_name"])?.["id"] ?? "", status: (c["status"] === "sending" ? "scheduled" : c["status"]) as "draft" | "scheduled" | "sent",
         ...(c["scheduled_for"] ? { scheduledFor: iso(c["scheduled_for"]) } : {}), ...(c["sent_at"] ? { sentAt: iso(c["sent_at"]) } : {}),
-        recipients: num(r?.["recipients"]), skippedNoConsent: 0, channel: c["channel"], ...(c["subject"] ? { subject: c["subject"] } : {}), ...(c["body"] ? { body: c["body"] } : {}),
+        recipients: num(r?.["recipients"]), skippedNoConsent: 0, channel: c["channel"],
+        ...(c["audience"]?.["product_id"] ? { audience: { productId: c["audience"]["product_id"], hours: num(c["audience"]["hours"] ?? 24) } } : {}), ...(c["subject"] ? { subject: c["subject"] } : {}), ...(c["body"] ? { body: c["body"] } : {}),
         ...(r ? { stats: { delivered: num(r["delivered"]), opened: num(r["opened"]), clicked: num(r["clicked"]), orders: num(r["orders"]), revenue: num(r["delivered_revenue"]) } } : {}),
       };
     }),

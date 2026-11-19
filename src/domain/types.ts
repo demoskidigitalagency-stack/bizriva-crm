@@ -624,6 +624,8 @@ export interface Broadcast {
   channel?: "whatsapp" | "email";
   subject?: string;
   body?: string;
+  /** WhatsApp: people who asked about this product within the last `hours` (instead of the segment). */
+  audience?: { productId: ID; hours: number };
   /** Results tracked per campaign. Opens and clicks are tracked for email. */
   stats?: { delivered: number; opened?: number; clicked?: number; orders: number; revenue: number };
 }

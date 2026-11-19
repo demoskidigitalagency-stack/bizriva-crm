@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Section, StatusBadge } from "@/components/app/primitives";
-import { useDb } from "@/domain/store";
+import { useDb, useLive } from "@/domain/store";
+import { ProductInterest } from "@/components/app/ProductInterest";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -12,6 +13,7 @@ export const Route = createFileRoute("/crm/segments")({
 
 function Segments() {
   const db = useDb();
+  const live = useLive();
   const [selected, setSelected] = useState(db.segments[0]?.id);
   const seg = db.segments.find((s) => s.id === selected);
 
@@ -21,6 +23,7 @@ function Segments() {
         <h1 className="text-2xl font-bold">Segments</h1>
         <p className="mt-1 text-sm text-muted-foreground">Saved groups of contacts for follow-ups and broadcasts. Smart segments update on their own; static ones are hand-picked.</p>
       </div>
+      {live.on && <ProductInterest />}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="grid gap-3 sm:grid-cols-2">
           {db.segments.map((s) => (
@@ -45,7 +48,7 @@ function Segments() {
           <Section title={seg.name} description="Segment rules" className="h-fit">
             <div className="space-y-3 p-4 text-sm">
               <p className="rounded-md bg-muted p-3 font-mono text-xs">{seg.rulesSummary}</p>
-              <p className="text-muted-foreground">Use this segment from Broadcasts or Follow-ups once those modules are built. Editing rules arrives with the backend, because rules have to run against live data.</p>
+              <p className="text-muted-foreground">Pick it under "Send to" when you create a broadcast. To reach people who asked about one product, use the Broadcast button next to that product above.</p>
             </div>
           </Section>
         )}
