@@ -122,6 +122,8 @@ function BusinessForm() {
   const [saved, setSaved] = useState(false);
   useEffect(() => { setD(db.settings); setKw(db.settings.optOutKeywords.join(", ")); }, [db.settings]);
   const time = /^([01]\d|2[0-3]):[0-5]\d$/;
+  // Currencies you also sell in (from product prices) get their own delivery fee.
+  const otherCurrencies = [...new Set(db.products.flatMap((p) => Object.keys(p.prices ?? {})))].filter((c) => c !== ws.currency).sort();
 
   const save = () => {
     if (!d.businessName.trim()) return setError("Enter the business name.");
@@ -156,6 +158,10 @@ function BusinessForm() {
             </Select>
           </div>
           <div className="space-y-1.5"><Label htmlFor="df">Delivery fee</Label><Input id="df" inputMode="numeric" value={d.deliveryFee} onChange={num("deliveryFee")} /></div>
+          {otherCurrencies.map((c) => (
+            <div key={c} className="space-y-1.5"><Label htmlFor={`df-${c}`}>Delivery fee for {c} orders</Label>
+              <Input id={`df-${c}`} inputMode="numeric" value={d.deliveryFees?.[c] ?? ""} placeholder="0 = free" onChange={(e) => setD({ ...d, deliveryFees: { ...(d.deliveryFees ?? {}), [c]: Number(e.target.value.replace(/,/g, "")) || 0 } })} /></div>
+          ))}
           <div className="space-y-1.5"><Label htmlFor="fo">Free delivery on orders over</Label><Input id="fo" inputMode="numeric" value={d.freeDeliveryOver} onChange={num("freeDeliveryOver")} /></div>
           <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="pl">Payment link ({"{{order}}"} is replaced by the order number)</Label><Input id="pl" value={d.paymentLinkTemplate} onChange={(e) => setD({ ...d, paymentLinkTemplate: e.target.value })} /></div>
         </div>

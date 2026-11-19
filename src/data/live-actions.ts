@@ -1,3 +1,4 @@
+import { draftCurrency, priceIn } from "@/lib/message-order";
 /**
  * Live writes: what each screen action does to the real database. Each one
  * makes the smallest change the server needs; triggers in
@@ -76,12 +77,18 @@ export function liveWriter(sb: SupabaseClient, ws: string, getDb: () => Database
       const db = getDb();
       const lines = input.items.filter((i) => i.qty > 0).map((i) => ({ ...i, p: db.products.find((p) => p.id === i.productId) })).filter((l) => l.p);
       if (!lines.length) return { error: "Add at least one product" };
-      const subtotal = lines.reduce((n, l) => n + l.p!.price * l.qty, 0);
-      const fee = subtotal >= db.settings.freeDeliveryOver ? 0 : db.settings.deliveryFee;
+      // Priced in the customer's currency (from their phone), like chats and Make order.
+      const main = db.workspaces[0]?.currency ?? "NGN";
+      const cur = draftCurrency({ phone: db.contacts.find((c) => c.id === input.contactId)?.phone ?? "" }, main, db.products);
+      const unit = (p: (typeof lines)[number]["p"]) => priceIn(p!, cur, main);
+      const missing = lines.find((l) => unit(l.p) === undefined);
+      if (missing) return { error: `${missing.p!.name} has no ${cur} price yet — add it on the Products page.` };
+      const subtotal = lines.reduce((n, l) => n + unit(l.p)! * l.qty, 0);
+      const fee = cur !== main ? (db.settings.deliveryFees?.[cur] ?? 0) : subtotal >= db.settings.freeDeliveryOver ? 0 : db.settings.deliveryFee;
       const conv = db.conversations.find((c) => c.contactId === input.contactId);
-      const { data, error } = await sb.from("orders").insert({ workspace_id: ws, contact_id: input.contactId, subtotal, delivery_fee: fee, total: subtotal + fee, payment_method: METHOD_TO_DB[input.method], channel: DB_CHANNEL(input.channel), ...(conv ? { conversation_id: conv.id } : {}) }).select("id").single();
+      const { data, error } = await sb.from("orders").insert({ workspace_id: ws, contact_id: input.contactId, subtotal, delivery_fee: fee, total: subtotal + fee, payment_method: METHOD_TO_DB[input.method], channel: DB_CHANNEL(input.channel), ...(cur !== main ? { currency: cur } : {}), ...(conv ? { conversation_id: conv.id } : {}) }).select("id").single();
       if (error) return fail(error);
-      return fail((await sb.from("order_items").insert(lines.map((l) => ({ workspace_id: ws, order_id: data.id, product_id: l.productId, quantity: l.qty, unit_price: l.p!.price })))).error);
+      return fail((await sb.from("order_items").insert(lines.map((l) => ({ workspace_id: ws, order_id: data.id, product_id: l.productId, quantity: l.qty, unit_price: unit(l.p)! })))).error);
     },
     setOrderStatus: (orderId: ID, status: OrderStatus) => setStatus(orderId, status),
     async recordCodCheck(orderId: ID, result: "confirmed" | "unreachable" | "cancelled", by: ID): Promise<Result> {

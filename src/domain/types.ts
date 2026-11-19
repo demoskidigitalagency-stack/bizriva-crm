@@ -712,6 +712,8 @@ export interface BusinessSettings {
   sms?: { provider: "termii" | "none"; sender?: string; fallback?: boolean; baseUrl?: string; lastError?: string; lastSentAt?: string };
   timezone: string;
   deliveryFee: number;
+  /** Delivery fee for orders in other currencies, e.g. { NGN: 5000 } (the AI and order screens use it). */
+  deliveryFees?: Partial<Record<string, number>>;
   freeDeliveryOver: number;
   paymentLinkTemplate: string;
   optOutKeywords: string[];
