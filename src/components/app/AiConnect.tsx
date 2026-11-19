@@ -1,5 +1,6 @@
 /**
- * Connect the AI (real data): the owner pastes their own Anthropic API key once.
+ * Connect the AI (real data): the owner pastes their own AI key once — Anthropic (sk-ant-…) or a
+ * free Google Gemini key (AIza…).
  * It goes straight to the encrypted vault and is never shown again.
  */
 import { useCallback, useEffect, useState } from "react";
@@ -35,7 +36,7 @@ export function AiConnect() {
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     const sb = supabase(); if (!sb || !ws) return;
-    if (!row && !/^sk-ant-[A-Za-z0-9_-]{20,}$/.test(key.trim())) return setError("Paste an Anthropic API key — it starts with sk-ant-.");
+    if ((!row || key.trim()) && !/^(sk-ant-[A-Za-z0-9_-]{20,}|AIza[0-9A-Za-z_-]{30,})$/.test(key.trim())) return setError("Paste a Google Gemini key (starts with AIza) or an Anthropic key (starts with sk-ant-).");
     setBusy(true); setError("");
     const { error: e2 } = await sb.rpc("save_ai_key", { p_workspace: ws, p_key: key.trim(), p_model: model.trim() });
     setBusy(false);
@@ -52,9 +53,9 @@ export function AiConnect() {
 
   const form = (
     <form className="space-y-2" onSubmit={save} aria-label="Connect the AI">
-      <Input type="password" autoComplete="off" value={key} onChange={(e) => setKey(e.target.value)} placeholder={row ? "New API key (leave blank to keep)" : "Anthropic API key (sk-ant-…)"} aria-label="Anthropic API key" />
+      <Input type="password" autoComplete="off" value={key} onChange={(e) => setKey(e.target.value)} placeholder={row ? "New API key (leave blank to keep)" : "Gemini key (AIza…) or Anthropic key (sk-ant-…)"} aria-label="AI key" />
       <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="Model (optional — leave blank for the standard one)" aria-label="Model" />
-      <p className="text-xs text-muted-foreground">Create a key at console.anthropic.com → API keys. It's stored encrypted and never shown again. You pay Anthropic directly for what the AI uses.</p>
+      <p className="text-xs text-muted-foreground">Free: get a Gemini key at aistudio.google.com → Get API key (on the free tier Google may use what's sent to improve its products). Paid: an Anthropic key from console.anthropic.com → API keys. Either way it's stored encrypted and never shown again.</p>
       <div className="flex gap-2">
         <Button type="submit" size="sm" disabled={busy}>{busy ? "Saving…" : row ? "Save" : "Connect the AI"}</Button>
         {row && <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(false)}>Cancel</Button>}

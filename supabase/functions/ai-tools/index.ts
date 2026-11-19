@@ -2,9 +2,10 @@
 //   photo_product { image (base64), mime }  → name, description, category, aliases for a new product
 //   ad_copy      { product_id, angle?, platform? } → 3 ad copy variants
 //   memory       { contact_id }               → facts the customer stated, for staff to confirm
-// Uses the business's own Anthropic key (AI Agent page), else Bizriva's ANTHROPIC_API_KEY. Nothing is
+// Uses the business's own AI key (AI Agent page: Anthropic, or a free Google Gemini key), else Bizriva's ANTHROPIC_API_KEY. Nothing is
 // saved here: the app shows the suggestions and the person decides.
 import { createClient } from "npm:@supabase/supabase-js@2.49.4";
+import { askTool, pickModel } from "./llm.ts";
 import { ADS_TOOL, adsPrompt, chatPrompt, checkAds, checkMemory, checkPhoto, MEMORY_TOOL, PHOTO_TOOL, SYSTEM_ADS, SYSTEM_MEMORY, SYSTEM_PHOTO } from "./tools.ts";
 
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
@@ -14,17 +15,8 @@ const json = (status: number, body: unknown) => new Response(JSON.stringify(body
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // deno-lint-ignore no-explicit-any
-async function ask(key: string, model: string, system: string, content: any, tool: any): Promise<any> {
-  const r = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST", headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({ model, max_tokens: 1500, system, messages: [{ role: "user", content }], tools: [tool], tool_choice: { type: "tool", name: tool.name } }),
-    signal: AbortSignal.timeout(60_000),
-  });
-  const res = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(r.status === 429 ? "The AI is busy right now — try again in a minute." : r.status === 401 ? "The AI key was refused — check it on the AI Agent page." : `${r.status} ${res?.error?.message ?? "The AI service refused the request"}`);
-  // deno-lint-ignore no-explicit-any
-  return (res.content ?? []).find((c: any) => c.type === "tool_use")?.input;
-}
+const ask = (key: string, model: string, system: string, content: any, tool: any) =>
+  askTool({ key, model, system, messages: [{ role: "user", content }], tool, maxTokens: 1500, timeoutMs: 60_000 });
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
@@ -37,10 +29,10 @@ Deno.serve(async (req) => {
   const { data: k } = await db.rpc("svc_ai_tools_key", { p_user: u.user.id, p_workspace: ws });
   if (!k || k.error) return json(403, { error: k?.error ?? "Not allowed" });
   const key = k.api_key ?? Deno.env.get("ANTHROPIC_API_KEY") ?? "";
-  if (!key) return json(503, { error: "Add your Anthropic AI key on the AI Agent page to use this (it's pay-per-use, a few kobo/pesewas per request)." });
+  if (!key) return json(503, { error: "Add an AI key on the AI Agent page to use this — a free Google Gemini key works." });
   const { data: okRate } = await db.rpc("svc_rate_ok", { p_key: `ai-tools:${ws}`, p_max: 60, p_seconds: 3600 });
   if (okRate === false) return json(429, { error: "That's a lot of AI requests this hour — try again a bit later." });
-  const model = k.model ?? MODEL;
+  const model = pickModel(key, k.model, MODEL);
   try {
     if (b.action === "photo_product") {
       const mime = String(b.mime ?? "image/jpeg");

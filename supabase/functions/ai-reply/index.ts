@@ -3,12 +3,13 @@
 // Woken by the database every minute and by whatsapp-webhook as soon as a
 // customer writes (x-bizriva-cron header = the secret in Vault). For each chat
 // waiting on the AI it loads that business's data only and answers with Claude
-// on the business's own key — or, with no key, with the free Basic assistant
+// (or Google Gemini) on the business's own key — or, with no key, with the free Basic assistant
 // (basic.ts, rules only). The reply is checked (brain.ts), then queued, or the
 // chat is handed to a person.
 import { createClient } from "npm:@supabase/supabase-js@2.49.4";
 import { checkReply, quickRules, RESPOND_TOOL, systemPrompt, turns, type Ctx, type Decision, type Draft } from "./brain.ts";
 import { basicReply } from "./basic.ts";
+import { askTool, pickModel } from "./llm.ts";
 
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -17,20 +18,11 @@ const DEFAULT_MODEL = Deno.env.get("AI_MODEL") ?? "claude-haiku-5-5";
 interface Job { conversation_id: string; workspace_id: string; message_id: string; api_key: string | null; model: string | null }
 
 async function ask(key: string, model: string, ctx: Ctx): Promise<Decision> {
-  const r = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({ model, max_tokens: 600, system: systemPrompt(ctx), messages: turns(ctx), tools: [RESPOND_TOOL], tool_choice: { type: "tool", name: "respond" } }),
-    signal: AbortSignal.timeout(30_000),
-  });
-  const res = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(`${r.status} ${res?.error?.message ?? "The AI service refused the request"}`);
-  // deno-lint-ignore no-explicit-any
-  const use = (res.content ?? []).find((b: any) => b.type === "tool_use" && b.name === "respond");
-  if (!use) throw new Error("The AI didn't return a reply");
-  const ck = use.input?.checkout;
-  const photos = Array.isArray(use.input?.photos) ? use.input.photos.map(String) : [];
-  return { reply: String(use.input?.reply ?? ""), handoff: !!use.input?.handoff, reason: String(use.input?.reason ?? ""), ...(ck?.items?.length ? { draft: ck as Draft } : {}), ...(photos.length ? { photos } : {}) };
+  const input = await askTool({ key, model, system: systemPrompt(ctx), messages: turns(ctx), tool: RESPOND_TOOL, maxTokens: 600, timeoutMs: 30_000 });
+  if (!input) throw new Error("The AI didn't return a reply");
+  const ck = input?.checkout;
+  const photos = Array.isArray(input?.photos) ? input.photos.map(String) : [];
+  return { reply: String(input?.reply ?? ""), handoff: !!input?.handoff, reason: String(input?.reason ?? ""), ...(ck?.items?.length ? { draft: ck as Draft } : {}), ...(photos.length ? { photos } : {}) };
 }
 
 Deno.serve(async (req) => {
@@ -51,7 +43,7 @@ Deno.serve(async (req) => {
       if (!key) decision = basicReply(ctx as Ctx);
       else {
         decision = quickRules(ctx as Ctx);
-        if (!decision) decision = checkReply(ctx as Ctx, await ask(key, j.model ?? DEFAULT_MODEL, ctx as Ctx));
+        if (!decision) decision = checkReply(ctx as Ctx, await ask(key, pickModel(key, j.model, DEFAULT_MODEL), ctx as Ctx));
       }
       // Checkout: the server prices the draft and words the summary; a YES creates the order.
       if (decision?.confirm) {

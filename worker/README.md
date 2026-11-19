@@ -60,7 +60,7 @@ SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… WA_SESSION_KEY=… npm start
 
 ## Optional: voice notes as text
 
-Add `OPENAI_API_KEY` (and optionally `STT_MODEL`, default `whisper-1`) to the Render service's
+Add `GROQ_API_KEY (free, console.groq.com) or OPENAI_API_KEY` (and optionally `STT_MODEL`, default `whisper-1`) to the Render service's
 environment. Customer voice notes on the linked number are then written out in the chat as
 `[voice note: …]`, so the team and the AI assistant can read and answer them (any language,
 including Pidgin, Yoruba, Hausa, Igbo and Twi).

@@ -451,19 +451,21 @@ export class Link {
       path = mediaPath(this.row.workspace_id, messageId, f.ext);
       const up = await this.db.storage.from("chat-media").upload(path, buf, { contentType: f.mime, upsert: true });
       if (up.error) throw new Error(up.error.message);
-      if (f.kind === "audio" && process.env.OPENAI_API_KEY) void this.transcribe(messageId, buf, f.mime);
+      if (f.kind === "audio" && (process.env.GROQ_API_KEY || process.env.OPENAI_API_KEY)) void this.transcribe(messageId, buf, f.mime);
     } catch (e) { err = (e instanceof Error ? e.message : String(e)).slice(0, 300); path = null; }
     const { error } = await mark(path, err);
     if (error) this.log(`media save failed: ${error.message}`);
   }
 
-  /** Voice notes → text (OpenAI speech-to-text, only when OPENAI_API_KEY is set), so the team and the AI can read them. */
+  /** Voice notes → text, so the team and the AI can read them. Uses Groq's free Whisper when GROQ_API_KEY is set, else OpenAI (OPENAI_API_KEY). */
   private async transcribe(messageId: string, buf: Buffer, mime: string) {
     try {
       const form = new FormData();
       form.append("file", new Blob([new Uint8Array(buf)], { type: mime || "audio/ogg" }), "voice.ogg");
-      form.append("model", process.env.STT_MODEL ?? "whisper-1");
-      const r = await fetch("https://api.openai.com/v1/audio/transcriptions", { method: "POST", headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` }, body: form, signal: AbortSignal.timeout(60_000) });
+      const groq = !!process.env.GROQ_API_KEY;
+      form.append("model", process.env.STT_MODEL ?? (groq ? "whisper-large-v3-turbo" : "whisper-1"));
+      const url = groq ? "https://api.groq.com/openai/v1/audio/transcriptions" : "https://api.openai.com/v1/audio/transcriptions";
+      const r = await fetch(url, { method: "POST", headers: { Authorization: `Bearer ${groq ? process.env.GROQ_API_KEY : process.env.OPENAI_API_KEY}` }, body: form, signal: AbortSignal.timeout(60_000) });
       const j = await r.json().catch(() => ({})) as { text?: string; error?: { message?: string } };
       if (!r.ok || !j.text?.trim()) { this.log(`voice note: ${r.status} ${j.error?.message ?? "no text"}`); return; }
       const { error } = await this.db.rpc("svc_wa_transcript", { p_link: this.row.id, p_message: messageId, p_text: j.text.trim().slice(0, 3000) });
