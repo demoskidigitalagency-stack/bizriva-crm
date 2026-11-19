@@ -714,6 +714,8 @@ export interface BusinessSettings {
   deliveryFee: number;
   /** Delivery fee for orders in other currencies, e.g. { NGN: 5000 } (the AI and order screens use it). */
   deliveryFees?: Partial<Record<string, number>>;
+  /** Daily product Status: each day at `hour`, the next product with a photo is posted to Status. */
+  dailyStatus?: { on: boolean; hour: number; caption: string };
   freeDeliveryOver: number;
   paymentLinkTemplate: string;
   optOutKeywords: string[];
@@ -812,7 +814,7 @@ export interface FormSubmission {
 export interface CalendarEvent {
   id: ID;
   title: string;
-  kind: "callback" | "delivery" | "meeting" | "reminder" | "birthday";
+  kind: "callback" | "delivery" | "meeting" | "reminder" | "birthday" | "booking";
   at: string;
   contactId?: ID;
   orderId?: ID;

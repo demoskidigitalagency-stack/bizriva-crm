@@ -56,6 +56,7 @@ import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as WhatsappRouteImport } from './routes/whatsapp'
 import { Route as WorkflowHistoryRouteImport } from './routes/workflow-history'
 import { Route as AdsNewRouteImport } from './routes/ads_.new'
+import { Route as BSlugRouteImport } from './routes/b.$slug'
 import { Route as ChatKeyRouteImport } from './routes/chat.$key'
 import { Route as CrmIndexRouteImport } from './routes/crm/index'
 import { Route as CrmCustomersRouteImport } from './routes/crm/customers'
@@ -310,6 +311,11 @@ const AdsNewRoute = AdsNewRouteImport.update({
   path: '/ads/new',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BSlugRoute = BSlugRouteImport.update({
+  id: '/b/$slug',
+  path: '/b/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ChatKeyRoute = ChatKeyRouteImport.update({
   id: '/chat/$key',
   path: '/chat/$key',
@@ -449,6 +455,7 @@ export interface FileRoutesByFullPath {
   '/whatsapp': typeof WhatsappRoute
   '/workflow-history': typeof WorkflowHistoryRoute
   '/ads/new': typeof AdsNewRoute
+  '/b/$slug': typeof BSlugRoute
   '/chat/$key': typeof ChatKeyRoute
   '/crm/customers': typeof CrmCustomersRoute
   '/crm/duplicates': typeof CrmDuplicatesRoute
@@ -515,6 +522,7 @@ export interface FileRoutesByTo {
   '/whatsapp': typeof WhatsappRoute
   '/workflow-history': typeof WorkflowHistoryRoute
   '/ads/new': typeof AdsNewRoute
+  '/b/$slug': typeof BSlugRoute
   '/chat/$key': typeof ChatKeyRoute
   '/crm/customers': typeof CrmCustomersRoute
   '/crm/duplicates': typeof CrmDuplicatesRoute
@@ -583,6 +591,7 @@ export interface FileRoutesById {
   '/whatsapp': typeof WhatsappRoute
   '/workflow-history': typeof WorkflowHistoryRoute
   '/ads_/new': typeof AdsNewRoute
+  '/b/$slug': typeof BSlugRoute
   '/chat/$key': typeof ChatKeyRoute
   '/crm/customers': typeof CrmCustomersRoute
   '/crm/duplicates': typeof CrmDuplicatesRoute
@@ -652,6 +661,7 @@ export interface FileRouteTypes {
     | '/whatsapp'
     | '/workflow-history'
     | '/ads/new'
+    | '/b/$slug'
     | '/chat/$key'
     | '/crm/customers'
     | '/crm/duplicates'
@@ -718,6 +728,7 @@ export interface FileRouteTypes {
     | '/whatsapp'
     | '/workflow-history'
     | '/ads/new'
+    | '/b/$slug'
     | '/chat/$key'
     | '/crm/customers'
     | '/crm/duplicates'
@@ -785,6 +796,7 @@ export interface FileRouteTypes {
     | '/whatsapp'
     | '/workflow-history'
     | '/ads_/new'
+    | '/b/$slug'
     | '/chat/$key'
     | '/crm/customers'
     | '/crm/duplicates'
@@ -853,6 +865,7 @@ export interface RootRouteChildren {
   WhatsappRoute: typeof WhatsappRoute
   WorkflowHistoryRoute: typeof WorkflowHistoryRoute
   AdsNewRoute: typeof AdsNewRoute
+  BSlugRoute: typeof BSlugRoute
   ChatKeyRoute: typeof ChatKeyRoute
   DTokenRoute: typeof DTokenRoute
   FFormIdRoute: typeof FFormIdRoute
@@ -1192,6 +1205,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdsNewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/b/$slug': {
+      id: '/b/$slug'
+      path: '/b/$slug'
+      fullPath: '/b/$slug'
+      preLoaderRoute: typeof BSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/chat/$key': {
       id: '/chat/$key'
       path: '/chat/$key'
@@ -1401,6 +1421,7 @@ const rootRouteChildren: RootRouteChildren = {
   WhatsappRoute: WhatsappRoute,
   WorkflowHistoryRoute: WorkflowHistoryRoute,
   AdsNewRoute: AdsNewRoute,
+  BSlugRoute: BSlugRoute,
   ChatKeyRoute: ChatKeyRoute,
   DTokenRoute: DTokenRoute,
   FFormIdRoute: FFormIdRoute,

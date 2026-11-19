@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { EmptyState, StatusBadge } from "@/components/app/primitives";
 import { safeName } from "@/components/app/ChatMedia";
 import { useAuth } from "@/app/auth";
-import { useDb } from "@/domain/store";
+import { useActions, useDb } from "@/domain/store";
 import { supabase } from "@/lib/supabase";
 import { formatDateTime, relativeTime } from "@/lib/format";
 import { buildCsv, buildVcf, downloadText } from "@/lib/vcard";
@@ -29,7 +29,7 @@ interface PostRow {
   audience: { who?: Who; tag?: string; groups?: string[]; collection?: string; mentionAll?: boolean }; scheduled_for: string; repeat: "none" | "daily" | "weekly";
   state: "scheduled" | "sending" | "sent" | "failed" | "cancelled"; recipients: number; sent: number; failed: number; views: number; error: string | null; sent_at: string | null;
 }
-interface GroupRow { jid: string; name: string | null; size: number; is_admin: boolean; announce: boolean; members?: { phone: string; admin: boolean }[]; hidden?: number }
+interface GroupRow { jid: string; name: string | null; size: number; is_admin: boolean; announce: boolean; members?: { phone: string; admin: boolean }[]; hidden?: number; requests?: { jid: string; phone: string | null; at: number | null }[] }
 interface Collection { id: string; name: string; jids: string[] }
 
 const STATE_TONE = { scheduled: "info", sending: "warning", sent: "success", failed: "danger", cancelled: "neutral" } as const;
@@ -433,16 +433,79 @@ function StatusReach() {
   );
 }
 
+// ───────────── daily product Status (daily adverts) ─────────────
+function DailyProductStatus() {
+  const db = useDb();
+  const { updateSettings } = useActions();
+  const cfg = db.settings.dailyStatus ?? { on: false, hour: 10, caption: "{name} — {price}\nReply to this Status to order 👇" };
+  const [caption, setCaption] = useState(cfg.caption);
+  const withPhoto = new Set(db.media.filter((m) => m.kind === "image" && m.productId).map((m) => m.productId));
+  const ready = db.products.filter((p) => p.active !== false && withPhoto.has(p.id)).length;
+  const save = (patch: Partial<typeof cfg>) => updateSettings({ dailyStatus: { ...cfg, caption, ...patch } });
+  return (
+    <div className="space-y-2 border-b p-4 text-sm">
+      <label className="flex items-center gap-2 font-medium"><Switch checked={cfg.on} onCheckedChange={(v) => save({ on: v })} aria-label="Daily product Status" /> Post a product to my Status every day</label>
+      <div className="flex flex-wrap items-center gap-2">
+        <span>at</span>
+        <select aria-label="Hour" className="h-8 rounded-md border bg-background px-2" value={cfg.hour} onChange={(e) => save({ hour: Number(e.target.value) })}>
+          {Array.from({ length: 16 }, (_, i) => i + 6).map((h) => <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>)}
+        </select>
+        <Input className="h-8 min-w-60 flex-1" value={caption} onChange={(e) => setCaption(e.target.value)} onBlur={() => save({})} aria-label="Caption" />
+      </div>
+      <p className="text-xs text-muted-foreground">Rotates through your {ready} product{ready === 1 ? "" : "s"} with a photo in the Media Library, one a day, oldest-shown first. {"{name}"} and {"{price}"} are filled in.{ready === 0 ? " Add product photos in the Media Library first." : ""}</p>
+    </div>
+  );
+}
+
 export function StatusTool() {
   const { posts, error, load } = usePosts();
   if (error) return <p className="p-4 text-sm text-muted-foreground">{error}</p>;
-  return (<><StatusReach /><Composer kind="status" onSaved={() => void load()} /><Posts kind="status" posts={posts} reload={() => void load()} /></>);
+  return (<><StatusReach /><DailyProductStatus /><Composer kind="status" onSaved={() => void load()} /><Posts kind="status" posts={posts} reload={() => void load()} /></>);
 }
 
 export function BroadcastTool() {
   const { posts, error, load } = usePosts();
   if (error) return <p className="p-4 text-sm text-muted-foreground">{error}</p>;
   return (<><Composer kind="broadcast" onSaved={() => void load()} /><Posts kind="broadcast" posts={posts} reload={() => void load()} /></>);
+}
+
+// ───────────── join requests (groups where you're an admin) ─────────────
+function JoinRequests({ groups, onChange }: { groups: GroupRow[]; onChange: () => void }) {
+  const { ws } = useWs();
+  const [msg, setMsg] = useState("");
+  const total = groups.reduce((n, g) => n + (g.requests?.length ?? 0), 0);
+  const act = async (g: GroupRow, who: string[], action: "approve" | "reject" | "refresh") => {
+    setMsg("");
+    const { error } = await supabase()!.rpc("wa_group_request_action", { p_workspace: ws, p_group: g.jid, p_participants: who, p_action: action });
+    if (error) return setMsg(error.message);
+    setMsg(action === "refresh" ? "Checking — the list updates in about a minute." : `${who.length} ${action === "approve" ? "approved" : "rejected"} — WhatsApp updates within a minute.`);
+    onChange();
+  };
+  return (
+    <details className="border-t px-4 py-3 text-sm" open={total > 0}>
+      <summary className="cursor-pointer font-medium">Join requests {total ? `(${total} waiting)` : ""}</summary>
+      <p className="mt-2 text-xs text-muted-foreground">For groups where you're an admin and “Approve new members” is on. Checked every few hours, or tap Check now.</p>
+      <ul className="mt-2 space-y-2">
+        {groups.map((g) => (
+          <li key={g.jid} className="rounded-md border p-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="min-w-0 flex-1 truncate font-medium">{g.name || "Unnamed group"} <span className="text-xs font-normal text-muted-foreground">· {g.requests?.length ?? 0} waiting</span></p>
+              {(g.requests?.length ?? 0) > 1 && <Button size="sm" onClick={() => void act(g, g.requests!.map((r) => r.jid), "approve")}>Approve all</Button>}
+              <Button size="sm" variant="ghost" onClick={() => void act(g, [], "refresh")}>Check now</Button>
+            </div>
+            {(g.requests ?? []).map((r) => (
+              <div key={r.jid} className="mt-1 flex items-center gap-2 text-xs">
+                <span className="flex-1">{r.phone ? `+${r.phone}` : "Number hidden"}{r.at ? ` · asked ${relativeTime(new Date(r.at * 1000).toISOString())}` : ""}</span>
+                <Button size="sm" variant="outline" className="h-7" onClick={() => void act(g, [r.jid], "approve")}>Approve</Button>
+                <Button size="sm" variant="ghost" className="h-7" onClick={() => void act(g, [r.jid], "reject")}>Reject</Button>
+              </div>
+            ))}
+          </li>
+        ))}
+      </ul>
+      {msg && <p className="mt-2 text-xs" role="status">{msg}</p>}
+    </details>
+  );
 }
 
 // ───────────── group contacts (extract members' numbers) ─────────────
@@ -496,7 +559,7 @@ export function GroupsTool() {
   const loadGroups = useCallback(async () => {
     const sb = supabase(); if (!sb || !ws) return;
     const [g, c] = await Promise.all([
-      sb.from("wa_groups").select("jid, name, size, is_admin, announce, members, hidden").eq("workspace_id", ws).order("name"),
+      sb.from("wa_groups").select("jid, name, size, is_admin, announce, members, hidden, requests").eq("workspace_id", ws).order("name"),
       sb.from("wa_group_collections").select("id, name, jids").eq("workspace_id", ws).order("name"),
     ]);
     setGroups((g.data ?? []) as GroupRow[]);
@@ -520,6 +583,7 @@ export function GroupsTool() {
   return (
     <>
       <Composer kind="group" groups={groups} collections={collections} onSaved={() => void load()} />
+      {canEdit && groups.some((g) => g.is_admin) && <JoinRequests groups={groups.filter((g) => g.is_admin)} onChange={() => void loadGroups()} />}
       {canEdit && groups.length > 0 && <GroupContacts groups={groups} onChange={() => void loadGroups()} />}
       {canEdit && groups.length > 0 && (
         <details className="border-t px-4 py-3 text-sm">

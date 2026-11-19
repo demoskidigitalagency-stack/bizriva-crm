@@ -30,6 +30,7 @@ const KIND: Record<Kind, { label: string; tone: BadgeTone }> = {
   meeting: { label: "Meeting", tone: "neutral" },
   reminder: { label: "Reminder", tone: "neutral" },
   birthday: { label: "Birthday", tone: "success" },
+  booking: { label: "Booking", tone: "purple" },
 };
 
 const dayKey = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;

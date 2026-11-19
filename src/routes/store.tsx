@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Section, StatusBadge } from "@/components/app/primitives";
 import { useActions, useDb, useLive, useWorkspace } from "@/domain/store";
 import { PublicStoreSettings } from "@/components/app/PublicStoreSettings";
+import { BookingSettings } from "@/components/app/BookingSettings";
+import { BuyerRequestsPanel } from "@/components/app/BuyerRequestsPanel";
 import { formatCurrency } from "@/lib/format";
 
 export const Route = createFileRoute("/store")({
@@ -90,6 +92,8 @@ function Store() {
         <p className="mt-1 text-sm text-muted-foreground">A simple shop page built from your catalogue. Orders from it land in Orders like any other.</p>
       </div>
       {live.on && <PublicStoreSettings />}
+      {live.on && <BookingSettings />}
+      {live.on && <BuyerRequestsPanel />}
 
       <Section title="Store settings">
         <div className="grid gap-4 p-4 sm:grid-cols-2">

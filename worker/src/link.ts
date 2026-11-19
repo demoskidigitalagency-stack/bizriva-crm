@@ -259,6 +259,7 @@ export class Link {
         if (!this.sock) break;
         if (p.kind === "status") await this.sendStatus(p); else await this.sendToGroups(p);
       }
+      await this.groupActions();
     } finally { this.posting = false; }
   }
 
@@ -340,7 +341,43 @@ export class Link {
       const { error } = await this.db.rpc("svc_wa_groups_sync", { p_link: this.row.id, p_groups: rows });
       if (error) { if (!/svc_wa_groups_sync|PGRST202/.test(error.message)) this.log(`groups: ${error.message}`); return; }
       this.log(`groups: ${rows.length} synced`);
+      await this.syncJoinRequests(rows.filter((g) => g.admin).map((g) => g.jid));
     } catch (e) { this.log(`groups: ${e instanceof Error ? e.message : e}`); }
+  }
+
+  // ───────────── group join requests (groups where the business is an admin) ─────────────
+  private async syncJoinRequests(jids: string[]) {
+    if (!this.sock) return;
+    const out: { jid: string; requests: { jid: string; phone: string | null; at: number | null }[] }[] = [];
+    for (const jid of jids) {
+      try {
+        const list = (await this.sock.groupRequestParticipantsList(jid)) as Record<string, string>[];
+        out.push({ jid, requests: list.map((a) => {
+          const pn = [a["phone_number"], a["jid"]].find((x) => typeof x === "string" && x.endsWith("@s.whatsapp.net"));
+          return { jid: String(a["jid"]), phone: pn ? pn.split("@")[0]!.split(":")[0]! : null, at: a["request_time"] ? Number(a["request_time"]) : null };
+        }) });
+      } catch (e) { this.log(`join requests ${jid.slice(0, 8)}…: ${e instanceof Error ? e.message : e}`); }
+    }
+    const { error } = await this.db.rpc("svc_wa_group_requests", { p_link: this.row.id, p_groups: out });
+    if (error && !/svc_wa_group_requests|PGRST202/.test(error.message)) this.log(`join requests: ${error.message}`);
+  }
+
+  /** Approve / reject join requests (and "check again") asked for in Bizriva. */
+  private async groupActions() {
+    if (!this.sock) return;
+    const { data, error } = await this.db.rpc("svc_wa_group_actions_claim", { p_link: this.row.id });
+    if (error) { if (!/svc_wa_group_actions_claim|PGRST202/.test(error.message)) this.log(`group actions: ${error.message}`); return; }
+    let refresh = false;
+    for (const a of (data ?? []) as { id: string; group_jid: string; participant: string | null; action: "approve" | "reject" | "refresh" }[]) {
+      let err: string | null = null;
+      try {
+        if (a.action === "refresh") refresh = true;
+        else await this.sock.groupRequestParticipantsUpdate(a.group_jid, [a.participant!], a.action);
+      } catch (e) { err = (e instanceof Error ? e.message : String(e)).slice(0, 300); }
+      await this.db.rpc("svc_wa_group_action_result", { p_id: a.id, p_error: err });
+      await new Promise((r) => setTimeout(r, 1200));
+    }
+    if (refresh || (data ?? []).length) await this.syncGroups();
   }
 
   // ───────────── auto-save new customers ─────────────

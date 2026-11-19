@@ -3,7 +3,7 @@ import { AttachFile, MessageMedia } from "@/components/app/ChatMedia";
 import { LivePaymentLink } from "@/components/app/LivePaymentLink";
 import { useEffect, useMemo, useState } from "react";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
-import { AlertTriangle, CheckCircle2, CreditCard, FlaskConical, Megaphone, MessageSquareText, Package, Send, Sparkles, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, CreditCard, FlaskConical, Megaphone, MessageSquareText, Package, Send, Sparkles, Store, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -16,7 +16,10 @@ import { CURRENT_USER_ID } from "@/domain/database";
 import { INBOX_VIEWS, fullName, getMember, inboxMatches, type InboxView } from "@/domain/repositories";
 import { extractDetails } from "@/domain/extract";
 import { CHANNEL_LABELS, LEAD_STAGES, ORDER_STATUS_META, SOURCE_LABELS, type Conversation } from "@/domain/types";
-import { formatCurrency, relativeTime } from "@/lib/format";
+import { formatCurrency, relativeTime, type CurrencyCode } from "@/lib/format";
+import { draftCurrency, priceIn } from "@/lib/message-order";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/app/auth";
 import { cn } from "@/lib/utils";
 
 const DELIVERY_LABEL = { queued: "Waiting to send", sent: "Sent ✓", delivered: "Delivered ✓✓", read: "Read ✓✓" } as const;
@@ -87,6 +90,50 @@ function SendProduct({ conversationId }: { conversationId: string }) {
 }
 
 const PURPOSES = ["enquiry", "order", "payment", "delivery", "complaint", "objection", "follow_up", "reactivation", "referral", "birthday", "policy"] as const;
+
+/**
+ * Shop: drop the store link, a price list (in the customer's currency, from their phone), the booking
+ * link or a saved message into the reply box — for selling inside the chat.
+ */
+function ShopInChat({ conversation, onPick }: { conversation: Conversation; onPick: (text: string) => void }) {
+  const db = useDb();
+  const live = useLive();
+  const ws = useWorkspace();
+  const { current } = useAuth();
+  const [open, setOpen] = useState(false);
+  const [page, setPage] = useState<{ slug: string; published: boolean; booking_on: boolean } | null>(null);
+  const [saved, setSaved] = useState<{ id: string; name: string; body: string }[]>([]);
+  const c = db.contacts.find((x) => x.id === conversation.contactId);
+  useEffect(() => {
+    if (!open || !live.on || !current?.workspaceId) return;
+    const sb = supabase(); if (!sb) return;
+    void sb.from("store_pages").select("slug, published, booking_on").eq("workspace_id", current.workspaceId).maybeSingle().then(({ data }) => setPage(data as typeof page));
+    void sb.from("saved_messages").select("id, name, body").eq("workspace_id", current.workspaceId).order("created_at", { ascending: false }).then(({ data }) => setSaved((data ?? []) as typeof saved));
+  }, [open, live.on, current?.workspaceId]);
+  const origin = typeof window === "undefined" ? "" : window.location.origin;
+  const cur = draftCurrency({ phone: c?.phone ?? "" }, ws.currency, db.products);
+  const priceList = () => {
+    const rows = db.products.filter((p) => p.active !== false).map((p) => ({ p, v: priceIn(p, cur, ws.currency) })).filter((x) => x.v != null).slice(0, 15);
+    const store = page?.published ? `\n\nSee photos and order: ${origin}/s/${page.slug}` : "";
+    return `Hi${c?.firstName && c.firstName !== "Customer" ? ` ${c.firstName}` : ""}, here are our prices:\n${rows.map((x) => `• ${x.p.name} — ${formatCurrency(x.v!, cur as CurrencyCode)}`).join("\n")}${store}\n\nWhich one would you like?`;
+  };
+  const pick = (t: string) => { onPick(t); setOpen(false); };
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button size="sm" variant="outline" aria-label="Shop in chat"><Store className="size-4" /><span className="hidden sm:inline">Shop</span></Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-80 max-w-[calc(100vw-2rem)] space-y-1 p-2 text-xs">
+        <button type="button" className="w-full rounded px-2 py-1.5 text-left hover:bg-muted" onClick={() => pick(priceList())}><b>Price list</b><span className="block text-muted-foreground">Your products with prices in {cur}</span></button>
+        {page?.published && <button type="button" className="w-full rounded px-2 py-1.5 text-left hover:bg-muted" onClick={() => pick(`Here's our store — photos, prices and an Order button: ${origin}/s/${page.slug}`)}><b>Store link</b><span className="block text-muted-foreground">{origin}/s/{page.slug}</span></button>}
+        {page?.booking_on && <button type="button" className="w-full rounded px-2 py-1.5 text-left hover:bg-muted" onClick={() => pick(`Pick a time that suits you here: ${origin}/b/${page.slug}`)}><b>Booking link</b><span className="block text-muted-foreground">{origin}/b/{page.slug}</span></button>}
+        {live.on && page && !page.published && <p className="px-2 py-1 text-muted-foreground">Publish your store (Store page) to share its link here.</p>}
+        {saved.length > 0 && <p className="border-t px-2 pt-2 font-medium">Saved messages</p>}
+        {saved.map((m) => <button key={m.id} type="button" className="w-full rounded px-2 py-1.5 text-left hover:bg-muted" onClick={() => pick(m.body.replaceAll("{{name}}", c?.firstName && c.firstName !== "Customer" ? c.firstName : "there"))}><b>{m.name}</b><span className="line-clamp-2 block text-muted-foreground">{m.body}</span></button>)}
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 function QuickReplies({ conversation, onPick }: { conversation: Conversation; onPick: (text: string) => void }) {
   const db = useDb();
@@ -248,6 +295,7 @@ function Thread({ conversation }: { conversation: Conversation }) {
         {conversation.channel === "whatsapp" && <AttachFile conversationId={conversation.id} caption={text} onSent={() => setText("")} />}
         <SendProduct conversationId={conversation.id} />
         <QuickReplies conversation={conversation} onPick={setText} />
+        <ShopInChat conversation={conversation} onPick={setText} />
         {live.on ? <LivePaymentLink conversationId={conversation.id} /> : <PaymentLinkButton conversationId={conversation.id} />}
         <Input
           value={text}
