@@ -25,10 +25,18 @@ export function open(key: Buffer, sealed: string): string {
 }
 
 export async function dbAuthState(db: SupabaseClient, linkId: string, key: Buffer): Promise<{ state: AuthenticationState; saveCreds: () => Promise<void>; flush: () => Promise<void> }> {
-  const { data, error } = await db.rpc("svc_wa_auth_all", { p_link: linkId });
-  if (error) throw new Error(`Couldn't load the WhatsApp session: ${error.message}`);
+  // The API returns at most 1,000 rows per request, and a session has many more (12,000+ keys after
+  // a few weeks), so read it in pages — otherwise most keys are silently lost on every restart.
+  const data: { k: string; v: string }[] = [];
+  for (let from = 0; ; from += 1000) {
+    const { data: page, error } = await db.rpc("svc_wa_auth_all", { p_link: linkId }).order("k").range(from, from + 999);
+    if (error) throw new Error(`Couldn't load the WhatsApp session: ${error.message}`);
+    data.push(...((page ?? []) as { k: string; v: string }[]));
+    if (!page || page.length < 1000) break;
+  }
+  console.log(`[${linkId}] session: ${data.length} keys loaded`);
   const mem = new Map<string, unknown>();
-  for (const row of (data ?? []) as { k: string; v: string }[]) {
+  for (const row of data) {
     try { mem.set(row.k, JSON.parse(open(key, row.v), BufferJSON.reviver)); } catch { /* wrong key or damaged row: start that key fresh */ }
   }
   const creds = (mem.get("creds") as AuthenticationState["creds"] | undefined) ?? initAuthCreds();
