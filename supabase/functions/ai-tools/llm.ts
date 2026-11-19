@@ -5,7 +5,7 @@
 export const isGemini = (key: string) => /^AIza[0-9A-Za-z_-]{30,}$/.test(key);
 // deno-lint-ignore no-explicit-any
 const GEMINI_MODEL = (globalThis as any).Deno?.env.get("GEMINI_MODEL") ?? "gemini-flash-latest";
-// When a model is missing or busy (404/429/500/503), the next one is tried.
+// When a model is missing, busy or slow (404/429/500/503/timeout), the next one is tried.
 const GEMINI_FALLBACKS = ["gemini-flash-lite-latest", "gemini-2.5-flash", "gemini-2.5-flash-lite"];
 
 /** The saved model if it fits the key's provider, else that provider's default. */
@@ -21,7 +21,7 @@ export interface Tool { name: string; description?: string; input_schema: Any }
 export interface Msg { role: "user" | "assistant"; content: string | Any[] }
 
 function friendly(status: number, msg: string): Error {
-  if (status === 429 || status === 503) return new Error("Google's free AI is very busy right now (or today's free limit is used up) — try again in a few minutes.");
+  if (status === 429 || status === 503 || status === 504) return new Error("Google's free AI is very busy right now (or today's free limit is used up) — try again in a few minutes.");
   if (status === 401 || status === 403) return new Error("The AI key was refused — check it on the AI Agent page.");
   return new Error(`${status} ${msg || "The AI service refused the request"}`);
 }
@@ -69,12 +69,13 @@ async function gemini(o: { key: string; model: string; system: string; messages:
     // Newer Flash models think before answering, and thinking counts toward the output budget.
     generationConfig: { maxOutputTokens: Math.max(4096, o.maxTokens * 4) },
   });
+  // Each model gets at most 25 s; a slow or busy one is skipped for the next (lighter, faster) one.
   const call = (model: string) => fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
-    method: "POST", headers: { "x-goog-api-key": o.key, "content-type": "application/json" }, body, signal: AbortSignal.timeout(o.timeoutMs),
-  });
+    method: "POST", headers: { "x-goog-api-key": o.key, "content-type": "application/json" }, body, signal: AbortSignal.timeout(Math.min(o.timeoutMs, 25_000)),
+  }).catch(() => new Response("{}", { status: 504 }));
   let r = await call(o.model);
   for (const m of GEMINI_FALLBACKS) {
-    if (![404, 429, 500, 503].includes(r.status) || m === o.model) continue;
+    if (![404, 429, 500, 503, 504].includes(r.status) || m === o.model) continue;
     r = await call(m);
   }
   const res = await r.json().catch(() => ({}));

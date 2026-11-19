@@ -5,7 +5,7 @@
 // Uses the business's own AI key (AI Agent page: Anthropic, or a free Google Gemini key), else Bizriva's ANTHROPIC_API_KEY. Nothing is
 // saved here: the app shows the suggestions and the person decides.
 import { createClient } from "npm:@supabase/supabase-js@2.49.4";
-import { askTool, pickModel } from "./llm.ts";
+import { askTool, isGemini, pickModel } from "./llm.ts";
 import { ADS_TOOL, adsPrompt, chatPrompt, checkAds, checkMemory, checkPhoto, MEMORY_TOOL, PHOTO_TOOL, SYSTEM_ADS, SYSTEM_MEMORY, SYSTEM_PHOTO } from "./tools.ts";
 
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
@@ -32,7 +32,9 @@ Deno.serve(async (req) => {
   if (!key) return json(503, { error: "Add an AI key on the AI Agent page to use this — a free Google Gemini key works." });
   const { data: okRate } = await db.rpc("svc_rate_ok", { p_key: `ai-tools:${ws}`, p_max: 60, p_seconds: 3600 });
   if (okRate === false) return json(429, { error: "That's a lot of AI requests this hour — try again a bit later." });
-  const model = pickModel(key, k.model, MODEL);
+  // On a Gemini key with no model chosen, the fast Lite model: these are short jobs and the free
+  // full model can take over a minute when Google is busy.
+  const model = isGemini(key) && !k.model ? "gemini-flash-lite-latest" : pickModel(key, k.model, MODEL);
   try {
     if (b.action === "photo_product") {
       const mime = String(b.mime ?? "image/jpeg");
