@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { EmptyState, StatusBadge } from "@/components/app/primitives";
 import { safeName } from "@/components/app/ChatMedia";
 import { useAuth } from "@/app/auth";
+import { useDb } from "@/domain/store";
 import { supabase } from "@/lib/supabase";
 import { formatDateTime, relativeTime } from "@/lib/format";
 
@@ -334,10 +335,96 @@ function usePosts() {
   return { posts, error, load };
 }
 
+// ───────────── Status reach: saved contacts ─────────────
+interface Reach { total: number; saved: number; linked: boolean; auto_save: boolean; template: string | null; run: string | null; done: number; of: number; ok: number; failed: number; error: string | null }
+const saveOurNumber = (business: string) => `Hi {{name}}, please save this number as ${business || "our shop"} so you see our new arrivals and offers on our WhatsApp Status. Thank you!`;
+
+/**
+ * A Status only reaches customers saved in the linked phone's contacts — and they see it only if they
+ * saved the business number too. Shows how many are saved, saves the rest, keeps saving new ones, and
+ * gives a ready "please save our number" message for a broadcast.
+ */
+function StatusReach() {
+  const { ws, canEdit } = useWs();
+  const business = useDb().settings.businessName;
+  const [r, setR] = useState<Reach | null>(null);
+  const [template, setTemplate] = useState("{name} - {product} {city}");
+  const [msg, setMsg] = useState("");
+  const load = useCallback(async () => {
+    const sb = supabase(); if (!sb || !ws) return;
+    const { data } = await sb.rpc("wa_status_reach", { p_workspace: ws });
+    const x = data as Reach | null;
+    setR(x);
+    if (x?.template && x.template !== "{name}") setTemplate(x.template);
+  }, [ws]);
+  useEffect(() => { void load(); }, [load]);
+  const running = r?.run === "queued" || r?.run === "running";
+  useEffect(() => { if (!running) return; const t = setInterval(() => void load(), 5000); return () => clearInterval(t); }, [running, load]);
+  if (!r) return null;
+  const left = Math.max(0, r.total - r.saved);
+  const saveAll = async () => {
+    setMsg("");
+    const sb = supabase()!;
+    const { error } = await sb.rpc("request_wa_save_contacts", { p_workspace: ws, p_template: template, p_who: "all" });
+    if (error) return setMsg(error.message);
+    if (!r.auto_save) await sb.rpc("set_wa_auto_save", { p_workspace: ws, p_on: true, p_template: template });
+    setMsg("Saving — a few contacts at a time so WhatsApp stays happy. You can leave this page.");
+    await load();
+  };
+  const autoSave = async (on: boolean) => {
+    const { error } = await supabase()!.rpc("set_wa_auto_save", { p_workspace: ws, p_on: on, p_template: template });
+    if (error) setMsg(error.message); else await load();
+  };
+  const askToSave = async () => {
+    const sb = supabase()!;
+    const { data } = await sb.from("saved_messages").select("id").eq("workspace_id", ws).eq("name", "Save our number").maybeSingle();
+    if (!data) await sb.from("saved_messages").insert({ workspace_id: ws, name: "Save our number", body: saveOurNumber(business) });
+    window.location.href = "/broadcasts";
+  };
+  const pct = r.total ? Math.round((r.saved / r.total) * 100) : 0;
+  return (
+    <div className="space-y-3 border-b p-4 text-sm" aria-label="Who can see your Status">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="font-medium">Who can see your Status</p>
+        <p><span className="num text-lg font-bold">{r.saved}</span> of <span className="num">{r.total}</span> customers saved on your phone ({pct}%)</p>
+      </div>
+      <div className="h-2 overflow-hidden rounded bg-muted"><div className="h-full bg-emerald-500" style={{ width: `${pct}%` }} /></div>
+      <p className="text-xs text-muted-foreground">WhatsApp shows your Status only to people saved in your phone's contacts, and they see it only if they've saved your number too. So: 1) save your customers, 2) keep saving new ones, 3) ask them to save you.</p>
+      {canEdit && (
+        <ol className="space-y-2">
+          <li className="flex flex-wrap items-center gap-2">
+            <span className="font-medium">1.</span>
+            {running
+              ? <span role="status">Saving… {r.done} of {r.of || left} done{r.failed ? ` (${r.failed} couldn't be saved)` : ""}</span>
+              : left > 0
+                ? <><Button size="sm" disabled={!r.linked} onClick={() => void saveAll()}>Save the {left} not saved yet</Button>
+                    <Input className="h-8 max-w-[14rem]" value={template} onChange={(e) => setTemplate(e.target.value)} aria-label="Name format for saved customers" />
+                    <span className="text-xs text-muted-foreground">e.g. “Customer 4567 - 6ft multi-game table Accra”. Use {"{name}"}, {"{product}"}, {"{city}"}, {"{last4}"}</span></>
+                : <span>All customers are saved.</span>}
+            {r.error && !running && <span className="text-xs text-destructive">{r.error}</span>}
+          </li>
+          <li className="flex items-center gap-2">
+            <span className="font-medium">2.</span>
+            <Switch checked={r.auto_save} disabled={!r.linked} onCheckedChange={(v) => void autoSave(v)} aria-label="Save every new customer automatically" />
+            <span>Save every new customer to my phone as they write</span>
+          </li>
+          <li className="flex flex-wrap items-center gap-2">
+            <span className="font-medium">3.</span>
+            <Button size="sm" variant="outline" onClick={() => void askToSave()}>Ask customers to save our number</Button>
+            <span className="text-xs text-muted-foreground">Adds a ready “please save our number” message to Saved messages and opens Broadcasts — send it to everyone who messaged you, or use it as an automatic nudge for new chats.</span>
+          </li>
+        </ol>
+      )}
+      {!r.linked && <p className="text-xs text-muted-foreground">Link your WhatsApp number first.</p>}
+      {msg && <p className="text-xs" role="status">{msg}</p>}
+    </div>
+  );
+}
+
 export function StatusTool() {
   const { posts, error, load } = usePosts();
   if (error) return <p className="p-4 text-sm text-muted-foreground">{error}</p>;
-  return (<><Composer kind="status" onSaved={() => void load()} /><Posts kind="status" posts={posts} reload={() => void load()} /></>);
+  return (<><StatusReach /><Composer kind="status" onSaved={() => void load()} /><Posts kind="status" posts={posts} reload={() => void load()} /></>);
 }
 
 export function BroadcastTool() {
