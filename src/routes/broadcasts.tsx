@@ -225,13 +225,20 @@ function Broadcasts() {
                     <p className="text-xs text-muted-foreground">{b.audience ? `${b.audience.kind === "product" ? `Asked about ${db.products.find((p) => p.id === b.audience!.productId)?.name ?? "a product"}` : "Messaged us"} in ${WINDOWS.find((w) => w.h === b.audience!.hours)?.label ?? `the last ${b.audience.hours} hours`}` : seg?.name ?? "Deleted segment"} · {isEmail ? `“${b.subject}”` : tpl ? `template ${tpl.name}` : b.body ? `“${b.body.slice(0, 40)}${b.body.length > 40 ? "…" : ""}”${b.mediaCount ? ` + ${b.mediaCount} photo/video` : ""}` : b.mediaCount ? `${b.mediaCount} photo/video` : "template deleted"}{b.scheduledFor && b.status === "scheduled" ? ` · ${formatDateTime(b.scheduledFor)}` : ""}{b.sentAt ? ` · sent ${formatDateTime(b.sentAt)}` : ""}</p>
                     {(b.status === "sent" || b.status === "auto" || b.status === "paused") && (
                       <p className="text-xs text-muted-foreground" aria-label={`Results for ${b.name}`}>
-                        Delivered <span className="num font-semibold text-foreground">{b.stats?.delivered ?? b.recipients}</span>
+                        {!isEmail && b.stats?.wentOut !== undefined ? <>
+                          Sent <span className="num font-semibold text-foreground">{b.stats.wentOut}</span> of {b.recipients}
+                          {b.stats.waiting ? <> · <span className="num font-semibold text-foreground">{b.stats.waiting}</span> waiting their turn</> : null}
+                          {" "}· delivered <span className="num font-semibold text-foreground">{b.stats.delivered}</span>
+                          {" "}· read <span className="num font-semibold text-foreground">{b.stats.opened ?? 0}</span>
+                          {b.stats.failed ? <> · <span className="num font-semibold text-destructive">{b.stats.failed}</span> failed</> : null}
+                        </> : <>Delivered <span className="num font-semibold text-foreground">{b.stats?.delivered ?? b.recipients}</span></>}
                         {isEmail && <> · opened <span className="num font-semibold text-foreground">{pct(b.stats?.opened, b.stats?.delivered)}</span> · clicked <span className="num font-semibold text-foreground">{pct(b.stats?.clicked, b.stats?.delivered)}</span></>}
                         {b.stats && <> · <span className="num font-semibold text-foreground">{b.stats.orders}</span> orders · <span className="num font-semibold text-foreground">{formatCurrency(b.stats.revenue, ws.currency, { compact: true })}</span></>}
                         {!isEmail && b.stats?.replied !== undefined && <> · <span className="num font-semibold text-foreground">{b.stats.replied}</span> replied</>}
                         {!b.audience && ` · skipped ${b.skippedNoConsent} without ${isEmail ? "consent or email" : "consent"}`}
                       </p>
                     )}
+                    {live.on && !isEmail && (b.status === "sent" || b.status === "auto" || b.status === "paused") && <WhoGotIt campaignId={b.id} />}
                   </div>
                   <StatusBadge tone={STATUS_TONE[b.status]}>{STATUS_LABEL[b.status]}</StatusBadge>
                   {b.status === "auto" && <Button size="sm" variant="outline" onClick={() => void setStatus("paused")}>Pause</Button>}
@@ -254,5 +261,47 @@ function Broadcasts() {
         ? <NudgeForm onClose={() => setCreating(false)} {...(preset ? { preset } : {})} />
         : <NewBroadcast channel={channel} onClose={() => setCreating(false)} {...(preset && channel === "whatsapp" ? { preset } : {})} />)}
     </div>
+  );
+}
+
+/** Who a WhatsApp broadcast went to, and how far each one got (waiting, sent, delivered, read, replied). */
+function WhoGotIt({ campaignId }: { campaignId: string }) {
+  const [rows, setRows] = useState<{ name: string; phone: string; status: string; replied: boolean; error: string | null }[] | null>(null);
+  const [open, setOpen] = useState(false);
+  const [filter, setFilter] = useState("all");
+  useEffect(() => {
+    if (!open) return;
+    void supabase()?.from("campaign_recipients").select("replied_at, skipped_reason, contacts(name, phone), messages(status, error)").eq("campaign_id", campaignId).limit(2000)
+      .then(({ data }) => setRows(((data ?? []) as unknown as { replied_at: string | null; skipped_reason: string | null; contacts: { name: string | null; phone: string | null } | null; messages: { status: string; error: string | null } | null }[]).map((r) => ({
+        name: r.contacts?.name || `Customer ${(r.contacts?.phone ?? "").replace(/\D/g, "").slice(-4)}`, phone: r.contacts?.phone ?? "",
+        status: r.skipped_reason ? "skipped" : r.replied_at ? "replied" : r.messages?.status === "queued" || r.messages?.status === "sending" ? "waiting" : r.messages?.status ?? "waiting",
+        replied: !!r.replied_at, error: r.messages?.error ?? null,
+      }))));
+  }, [open, campaignId]);
+  const LABEL: Record<string, string> = { waiting: "Waiting", sent: "Sent", delivered: "Delivered", read: "Read", replied: "Replied", failed: "Failed", skipped: "Skipped" };
+  const shown = (rows ?? []).filter((r) => filter === "all" || r.status === filter);
+  return (
+    <details className="mt-1 text-xs" onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}>
+      <summary className="cursor-pointer text-primary">See who got it</summary>
+      {!rows ? <p className="py-1 text-muted-foreground">Loading…</p> : (
+        <div className="mt-1 space-y-1">
+          <div className="flex flex-wrap gap-1">
+            {["all", "replied", "read", "delivered", "sent", "waiting", "failed"].map((f) => {
+              const n = f === "all" ? rows.length : rows.filter((r) => r.status === f).length;
+              return n || f === "all" ? <button key={f} type="button" onClick={() => setFilter(f)} className={`rounded border px-2 py-0.5 ${filter === f ? "border-primary bg-primary/10" : ""}`}>{f === "all" ? "Everyone" : LABEL[f]} ({n})</button> : null;
+            })}
+          </div>
+          <ul className="max-h-56 divide-y overflow-y-auto rounded border">
+            {shown.map((r, i) => (
+              <li key={i} className="flex items-center gap-2 px-2 py-1">
+                <span className="min-w-0 flex-1 truncate">{r.name} <span className="text-muted-foreground">{r.phone}</span></span>
+                <span className={r.status === "failed" ? "text-destructive" : r.status === "replied" || r.status === "read" ? "font-semibold text-emerald-700 dark:text-emerald-400" : "text-muted-foreground"} title={r.error ?? undefined}>{LABEL[r.status] ?? r.status}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="text-muted-foreground">“Read” only shows for people who haven't switched off read receipts in WhatsApp.</p>
+        </div>
+      )}
+    </details>
   );
 }

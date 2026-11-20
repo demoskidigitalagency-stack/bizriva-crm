@@ -636,7 +636,7 @@ export interface Broadcast {
   /** Photos/videos sent with it (count). */
   mediaCount?: number;
   /** Results tracked per campaign. Opens and clicks are tracked for email. */
-  stats?: { delivered: number; opened?: number; clicked?: number; orders: number; revenue: number; replied?: number };
+  stats?: { delivered: number; opened?: number; clicked?: number; orders: number; revenue: number; replied?: number; wentOut?: number; waiting?: number; failed?: number };
 }
 
 export interface WorkflowStep {

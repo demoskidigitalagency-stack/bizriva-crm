@@ -357,7 +357,7 @@ export function toDatabase(raw: RawData, now = new Date()): Database {
         ...(c["audience"]?.["product_id"] || c["audience"]?.["kind"] === "messaged" ? { audience: { kind: c["audience"]["product_id"] ? "product" as const : "messaged" as const, ...(c["audience"]["product_id"] ? { productId: c["audience"]["product_id"] } : {}), hours: num(c["audience"]["hours"] ?? 24), ...(c["audience"]["wait_hours"] != null ? { waitHours: num(c["audience"]["wait_hours"]) } : {}) } } : {}),
         ...(c["reply_body"] ? { replyBody: c["reply_body"] } : {}),
         ...(Array.isArray(c["media"]) && c["media"].length ? { mediaCount: c["media"].length } : {}), ...(c["subject"] ? { subject: c["subject"] } : {}), ...(c["body"] ? { body: c["body"] } : {}),
-        ...(r ? { stats: { delivered: num(r["delivered"]), opened: num(r["opened"]), clicked: num(r["clicked"]), orders: num(r["orders"]), revenue: num(r["delivered_revenue"]), replied: num(r["replied"]) } } : {}),
+        ...(r ? { stats: { delivered: num(r["delivered"]), opened: num(r["opened"]), clicked: num(r["clicked"]), orders: num(r["orders"]), revenue: num(r["delivered_revenue"]), replied: num(r["replied"]), wentOut: num(r["went_out"]), waiting: num(r["waiting"]), failed: num(r["failed"]) } } : {}),
       };
     }),
     workflows: [], workflowRuns: [], media, stockMovements: [],
