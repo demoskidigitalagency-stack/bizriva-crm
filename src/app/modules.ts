@@ -138,6 +138,9 @@ export const MODULES: ModuleDef[] = [
   { id: "payments", label: "Payments", path: "/payments", icon: Wallet, group: "Money", phase: "Later", state: "practice", sources: ["Kobolink", "Prompt"], decision: "Agreed",
     submenus: ["Get paid inside WhatsApp: Paystack, Flutterwave or Monnify", "An account number for every customer, confirmed instantly", "Request payment in the chat: transfer, link, pay on delivery", "Receipt into the chat and a staff alert the moment money lands", "Part payments and overpayments handled", "Transfers to match", "Settlement accounts and split rules by category", "COD ledger and hand-ins", "Unpaid orders"], summary: "Cash held versus remitted, and online payments." },
 
+  { id: "agency", label: "All businesses", path: "/agency", icon: Building2, group: "Money", phase: "MVP", state: "live", sources: ["Prompt"], decision: "Agreed",
+    submenus: ["Every business you run on one screen", "Chats waiting, orders to confirm, month's sales", "One business per WhatsApp number, country or client", "Open any business in one tap", "Add a business"],
+    summary: "Agency mode: run several businesses or WhatsApp numbers side by side." },
   { id: "books", label: "Books", path: "/books", icon: BookOpenCheck, group: "Money", phase: "MVP", state: "live", sources: ["Prompt"], decision: "Agreed",
     submenus: ["Record expenses by category", "Profit and loss by month", "Cost of goods from product costs", "Each currency kept apart", "Download for an accountant or lender"],
     summary: "Sales (delivered) minus cost of goods minus expenses, month by month." },

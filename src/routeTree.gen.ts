@@ -15,6 +15,7 @@ import { Route as AccountRouteImport } from './routes/account'
 import { Route as ActivityRouteImport } from './routes/activity'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AdsRouteImport } from './routes/ads'
+import { Route as AgencyRouteImport } from './routes/agency'
 import { Route as AiAgentRouteImport } from './routes/ai-agent'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as AutomationRouteImport } from './routes/automation'
@@ -105,6 +106,11 @@ const AdminRoute = AdminRouteImport.update({
 const AdsRoute = AdsRouteImport.update({
   id: '/ads',
   path: '/ads',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AgencyRoute = AgencyRouteImport.update({
+  id: '/agency',
+  path: '/agency',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AiAgentRoute = AiAgentRouteImport.update({
@@ -420,6 +426,7 @@ export interface FileRoutesByFullPath {
   '/activity': typeof ActivityRoute
   '/admin': typeof AdminRoute
   '/ads': typeof AdsRoute
+  '/agency': typeof AgencyRoute
   '/ai-agent': typeof AiAgentRoute
   '/analytics': typeof AnalyticsRoute
   '/automation': typeof AutomationRoute
@@ -489,6 +496,7 @@ export interface FileRoutesByTo {
   '/activity': typeof ActivityRoute
   '/admin': typeof AdminRoute
   '/ads': typeof AdsRoute
+  '/agency': typeof AgencyRoute
   '/ai-agent': typeof AiAgentRoute
   '/analytics': typeof AnalyticsRoute
   '/automation': typeof AutomationRoute
@@ -558,6 +566,7 @@ export interface FileRoutesById {
   '/activity': typeof ActivityRoute
   '/admin': typeof AdminRoute
   '/ads': typeof AdsRoute
+  '/agency': typeof AgencyRoute
   '/ai-agent': typeof AiAgentRoute
   '/analytics': typeof AnalyticsRoute
   '/automation': typeof AutomationRoute
@@ -629,6 +638,7 @@ export interface FileRouteTypes {
     | '/activity'
     | '/admin'
     | '/ads'
+    | '/agency'
     | '/ai-agent'
     | '/analytics'
     | '/automation'
@@ -698,6 +708,7 @@ export interface FileRouteTypes {
     | '/activity'
     | '/admin'
     | '/ads'
+    | '/agency'
     | '/ai-agent'
     | '/analytics'
     | '/automation'
@@ -766,6 +777,7 @@ export interface FileRouteTypes {
     | '/activity'
     | '/admin'
     | '/ads'
+    | '/agency'
     | '/ai-agent'
     | '/analytics'
     | '/automation'
@@ -836,6 +848,7 @@ export interface RootRouteChildren {
   ActivityRoute: typeof ActivityRoute
   AdminRoute: typeof AdminRoute
   AdsRoute: typeof AdsRoute
+  AgencyRoute: typeof AgencyRoute
   AiAgentRoute: typeof AiAgentRoute
   AnalyticsRoute: typeof AnalyticsRoute
   AutomationRoute: typeof AutomationRoute
@@ -929,6 +942,13 @@ declare module '@tanstack/react-router' {
       path: '/ads'
       fullPath: '/ads'
       preLoaderRoute: typeof AdsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/agency': {
+      id: '/agency'
+      path: '/agency'
+      fullPath: '/agency'
+      preLoaderRoute: typeof AgencyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/ai-agent': {
@@ -1400,6 +1420,7 @@ const rootRouteChildren: RootRouteChildren = {
   ActivityRoute: ActivityRoute,
   AdminRoute: AdminRoute,
   AdsRoute: AdsRoute,
+  AgencyRoute: AgencyRoute,
   AiAgentRoute: AiAgentRoute,
   AnalyticsRoute: AnalyticsRoute,
   AutomationRoute: AutomationRoute,
