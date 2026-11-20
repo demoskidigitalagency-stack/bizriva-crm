@@ -633,6 +633,8 @@ export interface Broadcast {
   audience?: { kind: "product" | "messaged"; productId?: ID; hours: number; waitHours?: number };
   /** Sent once when a recipient answers. */
   replyBody?: string;
+  /** Photos/videos sent with it (count). */
+  mediaCount?: number;
   /** Results tracked per campaign. Opens and clicks are tracked for email. */
   stats?: { delivered: number; opened?: number; clicked?: number; orders: number; revenue: number; replied?: number };
 }

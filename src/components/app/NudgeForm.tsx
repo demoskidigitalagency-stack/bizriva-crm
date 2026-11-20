@@ -25,6 +25,8 @@ export const WINDOWS = [
 const WAITS = [{ h: 0, label: "straight away" }, { h: 1, label: "1 hour" }, { h: 2, label: "2 hours" }, { h: 6, label: "6 hours" }, { h: 12, label: "12 hours" }, { h: 24, label: "1 day" }];
 type Kind = "product" | "messaged" | "consent";
 interface Saved { id: string; name: string; body: string }
+interface Media { path: string; kind: "image" | "video"; name: string }
+const MAX_FILE = 16 * 1024 * 1024;
 
 export function NudgeForm({ onClose, preset }: { onClose: () => void; preset?: { productId: string; hours: number } }) {
   const db = useDb();
@@ -44,6 +46,31 @@ export function NudgeForm({ onClose, preset }: { onClose: () => void; preset?: {
   const [count, setCount] = useState<{ total: number; in_24h: number } | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const audienceKind = kind;
+  const [media, setMedia] = useState<Media[]>([]);
+  const [uploading, setUploading] = useState(false);
+  // Library files for this product first, then the rest.
+  const library = [...db.media].filter((m) => m.path).sort((a, b) => Number(b.productId === productId) - Number(a.productId === productId));
+  const toggle = (m: Media) => setMedia((v) => v.some((x) => x.path === m.path) ? v.filter((x) => x.path !== m.path) : v.length >= 5 ? v : [...v, m]);
+  const upload = async (files: FileList | null) => {
+    if (!files?.length || !ws) return;
+    const sb = supabase()!;
+    setUploading(true); setError("");
+    const added: Media[] = [];
+    for (const f of [...files].slice(0, 5 - media.length)) {
+      const kind = f.type.startsWith("image/") ? "image" : f.type.startsWith("video/") ? "video" : null;
+      if (!kind) { setError(`${f.name}: only photos and videos`); continue; }
+      if (f.size > MAX_FILE) { setError(`${f.name}: files can be up to 16 MB (WhatsApp's limit)`); continue; }
+      const path = `${ws}/out/media/${crypto.randomUUID()}-${f.name.replace(/[^\w.-]+/g, "_").slice(-80)}`;
+      const up = await sb.storage.from("chat-media").upload(path, f, { contentType: f.type });
+      if (up.error) { setError(`${f.name}: ${up.error.message.includes("mime") ? "use JPG, PNG, WEBP or MP4" : up.error.message}`); continue; }
+      await sb.from("media_assets").insert({ workspace_id: ws, product_id: kind && productId && audienceKind === "product" ? productId : null, kind, storage_path: path, bytes: f.size, name: f.name.slice(0, 200) });
+      added.push({ path, kind, name: f.name });
+    }
+    setMedia((v) => [...v, ...added].slice(0, 5));
+    setUploading(false);
+    void live.reload();
+  };
   const audience = kind === "consent" ? {} : { kind, hours, ...(kind === "product" ? { product_id: productId } : {}), ...(mode === "auto" ? { wait_hours: wait } : {}) };
   const key = JSON.stringify(audience);
 
@@ -66,12 +93,12 @@ export function NudgeForm({ onClose, preset }: { onClose: () => void; preset?: {
   };
   const submit = async (status: "draft" | "scheduled" | "auto") => {
     if (!name.trim()) return setError("Give it a name, e.g. \"Game table nudge\".");
-    if (!body.trim()) return setError("Write the message.");
+    if (!body.trim() && !media.length) return setError("Write the message or add a photo or video.");
     if (kind === "product" && !productId) return setError("Pick the product.");
     if (status === "scheduled" && when && new Date(when) <= new Date()) return setError("Pick a time in the future, or leave it empty to send now.");
     setBusy(true);
     const { error: e } = await supabase()!.from("campaigns").insert({
-      workspace_id: ws, name: name.trim(), channel: "whatsapp", body: body.trim(), reply_body: reply.trim() || null, audience,
+      workspace_id: ws, name: name.trim(), channel: "whatsapp", body: body.trim() || null, reply_body: reply.trim() || null, audience, media,
       status, scheduled_for: status === "scheduled" ? (when ? new Date(when).toISOString() : new Date().toISOString()) : null,
     });
     setBusy(false);
@@ -135,6 +162,36 @@ export function NudgeForm({ onClose, preset }: { onClose: () => void; preset?: {
               <p className="text-xs text-muted-foreground">{"{{name}}"} becomes their first name (or "there").</p>
               <Button type="button" size="sm" variant="ghost" className="h-7 text-xs" onClick={() => void saveMessage()}>Save as template</Button>
             </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Photos and videos (optional, up to 5)</Label>
+            {media.length > 0 && (
+              <ul className="flex flex-wrap gap-2">
+                {media.map((m, i) => (
+                  <li key={m.path} className="flex items-center gap-1 rounded-md border px-2 py-1 text-xs">
+                    <span>{m.kind === "video" ? "🎬" : "🖼️"} {m.name.slice(0, 28)}{i === 0 && body.trim() ? " (with your message as caption)" : ""}</span>
+                    <button type="button" aria-label={`Remove ${m.name}`} className="text-muted-foreground" onClick={() => toggle(m)}>✕</button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="inline-flex h-8 cursor-pointer items-center rounded-md border px-3 text-xs font-medium">
+                {uploading ? "Uploading…" : "Upload photo or video"}
+                <input type="file" accept="image/jpeg,image/png,image/webp,video/mp4" multiple className="sr-only" disabled={uploading || media.length >= 5} onChange={(e) => { void upload(e.target.files); e.target.value = ""; }} />
+              </label>
+              {library.length > 0 && <span className="text-xs text-muted-foreground">or pick from your Media Library:</span>}
+            </div>
+            {library.length > 0 && (
+              <ul className="flex max-h-28 flex-wrap gap-1 overflow-y-auto">
+                {library.slice(0, 30).map((m) => {
+                  const on = media.some((x) => x.path === m.path);
+                  return <li key={m.id}><button type="button" onClick={() => toggle({ path: m.path!, kind: m.kind, name: m.name })} className={`rounded border px-2 py-1 text-xs ${on ? "border-emerald-600 bg-emerald-50 dark:bg-emerald-950/30" : ""}`}>{m.kind === "video" ? "🎬" : "🖼️"} {m.name.slice(0, 22)}</button></li>;
+                })}
+              </ul>
+            )}
+            <p className="text-xs text-muted-foreground">Each person gets the files in this order; your message is the caption on the first one. JPG, PNG, WEBP or MP4, up to 16 MB each. Uploads are also kept in your Media Library.</p>
           </div>
 
           <div className="space-y-1.5"><Label htmlFor="nr">When they reply, send (optional)</Label>
