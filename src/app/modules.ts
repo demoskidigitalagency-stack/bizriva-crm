@@ -13,7 +13,7 @@ import {
   Scissors,
   BarChart3, BookOpen, Boxes, Bot, CalendarCheck, CreditCard, FileText, HelpCircle, Images, LayoutDashboard,
   Megaphone, MessageSquare, Package, Plug, Send, Settings, ShieldCheck, ShoppingBag, Store, Truck, Users,
-  UsersRound, Wallet, Workflow, History, ListChecks, Bike, Building2, ClipboardList, CalendarDays, Telescope, Sunrise, PhoneCall, Smartphone, Activity,
+  UsersRound, Wallet, BookOpenCheck, Workflow, History, ListChecks, Bike, Building2, ClipboardList, CalendarDays, Telescope, Sunrise, PhoneCall, Smartphone, Activity,
 } from "lucide-react";
 
 /** How real a module is today. Shown honestly in the UI — never overstated. */
@@ -137,6 +137,10 @@ export const MODULES: ModuleDef[] = [
   // Money
   { id: "payments", label: "Payments", path: "/payments", icon: Wallet, group: "Money", phase: "Later", state: "practice", sources: ["Kobolink", "Prompt"], decision: "Agreed",
     submenus: ["Get paid inside WhatsApp: Paystack, Flutterwave or Monnify", "An account number for every customer, confirmed instantly", "Request payment in the chat: transfer, link, pay on delivery", "Receipt into the chat and a staff alert the moment money lands", "Part payments and overpayments handled", "Transfers to match", "Settlement accounts and split rules by category", "COD ledger and hand-ins", "Unpaid orders"], summary: "Cash held versus remitted, and online payments." },
+
+  { id: "books", label: "Books", path: "/books", icon: BookOpenCheck, group: "Money", phase: "MVP", state: "live", sources: ["Prompt"], decision: "Agreed",
+    submenus: ["Record expenses by category", "Profit and loss by month", "Cost of goods from product costs", "Each currency kept apart", "Download for an accountant or lender"],
+    summary: "Sales (delivered) minus cost of goods minus expenses, month by month." },
 
   // Insights
   { id: "analytics", label: "Analytics", path: "/analytics", icon: BarChart3, group: "Insights", phase: "MVP", state: "practice", sources: ["Kobolink", "Prompt"], decision: "Agreed",
